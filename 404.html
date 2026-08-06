@@ -41,30 +41,11 @@
   const template = vendeur.template ? vendeur.template.toLowerCase() : '';
   const fichier = template ? `index-${template}.html` : 'index.html';
 
-  try {
-    const reponse = await fetch('/' + fichier);
-    if (!reponse.ok) throw new Error('fichier introuvable');
-    let html = await reponse.text();
-
-    // La page injectée a elle-même une balise <script src="supabase-config.js">,
-    // déjà chargée une première fois ici dans 404.html. La garder provoquerait
-    // une double déclaration (SUPABASE_URL, supabaseClient...) et ferait planter
-    // tout le document.write() qui suit. On la retire avant l'injection.
-    html = html.replace('<script src="supabase-config.js"></script>', '');
-
-    // On force tous les chemins relatifs de la page (CSS, JS, images) à se
-    // résoudre depuis la racine du site, peu importe l'URL affichée
-    // (avec ou sans "/" final) dans la barre d'adresse.
-    html = html.replace('<head>', '<head><base href="/">');
-
-    // On réécrit le document avec le contenu de la vraie page,
-    // sans changer l'URL affichée dans la barre d'adresse.
-    document.open();
-    document.write(html);
-    document.close();
-  } catch (err) {
-    messageEl.textContent = "Erreur de chargement de la boutique.";
-  }
+  // Vraie navigation vers le fichier réel (chargement normal, fiable, sans
+  // document.write). Le paramètre "pretty=1" indique à script.js de
+  // remettre l'URL "chemin propre" dans la barre d'adresse une fois arrivé,
+  // via history.replaceState (voir script.js).
+  window.location.replace(`/${fichier}?v=${encodeURIComponent(slug)}&pretty=1`);
 })();
 </script>
 </body>

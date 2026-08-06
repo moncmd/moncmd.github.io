@@ -87,6 +87,17 @@ function mettreAJourIconeModeSombre() {
 
 document.addEventListener('DOMContentLoaded', initModeSombre);
 
+// Si on arrive ici via 404.html (paramètre "pretty=1"), la page a été chargée
+// via une vraie redirection vers le fichier réel (index-urbain.html?v=slug...).
+// Une fois que tout a bien chargé, on remet l'URL "chemin propre" (/slug)
+// dans la barre d'adresse, sans recharger la page.
+function restaurerURLPropre(slug) {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('pretty') === '1') {
+    history.replaceState(null, '', `/${slug}`);
+  }
+}
+
 async function chargerBoutique() {
   const debutChargement = Date.now();
   const slug = getVendeurSlug();
@@ -112,6 +123,8 @@ async function chargerBoutique() {
   // Si ce fichier ne correspond pas à la template réelle du vendeur,
   // on redirige immédiatement vers le bon fichier et on arrête tout ici.
   if (verifierTemplateCorrect()) return;
+
+  restaurerURLPropre(slug);
 
   appliquerIdentiteVendeur(vendeur);
 
