@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMD. — Commande</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Style spécifique Doux -->
+    <link rel="stylesheet" href="style-doux.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <a href="javascript:void(0)" onclick="allerVers('index')" style="text-decoration: none;">
+                <h5 style="margin:0; font-family:'Cormorant Garamond',serif; font-size:1.25rem; font-weight:600; color:var(--ink);">CMD.</h5>
+            </a>
+        </div>
+        <div id="panier"></div>
+        <nav>
+            <div class="panier-count">
+                <span id="compteur">0</span>
+                <a href="javascript:void(0)" onclick="voirpanier()">
+                    <i class="fa-solid fa-bag-shopping" style="font-size:18px; color:var(--ink);"></i>
+                </a>
+            </div>
+            <button class="btn-mode-sombre" id="btn-toggle-mode-sombre" title="Mode sombre" onclick="toggleModeSombre()" style="display:none;"><i class="fa-solid fa-moon"></i></button>
+            <a href="https://wa.me/" target="_blank">
+                <i class="fa-brands fa-whatsapp" style="font-size:20px; color:var(--ink);"></i>
+            </a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="menu">
+            <p>Achat</p>
+            <h1>Finaliser votre commande</h1>
+        </div>
+
+        <div class="commande-layout">
+            <div class="lefft">
+                <div class="select" style="justify-content: flex-start; padding: 0 0 16px;">
+                    <div class="selecttt">
+                        <button class="menu-btn active" onclick="modePaiement('surplace', this)">Sur place</button>
+                    </div>
+                    <div class="selecttt">
+                        <button class="menu-btn" onclick="modePaiement('online', this)">Online</button>
+                    </div>
+                </div>
+
+                <div class="paiement" style="display: none; flex-direction:column; gap:12px; text-align:left;">
+                    <div>
+                        <h4 style="margin:0 0 4px; font-size:13px;">Payer avec Wave</h4>
+                        <p id="wave-numero" style="margin:0; font-size:13px; color:var(--acc);">—</p>
+                    </div>
+                    <div>
+                        <h4 style="margin:0 0 4px; font-size:13px;">Payer avec OM</h4>
+                        <p id="om-numero" style="margin:0; font-size:13px; color:var(--acc);">—</p>
+                    </div>
+                </div>
+
+                <div class="form">
+                    <label for="nom">Nom</label>
+                    <input type="text" id="nom" required>
+
+                    <label for="prenom">Prénom</label>
+                    <input type="text" id="prenom" required>
+
+                    <label for="numero">Numéro</label>
+                    <input type="text" id="numero" required>
+
+                    <label for="adresse">Adresse</label>
+                    <input type="text" id="adresse" placeholder="Quartier, ville...">
+
+                    <label for="heure">Heure de récupération</label>
+                    <input type="time" id="heure" required>
+                </div>
+
+                <a href="javascript:void(0)" onclick="envoyerCommande()" class="btn-envoyer" style="text-align:center;">
+                    Envoyer sur WhatsApp
+                </a>
+            </div>
+
+            <div class="rightt">
+                <h3>Votre commande</h3>
+                <div id="resume"></div>
+                <p style="font-size:12px; color:#888; margin-top:14px; line-height:1.5;">
+                    NB : la livraison n'est pas incluse dans les prix affichés. Si vous en avez besoin, elle sera directement discutée avec le vendeur sur WhatsApp.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>2026 Copyrights - <a href="https://hilarionv.github.io/PORTFOLIO/">By HV</a></p>
+    </footer>
+
+    <script src="supabase-config.js"></script>
+    <script src="script.js"></script>
+    <script src="voirpanier.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="commande.js"></script>
+</body>
+</html>

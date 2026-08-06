@@ -1,0 +1,362 @@
+/* ============================================
+   CMD. — Template DOUX
+   Réutilise les mêmes classes/IDs que script.js attend
+   ============================================ */
+
+   :root {
+    --ink: #3a352f;
+    --bg: #faf6f1;
+    --card: #fff;
+    --acc: #b8896f;
+    --line: #e8dfd5;
+    --couleur-accent: #e56400; /* re-défini en JS selon le vendeur (prix, CTA) */
+}
+
+* { box-sizing: border-box; }
+
+body {
+    font-family: "Inter", sans-serif;
+    background-color: var(--bg);
+    color: var(--ink);
+    margin: 0;
+    padding: 0;
+}
+
+/* ---------- Header ---------- */
+header {
+    background-color: var(--bg);
+    padding: 18px 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    top: 0; right: 0; left: 0;
+    z-index: 999;
+}
+.logo img { border-radius: 50%; height: 40px; width: 40px; object-fit: cover; }
+nav { display: flex; align-items: center; gap: 20px; }
+nav a { text-decoration: none; color: var(--ink); display: flex; align-items: center; }
+nav svg path { fill: var(--ink); }
+.panier-count { display: flex; align-items: center; gap: 6px; }
+.panier-count span#compteur {
+    background-color: var(--acc) !important;
+    padding: 4px 9px !important;
+    border-radius: 50% !important;
+    color: #fff !important;
+    font-size: 12px;
+    font-weight: 600;
+}
+.btn-mode-sombre { display: none; }
+
+/* ---------- Contenu principal ---------- */
+main { padding: 104px 0 40px; max-width: 560px; margin: 0 auto; }
+
+.menu { padding: 0 24px 22px; text-align: center; }
+.menu p {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--acc);
+    margin: 0;
+}
+.menu h1 {
+    font-family: "Cormorant Garamond", serif;
+    font-weight: 500;
+    font-size: 2rem;
+    margin: 8px 0 0;
+    line-height: 1.15;
+    color: var(--ink);
+}
+
+/* ---------- Catégories ---------- */
+.select {
+    display: flex;
+    gap: 22px;
+    padding: 0 24px 22px;
+    overflow-x: auto;
+    justify-content: center;
+    scrollbar-width: thin;
+}
+.selectt { flex-shrink: 0; }
+.selectt button {
+    padding: 0 0 4px;
+    background: none;
+    color: #9a8f80;
+    border: none;
+    border-bottom: 1px solid transparent;
+    width: auto;
+    height: auto;
+    white-space: nowrap;
+    font-family: "Inter", sans-serif;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.selectt button:hover { color: var(--ink); }
+.selectt button.active { color: var(--ink); border-bottom-color: var(--acc); }
+
+/* ---------- Sections produits (Splide) ---------- */
+.categorie-section { padding: 4px 0 22px; }
+.categorie-section .splide__track { padding: 0 24px; }
+
+.product-card {
+    background-color: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    margin: 1px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.01);
+}
+
+.product-card img {
+    width: 100%;
+    height: 220px; /* Aligné sur la hauteur du standard */
+    object-fit: contain;
+    border-radius: 12px;
+    background-color: #fafafa; /* Ajuste si tu préfères garder ta couleur de fond douce #f3ebe0 */
+    margin-bottom: 4px;
+}
+
+.product-card .produit { 
+    font-weight: 700;
+    font-size: 16px; 
+    color: var(--ink); 
+    margin: 0; 
+    line-height: 1.4; 
+}
+
+.product-card .prix { 
+    color: var(--couleur-accent, var(--acc)); 
+    font-weight: 600;
+    font-size: 15px; 
+    margin: 0 0 6px 0; 
+}
+
+.product-card a {
+    text-decoration: none;
+    padding: 12px;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.product-card a:first-of-type {
+    background-color: transparent;
+    color: var(--acc);
+    border: 2px solid var(--acc);
+}
+
+.product-card a:first-of-type:hover { 
+    background-color: var(--acc); 
+    color: #fff; 
+}
+
+.product-card a:last-of-type {
+    background-color: var(--couleur-accent, var(--acc));
+    color: #fff;
+    border: 2px solid var(--couleur-accent, var(--acc));
+}
+
+.product-card a:last-of-type:hover { 
+    opacity: 0.88; 
+}
+
+.splide__list { gap: 24px; }
+
+.badge-favori {
+    position: absolute; top: 10px; left: 10px;
+    background: var(--acc); color: #fff;
+    font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.02em; z-index: 2;
+}
+.badge-stock-bas, .badge-rupture {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 20px; z-index: 2;
+}
+.badge-stock-bas { background: #f6e6d2; color: #97672f; }
+.badge-rupture { background: #f0ece5; color: #8a8072; }
+
+.attente-stock { display: flex; flex-direction: column; gap: 8px; }
+.attente-stock .input-attente-stock {
+    padding: 9px; border: 1px solid var(--line); border-radius: 10px;
+    font-family: "Inter", sans-serif; font-size: 12px;
+}
+.attente-stock .btn-attente-stock {
+    background: transparent; color: var(--acc); border: 1px solid var(--acc);
+    border-radius: 10px; padding: 9px; font-weight: 500; font-size: 12px; cursor: pointer;
+}
+.attente-stock .btn-attente-stock:hover { background: var(--acc); color: #fff; }
+.attente-message { font-size: 11px; margin: 0; }
+
+/* ---------- Panier latéral ---------- */
+#panier {
+    position: fixed; top: 0; right: -400px;
+    width: 340px; max-width: 90vw; height: 100vh;
+    background-color: var(--bg);
+    box-shadow: -4px 0 15px rgba(0,0,0,0.06);
+    padding: 24px;
+    overflow-y: auto;
+    transition: right 0.3s ease;
+    z-index: 1000;
+}
+#panier.ouvert { right: 0; }
+
+.toggle {
+    margin-bottom: 14px;
+    background-color: #fff;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.pan {
+    display: flex; flex-direction: column; gap: 10px;
+    background-color: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 14px;
+}
+.pan .top { display: flex; gap: 12px; align-items: center; }
+.pan .top .image img { width: 56px; height: 56px; object-fit: contain; background: #f3ebe0; border-radius: 10px; }
+.pan .top .details h4 { margin: 0 0 4px; font-size: 13px; font-weight: 500; }
+.pan .top .details p { margin: 0; font-size: 12px; color: var(--acc); font-weight: 600; }
+.pan .bottom { display: flex; align-items: center; gap: 10px; }
+.pan .bottom .countt { font-weight: 600; font-size: 14px; min-width: 20px; text-align: center; }
+.pan .bottom button {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid var(--acc); background: transparent; color: var(--acc);
+    font-weight: 600; cursor: pointer;
+}
+.pan .bottom button:hover { background: var(--acc); color: #fff; }
+
+.gg {
+    text-decoration: none;
+    color: #fff;
+    background-color: var(--acc);
+    padding: 14px;
+    margin-top: 30px;
+    font-weight: 500;
+    border-radius: 14px;
+    display: block;
+    text-align: center;
+}
+
+/* ---------- Avis clients ---------- */
+.avis-section { max-width: 560px; margin: 0 auto; padding: 26px 24px 6px; border-top: 1px solid var(--line); }
+.avis-titre { font-family: "Cormorant Garamond", serif; font-weight: 600; font-size: 1.2rem; margin: 0 0 12px; }
+.btn-laisser-avis {
+    background: none; border: 1px solid var(--acc); color: var(--acc);
+    padding: 9px 16px; border-radius: 20px; font-size: 12px; cursor: pointer; margin-bottom: 16px;
+}
+.formulaire-avis { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 18px; }
+.formulaire-avis input, .formulaire-avis textarea {
+    width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 10px; border: 1px solid var(--line);
+    font-family: inherit; font-size: 13px; box-sizing: border-box; resize: vertical;
+}
+.etoiles-input { font-size: 22px; color: #ddd; margin-bottom: 10px; cursor: pointer; }
+.etoiles-input span.active { color: var(--acc); }
+.btn-envoyer-avis { background: var(--acc); color: #fff; border: none; padding: 10px 18px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer; }
+
+.avis-marquee-wrapper {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+}
+.avis-marquee-track { display: flex; gap: 12px; width: max-content; animation: defiler-avis 26s linear infinite; padding-bottom: 6px; }
+.avis-marquee-wrapper:hover .avis-marquee-track { animation-play-state: paused; }
+@keyframes defiler-avis { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.avis-item { flex: 0 0 190px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; font-size: 12px; }
+.avis-item .avis-haut { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.avis-item .avis-nom { font-weight: 600; font-size: 12px; }
+.avis-item .avis-etoiles { color: var(--acc); font-size: 11px; }
+.avis-item .avis-texte { color: #7a7267; line-height: 1.4; font-size: 12px; }
+
+/* ---------- FAQ ---------- */
+.faq-section { max-width: 560px; margin: 0 auto; padding: 22px 24px 30px; border-top: 1px solid var(--line); }
+.faq-titre { font-family: "Cormorant Garamond", serif; font-weight: 600; font-size: 1.2rem; margin: 0 0 10px; }
+.faq-item { border-bottom: 1px solid var(--line); }
+.faq-question { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; font-size: 13.5px; font-weight: 500; cursor: pointer; }
+.faq-question .icone { color: var(--acc); transition: transform 0.2s ease; }
+.faq-item.ouvert .icone { transform: rotate(45deg); }
+.faq-reponse { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; font-size: 13px; color: #7a7267; line-height: 1.5; }
+.faq-item.ouvert .faq-reponse { max-height: 260px; padding-bottom: 14px; }
+
+/* ---------- Footer ---------- */
+footer {
+    margin-top: 0;
+    padding: 22px;
+    text-align: center;
+    font-size: 11px;
+    color: #b0a695;
+}
+footer a { color: var(--acc); text-decoration: none; font-weight: 600; }
+
+/* ---------- Page produit (panier.html) ---------- */
+.produit-detail {
+    display: flex; gap: 40px; padding: 124px 24px 40px;
+    max-width: 900px; margin: 0 auto; align-items: flex-start;
+}
+.left { flex: 1; }
+.left img { width: 100%; border-radius: 16px; object-fit: contain; background-color: #f3ebe0; }
+.right { flex: 1; display: flex; flex-direction: column; gap: 16px; }
+.right .nom { font-family: "Cormorant Garamond", serif; font-weight: 600; font-size: 1.6rem; color: var(--ink); margin: 0; }
+.right .prix { font-size: 1.1rem; color: var(--acc); margin: 0; }
+.right .description { line-height: 1.6; color: #7a7267; }
+.right textarea {
+    padding: 12px; border: 1px solid var(--line); border-radius: 12px;
+    font-family: "Inter", sans-serif; font-size: 14px; resize: none; height: 90px;
+    background-color: #fff; width: 100%; box-sizing: border-box;
+}
+.right a {
+    background-color: var(--couleur-accent, var(--acc));
+    color: #fff; text-align: center; padding: 14px; border-radius: 12px;
+    text-decoration: none; font-weight: 500; font-size: 13px; width: 100%; box-sizing: border-box; display: block;
+}
+@media (max-width: 768px) { .produit-detail { flex-direction: column; } }
+
+/* ---------- Commande (commande.html) ---------- */
+.commande-layout { display: flex; gap: 40px; padding: 124px 24px 40px; max-width: 900px; margin: 0 auto; align-items: flex-start; }
+.lefft { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+.rightt { flex: 1; background-color: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+.rightt h3 { font-family: "Cormorant Garamond", serif; font-weight: 600; font-size: 1.15rem; color: var(--ink); margin: 0 0 16px; }
+.resume-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 13px; font-weight: 500; }
+.resume-item p { margin: 0; }
+.resume-item .commentaire { font-size: 11px; color: #9a8f80; font-weight: 400; margin-top: 3px; }
+.total { font-size: 15px; font-weight: 600; color: var(--acc); text-align: right; margin-top: 16px; }
+.paiement { display: flex; gap: 30px; justify-content: center; background-color: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 22px; text-align: center; }
+.paiement h4 { font-size: 13px; font-weight: 500; margin: 10px 0 6px; }
+.paiement img { height: 50px; }
+.paiement p { font-size: 12px; color: var(--acc); font-weight: 500; margin: 0; }
+.form { display: flex; flex-direction: column; gap: 12px; }
+.form label { font-size: 12px; font-weight: 500; color: var(--ink); }
+.form input {
+    padding: 12px; border-radius: 12px; border: 1px solid var(--line);
+    font-family: "Inter", sans-serif; font-size: 14px; background-color: #fff; outline: none;
+}
+.form input:focus { border-color: var(--acc); }
+.btn-envoyer {
+    background-color: var(--couleur-accent, var(--acc));
+    color: #fff; text-align: center; padding: 14px; border-radius: 12px;
+    text-decoration: none; font-weight: 500; font-size: 13px; display: block; margin-top: 6px;
+}
+.menu-btn {
+    padding: 10px 16px; background: #fff; border: 1px solid var(--line); border-radius: 20px;
+    font-family: "Inter", sans-serif; font-weight: 500; font-size: 13px; cursor: pointer;
+}
+.menu-btn.active { background: var(--acc); color: #fff; border-color: var(--acc); }
+@media (max-width: 768px) { .commande-layout { flex-direction: column; } }
+
+.toast {
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+    background-color: var(--ink); color: #fff;
+    padding: 12px 22px; border-radius: 20px; font-weight: 500; font-size: 13px; z-index: 9999;
+}

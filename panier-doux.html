@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMD. — Détail & Panier</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <!-- Style spécifique Doux -->
+    <link rel="stylesheet" href="style-doux.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <a href="javascript:void(0)" onclick="allerVers('index')" style="text-decoration: none;">
+                <h5 style="margin:0; font-family:'Cormorant Garamond',serif; font-size:1.25rem; font-weight:600; color:var(--ink);">CMD.</h5>
+            </a>
+        </div>
+        <div id="panier"></div>
+        <nav>
+          <div class="panier-count">
+           <span id="compteur">0</span> 
+           <a href="javascript:void(0)" onclick="voirpanier()">
+               <i class="fa-solid fa-bag-shopping" style="font-size:18px; color:var(--ink);"></i>
+           </a>
+          </div>
+          <a href="admin.html" title="Espace vendeur">
+              <i class="fa-solid fa-user-gear" style="font-size:18px; color:var(--ink);"></i>
+          </a>
+          <button class="btn-mode-sombre" id="btn-toggle-mode-sombre" title="Mode sombre" onclick="toggleModeSombre()" style="display:none;"><i class="fa-solid fa-moon"></i></button>
+          <a href="https://wa.me/" target="_blank">
+            <i class="fa-brands fa-whatsapp" style="font-size:20px; color:var(--ink);"></i>
+          </a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="produit-detail">
+            <div class="left">
+               <img src="" alt="">
+            </div>
+            <div class="right">
+                <p class="nom"></p>
+                <p class="prix"></p>
+                <p class="description"></p>
+                <textarea placeholder="Instructions particulières (ex: emballage cadeau, notes...)"></textarea> <br>
+                <a href="javascript:void(0)" id="btn-acheter">Ajouter au panier</a>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>2026 Copyrights - <a href="https://hilarionv.github.io/PORTFOLIO/">By HV</a></p>
+    </footer>
+
+    <script src="supabase-config.js"></script>
+    <script src="script.js"></script>
+    <script src="panier.js"></script>
+    <script src="voirpanier.js"></script>
+</body>
+</html>

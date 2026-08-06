@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMD. — Boutique</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome pour les icones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Splide CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/css/splide.min.css">
+    <!-- Style spécifique Doux -->
+    <link rel="stylesheet" href="style-doux.css">
+</head>
+<body>
+
+    <!-- Écran de chargement initial -->
+    <div id="ecran-chargement" style="position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg); display:flex; justify-content:center; align-items:center; z-index:99999; transition: opacity 0.4s ease;">
+        <div style="font-family:'Cormorant Garamond',serif; font-size:1.5rem; color:var(--ink); letter-spacing:0.05em;">Chargement...</div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <a href="javascript:void(0)" onclick="allerVers('index')" style="text-decoration: none; color: inherit;">
+                <h5 style="margin:0; font-family:'Cormorant Garamond',serif; font-size:1.25rem; font-weight:600;">CMD.</h5>
+            </a>
+        </div>
+        <div id="panier"></div>
+        <nav>
+            <a href="https://wa.me/" target="_blank" title="Contactez-nous sur WhatsApp">
+                <i class="fa-brands fa-whatsapp" style="font-size:20px;"></i>
+            </a>
+            <a href="admin.html" title="Espace vendeur"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M367-527q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Zm80-80h480v-32q0-11-5.5-20T700-306q-54-27-109-40.5T480-360q-56 0-111 13.5T260-306q-9 5-14.5 14t-5.5 20v32Zm296.5-343.5Q560-607 560-640t-23.5-56.5Q513-720 480-720t-56.5 23.5Q400-673 400-640t23.5 56.5Q447-560 480-560t56.5-23.5ZM480-640Zm0 400Z"/></svg></a>
+            
+            <div class="panier-count" onclick="voirpanier()" style="cursor:pointer;" title="Voir le panier">
+                <i class="fa-solid fa-bag-shopping" style="font-size:18px;"></i>
+                <span id="compteur">0</span>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Contenu Principal -->
+    <main>
+        <div class="menu">
+            <p>Catalogue</p>
+            <h1>Faites votre commande</h1>
+        </div>
+
+        <!-- Boutons de catégories -->
+        <div class="select" id="categories-boutons">
+            <!-- Généré dynamiquement par script.js -->
+        </div>
+
+        <!-- Sections des produits par catégorie -->
+        <div id="categories-produits">
+            <!-- Généré dynamiquement par script.js -->
+        </div>
+
+        <!-- Section Avis Clients -->
+        <div class="avis-section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 class="avis-titre" style="margin:0;">Avis Clients</h3>
+                <button class="btn-laisser-avis" onclick="toggleFormulaireAvis()">Laisser un avis</button>
+            </div>
+
+            <!-- Formulaire d'avis (masqué par défaut) -->
+            <div id="formulaire-avis" class="formulaire-avis" style="display:none;">
+                <div class="etoiles-input" id="etoiles-input">
+                    <span data-valeur="1">★</span><span data-valeur="2">★</span><span data-valeur="3">★</span><span data-valeur="4">★</span><span data-valeur="5">★</span>
+                </div>
+                <input type="text" id="avis-nom" placeholder="Votre nom complet">
+                <input type="text" id="avis-numero" placeholder="Votre numéro WhatsApp">
+                <textarea id="avis-commentaire" placeholder="Partagez votre expérience..."></textarea>
+                <button class="btn-envoyer-avis" onclick="envoyerAvis()">Envoyer l'avis</button>
+                <p id="avis-message" style="font-size:12px; margin-top:8px;"></p>
+            </div>
+
+            <!-- Liste des avis (Marquee) -->
+            <div class="avis-marquee-wrapper">
+                <div class="avis-marquee-track" id="avis-liste">
+                    <!-- Généré dynamiquement par script.js -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Section FAQ -->
+        <div class="faq-section" id="faq-section">
+            <h3 class="faq-titre">Questions Fréquentes</h3>
+            <div id="faq-liste">
+                <!-- Généré dynamiquement par script.js -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>Propulsé par <a href="https://github.com" target="_blank">CMD.</a></p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4.1.4/dist/js/splide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.js"></script>
+    <script src="script.js"></script>
+    <script src="voirpanier.js"></script>
+</body>
+</html>

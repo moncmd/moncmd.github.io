@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMD.</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<style>
+  body{font-family:'Montserrat',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;color:#666;text-align:center;padding:24px;}
+</style>
+</head>
+<body>
+<p id="message-chargement">Chargement de la boutique…</p>
+
+<script>
+(async function () {
+  const messageEl = document.getElementById('message-chargement');
+
+  // Le premier segment du chemin est censé être le slug du client
+  // (ex : shop.moncmd.site/victoryfood -> "victoryfood")
+  const chemin = window.location.pathname.replace(/^\/|\/$/g, '');
+  const slug = chemin.split('/')[0];
+
+  if (!slug) {
+    messageEl.textContent = "Page introuvable.";
+    return;
+  }
+
+  const { data: vendeur, error } = await supabaseClient
+    .from('vendeurs')
+    .select('template, actif')
+    .eq('slug', slug)
+    .single();
+
+  if (error || !vendeur || !vendeur.actif) {
+    messageEl.textContent = "Cette boutique n'existe pas ou plus.";
+    return;
+  }
+
+  const template = vendeur.template ? vendeur.template.toLowerCase() : '';
+  const fichier = template ? `index-${template}.html` : 'index.html';
+
+  try {
+    const reponse = await fetch('/' + fichier);
+    if (!reponse.ok) throw new Error('fichier introuvable');
+    let html = await reponse.text();
+
+    // La page injectée a elle-même une balise <script src="supabase-config.js">,
+    // déjà chargée une première fois ici dans 404.html. La garder provoquerait
+    // une double déclaration (SUPABASE_URL, supabaseClient...) et ferait planter
+    // tout le document.write() qui suit. On la retire avant l'injection.
+    html = html.replace('<script src="supabase-config.js"></script>', '');
+
+    // On force tous les chemins relatifs de la page (CSS, JS, images) à se
+    // résoudre depuis la racine du site, peu importe l'URL affichée
+    // (avec ou sans "/" final) dans la barre d'adresse.
+    html = html.replace('<head>', '<head><base href="/">');
+
+    // On réécrit le document avec le contenu de la vraie page,
+    // sans changer l'URL affichée dans la barre d'adresse.
+    document.open();
+    document.write(html);
+    document.close();
+  } catch (err) {
+    messageEl.textContent = "Erreur de chargement de la boutique.";
+  }
+})();
+</script>
+</body>
+</html>

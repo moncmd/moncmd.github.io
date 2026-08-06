@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMD. — Espace Admin Prestataire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+  :root{ --couleur-accent:#e56400; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#f6f6f8;font-family:'Montserrat',sans-serif;color:#1a1a1a;}
+  header{padding:16px 20px;display:flex;align-items:center;gap:10px;background:#fff;border-bottom:1px solid #eee;}
+  header img{width:28px;height:28px;border-radius:8px;}
+  header .tag{font-size:12px;color:#999;margin-left:4px;}
+
+  #vue-login{display:block;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .login-card{background:#fff;border-radius:16px;padding:32px 26px;max-width:340px;width:100%;box-shadow:0 2px 10px rgba(0,0,0,0.06);}
+  .login-card h2{font-size:20px;margin-bottom:6px;}
+  .login-card .sub{color:#999;font-size:13px;margin-bottom:18px;}
+  #vue-dashboard{display:none;}
+
+  .admin-shell{padding:20px 16px 90px;max-width:900px;margin:0 auto;}
+  .admin-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+  .admin-topbar h2{font-size:20px;}
+  .admin-topbar .boutique-tag{font-size:12px;color:#999;}
+  .btn-logout-icon{background:#fff;border:1px solid #e5e5e5;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#777;cursor:pointer;}
+
+  .onglet-panel{display:none;}
+  .onglet-panel.actif{display:block;animation:fadeIn .25s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  .admin-card{background:#fff;border-radius:16px;padding:20px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,0.05);}
+  .admin-card h3{margin:0 0 14px;font-size:14px;display:flex;align-items:center;gap:8px;}
+  .admin-card h3 i{color:var(--couleur-accent);}
+  .admin-form input,.admin-form select,.admin-form textarea{width:100%;padding:11px;margin-bottom:10px;border-radius:10px;border:1px solid #e5e5e5;font-family:inherit;font-size:14px;}
+  .admin-btn{background:var(--couleur-accent);color:#fff;border:none;padding:12px 18px;border-radius:10px;cursor:pointer;font-weight:700;width:100%;font-size:14px;}
+  .admin-btn.secondaire{background:#f1f1f1;color:#333;}
+  .champ-label{font-size:12px;color:#888;display:block;margin-bottom:6px;}
+  .form-message{font-size:12px;margin-top:8px;}
+
+  .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:14px;}
+  .stats-grid.two{grid-template-columns:repeat(2,1fr);}
+  .stat-box{background:#fff;border-radius:14px;padding:14px 8px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.05);}
+  .stat-box .stat-icon{font-size:14px;color:var(--couleur-accent);margin-bottom:5px;}
+  .stat-box h2{margin:0;font-size:18px;}
+  .stat-box p{margin:2px 0 0;color:#999;font-size:10.5px;}
+
+  .chart-bars{display:flex;align-items:flex-end;gap:6px;height:80px;}
+  .chart-bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+  .chart-bar{width:100%;background:var(--couleur-accent);border-radius:6px 6px 3px 3px;opacity:.85;min-height:3px;}
+  .chart-bar-label{font-size:9px;color:#aaa;margin-top:5px;}
+
+  .row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #f0f0f0;}
+  .row:last-child{border-bottom:none;}
+  .row-thumb{width:46px;height:46px;border-radius:10px;background:#f1f1f1;flex-shrink:0;object-fit:cover;}
+  .row-infos{flex:1;min-width:0;}
+  .row-infos strong{display:block;font-size:13.5px;}
+  .row-infos span.sub{color:#999;font-size:12px;}
+  .row-actions{display:flex;gap:7px;flex-shrink:0;}
+  .icon-btn{width:30px;height:30px;border-radius:8px;border:none;background:#f5f5f5;color:#777;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;}
+  .icon-btn.danger:hover{background:#ffe5e5;color:#e00;}
+  .badge{background:#f1f1f1;padding:3px 9px;border-radius:20px;font-size:10.5px;color:#666;}
+  .empty-state{color:#aaa;font-size:13px;text-align:center;padding:16px 0;}
+  .verrouille{opacity:0.5;pointer-events:none;position:relative;}
+  .verrouille::after{content:"🔒 Passez à la formule supérieure";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.6);font-size:12px;font-weight:700;text-align:center;padding:10px;}
+
+  .gal-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .gal-thumb{aspect-ratio:1;border-radius:10px;background:#f1f1f1;position:relative;overflow:hidden;}
+  .gal-thumb img{width:100%;height:100%;object-fit:cover;}
+  .gal-thumb .del{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  .gal-add{border:1.5px dashed #ddd;display:flex;align-items:center;justify-content:center;color:#999;font-size:11px;cursor:pointer;}
+
+  .day-toggle{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px;}
+  .day-toggle span{padding:7px 12px;border-radius:20px;background:#f1f1f1;font-size:12px;cursor:pointer;}
+  .day-toggle span.off{background:#1a1a1a;color:#fff;}
+
+  .admin-tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #eee;display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom);}
+  .admin-tab{flex:1;text-align:center;padding:10px 2px 9px;cursor:pointer;color:#999;font-size:9.5px;border:none;background:none;}
+  .admin-tab i{display:block;font-size:15px;margin-bottom:3px;}
+  .admin-tab.actif{color:var(--couleur-accent);}
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="vue-login">
+  <div class="login-card">
+    <h2>Connexion</h2>
+    <p class="sub">Accédez à votre tableau de bord CMD.</p>
+    <div class="admin-form">
+      <input type="email" id="login-email" placeholder="Email">
+      <input type="password" id="login-password" placeholder="Mot de passe">
+      <button class="admin-btn" onclick="connexion()">Se connecter</button>
+      <p id="login-erreur" style="color:red;margin-top:10px;font-size:13px;"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DASHBOARD ===== -->
+<div id="vue-dashboard">
+<header>
+  <img src="logo-cmd.png" alt="CMD."> Admin <span class="tag" id="header-boutique-nom">— Votre Boutique</span>
+</header>
+
+<main class="admin-shell">
+
+  <div class="admin-topbar">
+    <div><h2 id="nom-boutique-admin">Votre Boutique</h2><div class="boutique-tag">Espace prestataire CMD.</div></div>
+    <button class="btn-logout-icon" onclick="deconnexion()"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="onglet-dashboard" class="onglet-panel actif">
+    <div class="stats-grid">
+      <div class="stat-box"><div class="stat-icon"><i class="fa-solid fa-calendar-check"></i></div><h2 id="stat-rdv-mois">—</h2><p>RDV ce mois</p></div>
+      <div class="stat-box"><div class="stat-icon"><i class="fa-solid fa-scissors"></i></div><h2 id="stat-prestations-actives">—</h2><p>Prestations actives</p></div>
+      <div class="stat-box"><div class="stat-icon"><i class="fa-solid fa-sack-dollar"></i></div><h2 id="stat-ca-mois">—</h2><p>FCFA ce mois</p></div>
+    </div>
+
+    <div class="admin-card" id="carte-benefice-net" style="text-align:center;">
+      <h3 style="justify-content:center;"><i class="fa-solid fa-scale-balanced"></i> Bénéfice net (ce mois) <span class="badge" style="margin-left:6px;">Premium</span></h3>
+      <h2 style="font-size:26px;margin-top:4px;" id="stat-benefice-net">—</h2>
+      <p style="color:#999;font-size:12px;margin-top:2px;">FCFA — RDV moins dépenses</p>
+    </div>
+
+    <div class="stats-grid two">
+      <div class="stat-box"><div class="stat-icon"><i class="fa-solid fa-money-bill-trend-up"></i></div><h2 style="font-size:15px;" id="stat-panier-moyen">—</h2><p>Panier moyen (FCFA)</p></div>
+      <div class="stat-box"><div class="stat-icon"><i class="fa-solid fa-star"></i></div><h2 style="font-size:13px;" id="stat-top-prestation">—</h2><p>Prestation + demandée</p></div>
+    </div>
+
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-chart-column"></i> RDV des 7 derniers jours</h3>
+      <div class="chart-bars" id="chart-bars-rdv"></div>
+    </div>
+
+    <div class="admin-card" id="carte-depenses">
+      <h3><i class="fa-solid fa-money-bill-wave"></i> Dépenses (ce mois) <span class="badge" style="margin-left:6px;">Pro</span></h3>
+      <div class="admin-form">
+        <input type="number" id="depense-montant" placeholder="Montant (FCFA)">
+        <input type="text" id="depense-note" placeholder="Note (optionnel)">
+        <button class="admin-btn" onclick="ajouterDepense()">Ajouter la dépense</button>
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-clock-rotate-left"></i> Dernières demandes de RDV</h3>
+      <div id="liste-dernieres-demandes"></div>
+    </div>
+  </div>
+
+  <!-- PRESTATIONS -->
+  <div id="onglet-prestations" class="onglet-panel">
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-plus"></i> Ajouter une prestation</h3>
+      <div class="admin-form">
+        <input type="text" id="nouveau-presta-nom" placeholder="Nom de la prestation">
+        <input type="number" id="nouveau-presta-prix" placeholder="Prix (FCFA)">
+        <input type="number" id="nouveau-presta-duree" placeholder="Durée (minutes)" value="30">
+        <label class="champ-label">Photo (optionnel)</label>
+        <input type="file" id="nouveau-presta-fichier" accept="image/*">
+        <select id="nouveau-presta-personnel"><option value="">Assignée à… (optionnel)</option></select>
+        <button class="admin-btn" onclick="ajouterPrestation()">Ajouter la prestation</button>
+        <p class="form-message" id="presta-message"></p>
+      </div>
+    </div>
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-list"></i> Mes prestations</h3>
+      <div id="liste-prestations"><p class="empty-state">Chargement…</p></div>
+    </div>
+  </div>
+
+  <!-- ÉQUIPE & DISPONIBILITÉS -->
+  <div id="onglet-equipe" class="onglet-panel">
+    <div class="admin-card" id="carte-equipe">
+      <h3><i class="fa-solid fa-user-group"></i> Mon équipe <span class="badge" style="margin-left:6px;">Premium</span></h3>
+      <div id="liste-personnel"><p class="empty-state">Chargement…</p></div>
+      <div class="admin-form" style="margin-top:14px;">
+        <input type="text" id="nouveau-staff-nom" placeholder="Nom de la personne">
+        <input type="file" id="nouveau-staff-fichier" accept="image/*">
+        <button class="admin-btn secondaire" onclick="ajouterPersonnel()">+ Ajouter une personne</button>
+        <p class="form-message" id="staff-message"></p>
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-calendar-days"></i> Disponibilités</h3>
+      <label class="champ-label">Rendez-vous maximum par jour</label>
+      <input type="number" id="dispo-max-jour" value="8" style="width:90px;padding:10px;border-radius:10px;border:1px solid #e5e5e5;margin-bottom:14px;">
+      <label class="champ-label">Jours de fermeture récurrents</label>
+      <div class="day-toggle" id="dispo-jours">
+        <span data-jour="1">Lun</span><span data-jour="2">Mar</span><span data-jour="3">Mer</span><span data-jour="4">Jeu</span><span data-jour="5">Ven</span><span data-jour="6">Sam</span><span data-jour="0">Dim</span>
+      </div>
+      <button class="admin-btn secondaire" style="margin-top:6px;" onclick="enregistrerDisponibilites()">Enregistrer</button>
+      <label class="champ-label" style="margin-top:14px;">Bloquer des dates précises</label>
+      <input type="text" id="calendar-block" placeholder="Choisir des dates" style="width:100%;padding:11px;border-radius:10px;border:1px solid #e5e5e5;">
+      <p class="form-message" id="dispo-message"></p>
+    </div>
+  </div>
+
+  <!-- GALERIE -->
+  <div id="onglet-galerie" class="onglet-panel">
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-images"></i> Galerie de réalisations</h3>
+      <div class="gal-grid" id="gal-grid">
+        <div class="gal-thumb gal-add" onclick="document.getElementById('gal-input').click()"><i class="fa-solid fa-plus"></i></div>
+      </div>
+      <input type="file" id="gal-input" accept="image/*" style="display:none;" onchange="ajouterPhotoGalerie(this.files[0])">
+      <p class="form-message" id="galerie-message"></p>
+    </div>
+  </div>
+
+  <!-- AVIS -->
+  <div id="onglet-avis" class="onglet-panel">
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-hourglass-half"></i> Avis en attente</h3>
+      <div id="liste-avis-attente"><p class="empty-state">Chargement…</p></div>
+    </div>
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-check"></i> Avis publiés</h3>
+      <div id="liste-avis-approuves"><p class="empty-state">Chargement…</p></div>
+    </div>
+  </div>
+
+  <!-- RÉGLAGES -->
+  <div id="onglet-reglages" class="onglet-panel">
+    <div class="admin-card" style="text-align:center;">
+      <h3 style="justify-content:center;"><i class="fa-solid fa-qrcode"></i> QR code de ma boutique</h3>
+      <img id="qr-code-boutique" style="width:160px;height:160px;margin:10px auto;background:#f1f1f1;border-radius:12px;display:block;">
+      <p id="qr-code-lien" style="font-size:11px;color:#999;margin-bottom:10px;"></p>
+      <a class="admin-btn" id="qr-code-telecharger" style="display:inline-block;width:auto;padding:10px 22px;"><i class="fa-solid fa-download"></i> Télécharger</a>
+    </div>
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-gear"></i> Mes informations</h3>
+      <div class="admin-form">
+        <label class="champ-label">Numéro WhatsApp</label>
+        <input type="text" id="info-whatsapp" placeholder="221784218267">
+        <label class="champ-label">Numéro Wave</label>
+        <input type="text" id="info-wave">
+        <label class="champ-label">Numéro Orange Money</label>
+        <input type="text" id="info-om">
+        <button class="admin-btn" onclick="enregistrerInfos()">Enregistrer</button>
+        <p class="form-message" id="info-message"></p>
+      </div>
+    </div>
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-circle-question"></i> FAQ de ma boutique</h3>
+      <div class="admin-form">
+        <input type="text" id="nouvelle-faq-question" placeholder="Question">
+        <input type="text" id="nouvelle-faq-reponse" placeholder="Réponse">
+        <button class="admin-btn" onclick="ajouterFAQ()">Ajouter</button>
+        <p class="form-message" id="faq-message"></p>
+      </div>
+      <div id="liste-faq-admin" style="margin-top:10px;"></div>
+    </div>
+    <button class="admin-btn secondaire" onclick="deconnexion()">Se déconnecter</button>
+  </div>
+
+</main>
+</div>
+
+<nav class="admin-tabs" id="vue-dashboard-tabs" style="display:none;">
+  <button class="admin-tab actif" onclick="changerOnglet('dashboard', this)"><i class="fa-solid fa-chart-line"></i>Dashboard</button>
+  <button class="admin-tab" onclick="changerOnglet('prestations', this)"><i class="fa-solid fa-scissors"></i>Prestations</button>
+  <button class="admin-tab" onclick="changerOnglet('equipe', this)"><i class="fa-solid fa-user-group"></i>Équipe</button>
+  <button class="admin-tab" onclick="changerOnglet('galerie', this)"><i class="fa-solid fa-images"></i>Galerie</button>
+  <button class="admin-tab" onclick="changerOnglet('avis', this)"><i class="fa-solid fa-star"></i>Avis</button>
+  <button class="admin-tab" onclick="changerOnglet('reglages', this)"><i class="fa-solid fa-gear"></i>Réglages</button>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="supabase-config.js"></script>
+<script src="admin-prestations.js"></script>
+
+</body>
+</html>

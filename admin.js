@@ -1,0 +1,890 @@
+// ============================================
+// CMD. — admin.js
+// Login vendeur + dashboard (onglets, stats, graphique, produits, commandes)
+// ============================================
+
+let vendeurConnecte = null;
+let produitsCache = [];
+let produitEnEdition = null;
+
+// ---- Hiérarchie des formules : standard < pro < premium ----
+const HIERARCHIE_FORMULES = ['standard', 'pro', 'premium'];
+function auMoins(niveauRequis) {
+  const niveauActuel = HIERARCHIE_FORMULES.indexOf(vendeurConnecte.formule || 'standard');
+  const niveauCible = HIERARCHIE_FORMULES.indexOf(niveauRequis);
+  return niveauActuel >= niveauCible;
+}
+
+document.addEventListener('DOMContentLoaded', verifierSession);
+
+// Redirection vers la boutique (respecte le template du vendeur connecté, s'il y en a un)
+function allerVers(destination, id = null) {
+  const slug = vendeurConnecte ? vendeurConnecte.slug : null;
+  const template = (vendeurConnecte && vendeurConnecte.template) ? vendeurConnecte.template.toLowerCase() : '';
+  const nomFichier = template ? `${destination}-${template}` : destination;
+
+  let url = `${nomFichier}.html`;
+  const params = [];
+  if (slug) params.push(`v=${slug}`);
+  if (id) params.push(`id=${id}`);
+  if (params.length) url += `?${params.join('&')}`;
+
+  window.location.href = url;
+}
+
+async function verifierSession() {
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) {
+    await chargerDashboard(session.user.id);
+  }
+}
+
+async function connexion() {
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  const erreurEl = document.getElementById('login-erreur');
+  erreurEl.textContent = '';
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    erreurEl.textContent = "Email ou mot de passe incorrect.";
+    return;
+  }
+
+  await chargerDashboard(data.user.id);
+}
+
+async function deconnexion() {
+  await supabaseClient.auth.signOut();
+  document.getElementById('vue-login').style.display = 'block';
+  document.getElementById('vue-dashboard').style.display = 'none';
+}
+async function chargerFAQAdmin() {
+  const { data: faqs } = await supabaseClient
+    .from('faq')
+    .select('*')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .order('ordre', { ascending: true });
+
+  const liste = document.getElementById('liste-faq-admin');
+  if (!liste) return;
+  liste.innerHTML = '';
+
+  if (!faqs || faqs.length === 0) {
+    liste.innerHTML = '<p class="empty-state">Aucune question pour le moment.</p>';
+    return;
+  }
+
+  faqs.forEach(f => {
+    liste.innerHTML += `
+      <div class="produit-row">
+        <div class="produit-infos">
+          <strong>${f.question}</strong>
+          <span class="prix">${f.reponse}</span>
+        </div>
+        <div class="produit-actions">
+          <button class="icon-btn danger" onclick="supprimerFAQ('${f.id}')">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  });
+}
+
+async function chargerAvisAModerer() {
+  const { data: enAttente } = await supabaseClient
+    .from('avis')
+    .select('*')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .eq('statut', 'en_attente')
+    .order('date_creation', { ascending: false });
+
+  const { data: approuves } = await supabaseClient
+    .from('avis')
+    .select('*')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .eq('statut', 'approuve')
+    .order('date_creation', { ascending: false })
+    .limit(20);
+
+  const listeAttente = document.getElementById('liste-avis-attente');
+  const listeApprouves = document.getElementById('liste-avis-approuves');
+  if (!listeAttente || !listeApprouves) return;
+
+  listeAttente.innerHTML = (!enAttente || enAttente.length === 0)
+    ? '<p class="empty-state">Aucun avis en attente.</p>'
+    : enAttente.map(a => `
+        <div class="commande-row">
+          <strong>${a.nom_client}</strong> — ${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}
+          <br><small style="color:#999;">${a.commentaire || ''}</small>
+          <div style="margin-top:8px; display:flex; gap:8px;">
+            <button class="admin-btn" style="width:auto; padding:8px 14px;" onclick="modererAvis('${a.id}', 'approuve')">Approuver</button>
+            <button class="admin-btn secondaire" style="width:auto; padding:8px 14px;" onclick="modererAvis('${a.id}', 'rejete')">Rejeter</button>
+          </div>
+        </div>
+      `).join('');
+
+      listeApprouves.innerHTML = (!approuves || approuves.length === 0)
+      ? '<p class="empty-state">Aucun avis publié pour le moment.</p>'
+      : approuves.map(a => `
+          <div class="commande-row">
+            <strong>${a.nom_client}</strong> — ${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}
+            <br><small style="color:#999;">${a.commentaire || ''}</small>
+            <div style="margin-top:8px;">
+              <button class="admin-btn secondaire" style="width:auto; padding:6px 12px; font-size:12px;" onclick="modererAvis('${a.id}', 'rejete')">Dépublier</button>
+            </div>
+          </div>
+        `).join('');
+  
+}
+
+async function modererAvis(id, statut) {
+  await supabaseClient.from('avis').update({ statut }).eq('id', id);
+  await chargerAvisAModerer();
+}
+
+
+async function ajouterFAQ() {
+  const question = document.getElementById('nouvelle-faq-question').value.trim();
+  const reponse = document.getElementById('nouvelle-faq-reponse').value.trim();
+  const messageEl = document.getElementById('faq-message');
+
+  if (!question || !reponse) {
+    messageEl.textContent = "Question et réponse sont obligatoires.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  if (!auMoins('pro')) {
+    const { count } = await supabaseClient
+      .from('faq')
+      .select('*', { count: 'exact', head: true })
+      .eq('vendeur_id', vendeurConnecte.id);
+
+    if ((count || 0) >= 5) {
+      messageEl.textContent = "Limite de 5 questions atteinte avec la formule Standard. Passez en Pro pour en ajouter davantage.";
+      messageEl.style.color = 'red';
+      return;
+    }
+  }
+
+  const { error } = await supabaseClient.from('faq').insert({
+    vendeur_id: vendeurConnecte.id, question, reponse
+  });
+
+  if (error) {
+    messageEl.textContent = "Erreur lors de l'ajout.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  messageEl.textContent = "Question ajoutée ✓";
+  messageEl.style.color = 'green';
+  document.getElementById('nouvelle-faq-question').value = '';
+  document.getElementById('nouvelle-faq-reponse').value = '';
+  await chargerFAQAdmin();
+}
+
+async function supprimerFAQ(id) {
+  await supabaseClient.from('faq').delete().eq('id', id);
+  await chargerFAQAdmin();
+}
+
+
+// ---- Navigation par onglets ----
+function changerOnglet(nom, boutonEl) {
+  document.querySelectorAll('.onglet-panel').forEach(p => p.classList.remove('actif'));
+  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('actif'));
+  document.getElementById('onglet-' + nom).classList.add('actif');
+  boutonEl.classList.add('actif');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function chargerDashboard(authUserId) {
+  const { data: admin, error: errAdmin } = await supabaseClient
+    .from('admins')
+    .select('vendeur_id, vendeurs(*)')
+    .eq('auth_user_id', authUserId)
+    .single();
+
+  if (errAdmin || !admin) {
+    document.getElementById('login-erreur').textContent = "Aucune boutique liée à ce compte.";
+    return;
+  }
+
+  vendeurConnecte = admin.vendeurs;
+
+  document.getElementById('vue-login').style.display = 'none';
+  document.getElementById('vue-dashboard').style.display = 'block';
+  document.getElementById('nom-boutique-admin').textContent = vendeurConnecte.nom_boutique;
+  document.documentElement.style.setProperty('--couleur-accent', vendeurConnecte.couleur_accent || '#e56400');
+
+  await chargerStats();
+  await chargerGraphique7Jours();
+  await chargerCategoriesExistantes();
+  await chargerProduits();
+  await chargerCommandes();
+  remplirInfosVendeur();
+  genererQRCode();
+  chargerFAQAdmin();
+  chargerAvisAModerer();
+  appliquerLimitesFormule();
+
+}
+
+// ---- Gating Standard / Pro / Premium ----
+function appliquerLimitesFormule() {
+  const estPro = auMoins('pro');
+  const estPremium = auMoins('premium');
+
+  const statsAvancees = document.getElementById('stats-avancees');
+  const carteGraphique = document.getElementById('carte-graphique-7jours');
+  const champStock = document.getElementById('champ-stock-premium');
+  const carteListeAttente = document.getElementById('carte-liste-attente');
+  const carteDepenses = document.getElementById('carte-depenses');
+  const carteBenefice = document.getElementById('carte-benefice-net');
+
+  if (statsAvancees) statsAvancees.style.display = estPro ? 'grid' : 'none';
+  if (carteGraphique) carteGraphique.style.display = estPro ? 'block' : 'none';
+  if (champStock) champStock.style.display = estPro ? 'block' : 'none';
+
+  if (estPro) {
+    if (carteListeAttente) carteListeAttente.style.display = 'block';
+    chargerListeAttenteStock();
+  }
+
+  if (carteDepenses) carteDepenses.style.display = estPro ? 'block' : 'none';
+  if (estPro) chargerDepenses();
+
+  if (carteBenefice) carteBenefice.style.display = estPremium ? 'block' : 'none';
+  if (estPremium) chargerBeneficeNet();
+
+  const btnExport = document.getElementById('btn-export-commandes');
+  if (btnExport) btnExport.style.display = estPremium ? 'block' : 'none';
+}
+
+async function chargerListeAttenteStock() {
+  const conteneur = document.getElementById('liste-attente-stock-admin');
+  if (!conteneur) return;
+
+  const { data: attente } = await supabaseClient
+    .from('liste_attente_stock')
+    .select('*, produits(nom)')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .eq('contacte', false)
+    .order('date_creation', { ascending: false });
+
+  if (!attente || attente.length === 0) {
+    conteneur.innerHTML = '<p class="empty-state">Personne en attente pour le moment.</p>';
+    return;
+  }
+
+  conteneur.innerHTML = attente.map(a => `
+    <div class="produit-row">
+      <div class="produit-infos">
+        <strong>${a.produits ? a.produits.nom : 'Produit'}</strong>
+        <span class="prix">${a.numero_client}</span>
+      </div>
+      <div class="produit-actions">
+        <a href="https://wa.me/${a.numero_client.replace(/\D/g,'')}?text=Bonjour, le produit que vous attendiez est de nouveau disponible !" target="_blank" class="icon-btn" title="Contacter sur WhatsApp">
+          <i class="fa-brands fa-whatsapp"></i>
+        </a>
+        <button class="icon-btn" title="Marquer comme contacté" onclick="marquerContacte('${a.id}')">
+          <i class="fa-solid fa-check"></i>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function marquerContacte(id) {
+  await supabaseClient.from('liste_attente_stock').update({ contacte: true }).eq('id', id);
+  await chargerListeAttenteStock();
+}
+
+function remplirInfosVendeur() {
+  document.getElementById('info-whatsapp').value = vendeurConnecte.numero_whatsapp || '';
+  document.getElementById('info-wave').value = vendeurConnecte.wave_numero || '';
+  document.getElementById('info-om').value = vendeurConnecte.om_numero || '';
+}
+
+async function enregistrerInfos() {
+  const numero_whatsapp = document.getElementById('info-whatsapp').value.trim();
+  const wave_numero = document.getElementById('info-wave').value.trim();
+  const om_numero = document.getElementById('info-om').value.trim();
+  const messageEl = document.getElementById('info-message');
+
+  if (!numero_whatsapp) {
+    messageEl.textContent = "Le numéro WhatsApp est obligatoire.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  const { error } = await supabaseClient
+    .from('vendeurs')
+    .update({ numero_whatsapp, wave_numero, om_numero })
+    .eq('id', vendeurConnecte.id);
+
+  if (error) {
+    messageEl.textContent = "Erreur lors de l'enregistrement.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  vendeurConnecte.numero_whatsapp = numero_whatsapp;
+  vendeurConnecte.wave_numero = wave_numero;
+  vendeurConnecte.om_numero = om_numero;
+
+  messageEl.textContent = "Informations mises à jour ✓";
+  messageEl.style.color = 'green';
+}
+
+// ---- Stats principales (mois en cours + panier moyen + produit top) ----
+async function chargerStats() {
+  const debutMois = new Date();
+  debutMois.setDate(1);
+  debutMois.setHours(0, 0, 0, 0);
+
+  const { data: commandes } = await supabaseClient
+    .from('commandes')
+    .select('total, contenu')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .gte('date_creation', debutMois.toISOString());
+
+  const { count: nbProduits } = await supabaseClient
+    .from('produits')
+    .select('*', { count: 'exact', head: true })
+    .eq('vendeur_id', vendeurConnecte.id)
+    .eq('actif', true);
+
+  const nbCommandes = commandes ? commandes.length : 0;
+  const totalFcfa = commandes ? commandes.reduce((sum, c) => sum + c.total, 0) : 0;
+  const panierMoyen = nbCommandes > 0 ? Math.round(totalFcfa / nbCommandes) : 0;
+
+  document.getElementById('stat-commandes').textContent = nbCommandes;
+  document.getElementById('stat-produits').textContent = nbProduits || 0;
+  document.getElementById('stat-total').textContent = totalFcfa.toLocaleString();
+  document.getElementById('stat-panier-moyen').textContent = panierMoyen.toLocaleString();
+
+  // Produit le plus commandé, à partir du contenu (jsonb) des commandes du mois
+  const compteurProduits = {};
+  (commandes || []).forEach(c => {
+    (c.contenu || []).forEach(item => {
+      const nomItem = item.nom || item.name || item.produit;
+      const qte = item.quantite || item.qte || 1;
+      if (!nomItem) return;
+      compteurProduits[nomItem] = (compteurProduits[nomItem] || 0) + qte;
+    });
+  });
+
+  const produitTopEl = document.getElementById('stat-produit-top');
+  const entries = Object.entries(compteurProduits);
+  if (entries.length === 0) {
+    produitTopEl.textContent = '—';
+  } else {
+    entries.sort((a, b) => b[1] - a[1]);
+    produitTopEl.textContent = entries[0][0];
+  }
+}
+
+// ---- Mini graphique en barres : commandes des 7 derniers jours ----
+async function chargerGraphique7Jours() {
+  const jours = [];
+  const debut = new Date();
+  debut.setHours(0, 0, 0, 0);
+  debut.setDate(debut.getDate() - 6);
+
+  const { data: commandes } = await supabaseClient
+    .from('commandes')
+    .select('date_creation')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .gte('date_creation', debut.toISOString());
+
+  const compteurParJour = {};
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(debut);
+    d.setDate(debut.getDate() + i);
+    const cle = d.toISOString().slice(0, 10);
+    compteurParJour[cle] = 0;
+    jours.push(cle);
+  }
+
+  (commandes || []).forEach(c => {
+    const cle = c.date_creation.slice(0, 10);
+    if (compteurParJour[cle] !== undefined) compteurParJour[cle]++;
+  });
+
+  const max = Math.max(1, ...Object.values(compteurParJour));
+  const conteneur = document.getElementById('chart-7jours');
+  conteneur.innerHTML = '';
+
+  const nomsJours = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+
+  jours.forEach(cle => {
+    const val = compteurParJour[cle];
+    const d = new Date(cle);
+    const hauteur = Math.round((val / max) * 100);
+    conteneur.innerHTML += `
+      <div class="chart-bar-col">
+        <div class="chart-bar-val">${val > 0 ? val : ''}</div>
+        <div class="chart-bar" style="height:${Math.max(hauteur, 3)}%;"></div>
+        <div class="chart-bar-label">${nomsJours[d.getDay()]}</div>
+      </div>
+    `;
+  });
+}
+
+// ---- Produits (avec miniature photo) ----
+async function chargerProduits() {
+  const { data: produits } = await supabaseClient
+    .from('produits')
+    .select('*')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .eq('actif', true)
+    .order('date_creation', { ascending: false });
+
+  produitsCache = produits || [];
+
+  const liste = document.getElementById('liste-produits-admin');
+  liste.innerHTML = '';
+
+  if (!produits || produits.length === 0) {
+    liste.innerHTML = '<p class="empty-state">Aucun produit pour le moment.</p>';
+    return;
+  }
+
+  produits.forEach(p => {
+    const imgSrc = p.image_url || '';
+    const estPro = auMoins('pro');
+    const infoStock = estPro
+      ? `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie} · Stock : ${p.quantite_stock === null || p.quantite_stock === undefined ? 'illimité' : p.quantite_stock}</span>`
+      : `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie}</span>`;
+
+    liste.innerHTML += `
+      <div class="produit-row">
+        ${imgSrc
+          ? `<img src="${imgSrc}" class="produit-thumb" alt="${p.nom}">`
+          : `<div class="produit-thumb" style="display:flex;align-items:center;justify-content:center;color:#ccc;"><i class="fa-solid fa-image"></i></div>`}
+        <div class="produit-infos">
+          <strong>${p.nom}</strong>
+          ${infoStock}
+        </div>
+        <div class="produit-actions">
+          <button class="icon-btn" title="Modifier ce produit" onclick="chargerProduitPourEdition('${p.id}')">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          ${estPro ? `
+          <button class="icon-btn" title="Modifier le stock" onclick="modifierStock('${p.id}', ${p.quantite_stock === null || p.quantite_stock === undefined ? 'null' : p.quantite_stock})">
+            <i class="fa-solid fa-boxes-stacked"></i>
+          </button>` : ''}
+          <button class="icon-btn ${p.favori ? 'favori-actif' : ''}" title="${p.favori ? 'Retirer de la une' : 'Mettre en avant'}" onclick="basculerFavori('${p.id}', ${p.favori})">
+            <i class="fa-solid fa-star"></i>
+          </button>
+          <button class="icon-btn danger" title="Retirer du site" onclick="supprimerProduit('${p.id}')">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  });
+}
+
+async function modifierStock(id, stockActuel) {
+  const saisie = prompt("Nouvelle quantité en stock (laisser vide pour illimité) :", stockActuel === null ? '' : stockActuel);
+  if (saisie === null) return; // annulé
+
+  const valeur = saisie.trim() === '' ? null : parseInt(saisie);
+  await supabaseClient.from('produits').update({ quantite_stock: valeur }).eq('id', id);
+  await chargerProduits();
+}
+
+async function ajouterProduit() {
+  const nom = document.getElementById('nouveau-nom').value;
+  const prix = parseInt(document.getElementById('nouveau-prix').value);
+  const fichier = document.getElementById('nouveau-image-fichier').files[0];
+  const selectCategorie = document.getElementById('nouveau-categorie-select').value;
+  const texteCategorie = document.getElementById('nouveau-categorie').value.trim();
+  const categorie = (selectCategorie === '__nouvelle__' ? texteCategorie : selectCategorie) || 'general';
+  const description = document.getElementById('nouveau-description').value.trim();
+  const favori = document.getElementById('nouveau-favori').checked;
+  const stockInput = document.getElementById('nouveau-stock');
+  const messageEl = document.getElementById('produit-message');
+  const enEdition = !!produitEnEdition;
+
+  if (!nom || !prix) {
+    messageEl.textContent = "Nom et prix sont obligatoires.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  // ---- Limites de la formule Standard (uniquement à l'ajout, pas à la modification) ----
+  if (!enEdition && !auMoins('pro')) {
+    const { data: produitsExistants } = await supabaseClient
+      .from('produits')
+      .select('categorie')
+      .eq('vendeur_id', vendeurConnecte.id)
+      .eq('actif', true);
+
+    const nbProduits = produitsExistants ? produitsExistants.length : 0;
+    const categoriesExistantes = new Set((produitsExistants || []).map(p => p.categorie || 'general'));
+
+    if (nbProduits >= 20) {
+      messageEl.textContent = "Limite de 20 produits atteinte avec la formule Standard. Passez en Pro pour continuer.";
+      messageEl.style.color = 'red';
+      return;
+    }
+
+    if (!categoriesExistantes.has(categorie) && categoriesExistantes.size >= 5) {
+      messageEl.textContent = "Limite de 5 catégories atteinte avec la formule Standard. Passez en Pro pour en ajouter davantage.";
+      messageEl.style.color = 'red';
+      return;
+    }
+  }
+
+  let image_url = enEdition ? undefined : ''; // en édition, undefined = on ne touche pas au champ si pas de nouvelle photo
+
+  if (fichier) {
+    messageEl.textContent = "Envoi de la photo en cours...";
+    messageEl.style.color = '#777';
+
+    const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
+
+    const { error: erreurUpload } = await supabaseClient
+      .storage
+      .from('produits-images')
+      .upload(nomFichier, fichier);
+
+    if (erreurUpload) {
+      messageEl.textContent = "Erreur lors de l'envoi de la photo.";
+      messageEl.style.color = 'red';
+      return;
+    }
+
+    const { data: urlData } = supabaseClient
+      .storage
+      .from('produits-images')
+      .getPublicUrl(nomFichier);
+
+    image_url = urlData.publicUrl;
+  }
+
+  const donneesProduit = { nom, prix, categorie, favori, description };
+  if (image_url !== undefined) donneesProduit.image_url = image_url;
+  if (!enEdition) donneesProduit.vendeur_id = vendeurConnecte.id;
+
+  if (auMoins('pro') && stockInput && stockInput.value !== '') {
+    donneesProduit.quantite_stock = parseInt(stockInput.value);
+  }
+
+  const requete = enEdition
+    ? supabaseClient.from('produits').update(donneesProduit).eq('id', produitEnEdition)
+    : supabaseClient.from('produits').insert(donneesProduit);
+
+  const { error } = await requete;
+
+  if (error) {
+    messageEl.textContent = enEdition ? "Erreur lors de la modification." : "Erreur lors de l'ajout.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  messageEl.textContent = enEdition ? "Produit modifié ✓" : "Produit ajouté ✓";
+  messageEl.style.color = 'green';
+
+  annulerEditionProduit(); // remet le formulaire à zéro et sort du mode édition
+
+  await chargerCategoriesExistantes();
+  await chargerProduits();
+  await chargerStats();
+}
+
+// ---- Édition d'un produit existant ----
+function chargerProduitPourEdition(id) {
+  const produit = produitsCache.find(p => p.id === id);
+  if (!produit) return;
+
+  produitEnEdition = id;
+
+  document.getElementById('nouveau-nom').value = produit.nom;
+  document.getElementById('nouveau-prix').value = produit.prix;
+  document.getElementById('nouveau-description').value = produit.description || '';
+  document.getElementById('nouveau-image-fichier').value = '';
+  document.getElementById('nouveau-favori').checked = !!produit.favori;
+
+  const select = document.getElementById('nouveau-categorie-select');
+  const options = Array.from(select.options).map(o => o.value);
+  if (options.includes(produit.categorie)) {
+    select.value = produit.categorie;
+    document.getElementById('nouveau-categorie').style.display = 'none';
+  } else {
+    select.value = '__nouvelle__';
+    document.getElementById('nouveau-categorie').value = produit.categorie;
+    document.getElementById('nouveau-categorie').style.display = 'block';
+  }
+
+  const stockInput = document.getElementById('nouveau-stock');
+  if (stockInput) stockInput.value = (produit.quantite_stock === null || produit.quantite_stock === undefined) ? '' : produit.quantite_stock;
+
+  document.getElementById('titre-formulaire-produit').innerHTML = '<i class="fa-solid fa-pen"></i> Modifier ce produit';
+  document.getElementById('btn-soumettre-produit').textContent = 'Enregistrer les modifications';
+  document.getElementById('annuler-edition-lien').style.display = 'block';
+  document.getElementById('photo-optionnelle-edition').style.display = 'inline';
+  document.getElementById('produit-message').textContent = '';
+
+  document.getElementById('nouveau-nom').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function annulerEditionProduit() {
+  produitEnEdition = null;
+
+  document.getElementById('nouveau-nom').value = '';
+  document.getElementById('nouveau-prix').value = '';
+  document.getElementById('nouveau-description').value = '';
+  document.getElementById('nouveau-image-fichier').value = '';
+  document.getElementById('nouveau-categorie').value = '';
+  document.getElementById('nouveau-categorie').style.display = 'none';
+  document.getElementById('nouveau-categorie-select').value = '';
+  document.getElementById('nouveau-favori').checked = false;
+  const stockInput = document.getElementById('nouveau-stock');
+  if (stockInput) stockInput.value = '';
+
+  document.getElementById('titre-formulaire-produit').innerHTML = '<i class="fa-solid fa-plus"></i> Ajouter un produit';
+  document.getElementById('btn-soumettre-produit').textContent = 'Ajouter le produit';
+  document.getElementById('annuler-edition-lien').style.display = 'none';
+  document.getElementById('photo-optionnelle-edition').style.display = 'none';
+}
+
+// ---- Catégories existantes du vendeur (évite les doublons de saisie libre) ----
+async function chargerCategoriesExistantes() {
+  const select = document.getElementById('nouveau-categorie-select');
+  if (!select) return;
+
+  const { data: produitsExistants } = await supabaseClient
+    .from('produits')
+    .select('categorie')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .eq('actif', true);
+
+  const categories = [...new Set((produitsExistants || []).map(p => p.categorie || 'general'))].sort();
+
+  const valeurActuelle = select.value;
+  select.innerHTML = '<option value="">Catégorie…</option>' +
+    categories.map(c => `<option value="${c}">${c}</option>`).join('') +
+    '<option value="__nouvelle__">+ Nouvelle catégorie</option>';
+
+  if (categories.includes(valeurActuelle)) select.value = valeurActuelle;
+}
+
+function toggleNouvelleCategorie() {
+  const select = document.getElementById('nouveau-categorie-select');
+  const champTexte = document.getElementById('nouveau-categorie');
+  champTexte.style.display = select.value === '__nouvelle__' ? 'block' : 'none';
+  if (select.value === '__nouvelle__') champTexte.focus();
+}
+
+async function basculerFavori(id, etatActuel) {
+  await supabaseClient.from('produits').update({ favori: !etatActuel }).eq('id', id);
+  await chargerProduits();
+}
+
+async function supprimerProduit(id) {
+  await supabaseClient.from('produits').update({ actif: false }).eq('id', id);
+  await chargerProduits();
+  await chargerStats();
+}
+
+// ---- Commandes : version courte (dashboard) + version complète (onglet Commandes) ----
+async function chargerCommandes() {
+  const { data: commandes } = await supabaseClient
+    .from('commandes')
+    .select('*')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .order('date_creation', { ascending: false })
+    .limit(5);
+
+  afficherListeCommandes(commandes, 'liste-commandes-admin');
+
+  // Version complète (jusqu'à 50) pour l'onglet dédié
+  const { data: commandesCompletes } = await supabaseClient
+    .from('commandes')
+    .select('*')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .order('date_creation', { ascending: false })
+    .limit(50);
+
+  afficherListeCommandes(commandesCompletes, 'liste-commandes-complete');
+}
+
+function afficherListeCommandes(commandes, idConteneur) {
+  const liste = document.getElementById(idConteneur);
+  liste.innerHTML = '';
+
+  if (!commandes || commandes.length === 0) {
+    liste.innerHTML = '<p class="empty-state">Aucune commande pour le moment.</p>';
+    return;
+  }
+
+  commandes.forEach(c => {
+    const date = new Date(c.date_creation).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    liste.innerHTML += `
+      <div class="commande-row">
+        <span class="total">${c.total.toLocaleString()} FCFA</span>
+        <strong>${c.nom_client} ${c.prenom_client}</strong>
+        <span class="badge-statut">${c.statut}</span>
+        <br><small style="color:#999;">${date} · ${c.numero_client}</small>
+        ${c.recu_url ? `<br><a href="${c.recu_url}" target="_blank" style="font-size:12px; color:var(--couleur-accent, #e56400); font-weight:600;"><i class="fa-solid fa-file-pdf"></i> Voir le reçu</a>` : ''}
+      </div>
+    `;
+  });
+}
+
+// ============================================
+// Dépenses (Pro et Premium) + Bénéfice net (Premium uniquement)
+// ============================================
+async function ajouterDepense() {
+  const montant = parseInt(document.getElementById('nouvelle-depense-montant').value);
+  const note = document.getElementById('nouvelle-depense-note').value.trim();
+  const messageEl = document.getElementById('depense-message');
+
+  if (!montant || montant <= 0) {
+    messageEl.textContent = "Indiquez un montant valide.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  const { error } = await supabaseClient.from('depenses').insert({
+    vendeur_id: vendeurConnecte.id,
+    montant,
+    note: note || null
+  });
+
+  if (error) {
+    messageEl.textContent = "Erreur lors de l'ajout.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  messageEl.textContent = "Dépense ajoutée ✓";
+  messageEl.style.color = 'green';
+  document.getElementById('nouvelle-depense-montant').value = '';
+  document.getElementById('nouvelle-depense-note').value = '';
+
+  await chargerDepenses();
+  if (auMoins('premium')) await chargerBeneficeNet();
+}
+
+async function chargerDepenses() {
+  const liste = document.getElementById('liste-depenses-admin');
+  if (!liste) return;
+
+  const debutMois = new Date();
+  debutMois.setDate(1);
+  debutMois.setHours(0, 0, 0, 0);
+
+  const { data: depenses } = await supabaseClient
+    .from('depenses')
+    .select('*')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .gte('date_creation', debutMois.toISOString())
+    .order('date_creation', { ascending: false });
+
+  if (!depenses || depenses.length === 0) {
+    liste.innerHTML = '<p class="empty-state">Aucune dépense enregistrée ce mois-ci.</p>';
+    return;
+  }
+
+  liste.innerHTML = depenses.map(d => {
+    const date = new Date(d.date_creation).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+    return `
+      <div class="commande-row">
+        <span class="total">${d.montant.toLocaleString()} FCFA</span>
+        <strong>${d.note || 'Dépense'}</strong>
+        <br><small style="color:#999;">${date}</small>
+      </div>
+    `;
+  }).join('');
+}
+
+async function chargerBeneficeNet() {
+  const carte = document.getElementById('stat-benefice-net');
+  if (!carte) return;
+
+  const debutMois = new Date();
+  debutMois.setDate(1);
+  debutMois.setHours(0, 0, 0, 0);
+
+  const { data: commandes } = await supabaseClient
+    .from('commandes')
+    .select('total')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .gte('date_creation', debutMois.toISOString());
+
+  const { data: depenses } = await supabaseClient
+    .from('depenses')
+    .select('montant')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .gte('date_creation', debutMois.toISOString());
+
+  const totalVentes = (commandes || []).reduce((sum, c) => sum + c.total, 0);
+  const totalDepenses = (depenses || []).reduce((sum, d) => sum + d.montant, 0);
+  const benefice = totalVentes - totalDepenses;
+
+  carte.textContent = benefice.toLocaleString();
+  carte.style.color = benefice >= 0 ? 'inherit' : '#e00';
+}
+
+// ============================================
+// Export CSV des commandes (Premium uniquement)
+// ============================================
+async function exporterCommandesCSV() {
+  const { data: commandes, error } = await supabaseClient
+    .from('commandes')
+    .select('*')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .order('date_creation', { ascending: false });
+
+  if (error || !commandes || commandes.length === 0) {
+    alert("Aucune commande à exporter pour le moment.");
+    return;
+  }
+
+  const echapper = (val) => `"${String(val === null || val === undefined ? '' : val).replace(/"/g, '""')}"`;
+
+  const entetes = ['Date', 'Nom', 'Prénom', 'Numéro', 'Adresse', 'Produits commandés', 'Total (FCFA)', 'Statut'];
+  const lignes = commandes.map(c => {
+    const date = new Date(c.date_creation).toLocaleString('fr-FR');
+    const produits = (c.contenu || []).map(item => `${item.produit} x${item.quantite}`).join(' | ');
+    return [date, c.nom_client, c.prenom_client, c.numero_client, c.adresse, produits, c.total, c.statut]
+      .map(echapper).join(',');
+  });
+
+  // Le \uFEFF (BOM) permet à Excel d'afficher correctement les accents
+  const contenuCSV = '\uFEFF' + entetes.map(echapper).join(',') + '\n' + lignes.join('\n');
+
+  const blob = new Blob([contenuCSV], { type: 'text/csv;charset=utf-8;' });
+  const lien = document.createElement('a');
+  lien.href = URL.createObjectURL(blob);
+  lien.download = `commandes-${vendeurConnecte.slug || 'export'}-${Date.now()}.csv`;
+  lien.click();
+  URL.revokeObjectURL(lien.href);
+}
+
+// ============================================
+// QR code de la boutique (généré à partir du lien propre)
+// ============================================
+function genererQRCode() {
+  const imgEl = document.getElementById('qr-code-boutique');
+  const lienEl = document.getElementById('qr-code-lien');
+  const telechargerEl = document.getElementById('qr-code-telecharger');
+  if (!imgEl || !vendeurConnecte || !vendeurConnecte.slug) return;
+
+  const lienBoutique = `https://shop.moncmd.site/${vendeurConnecte.slug}`;
+  const urlQRCode = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(lienBoutique)}`;
+
+  imgEl.src = urlQRCode;
+  lienEl.textContent = lienBoutique;
+  telechargerEl.href = urlQRCode;
+  telechargerEl.download = `qr-code-${vendeurConnecte.slug}.png`;
+}
