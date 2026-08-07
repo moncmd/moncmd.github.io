@@ -134,17 +134,14 @@ async function ajouterPrestation() {
     return;
   }
 
-  if (!auMoins('premium')) {
-    const limite = auMoins('pro') ? 50 : 20;
+  if (!auMoins('pro')) {
     const { count } = await supabaseClient
       .from('prestations')
       .select('*', { count: 'exact', head: true })
       .eq('vendeur_id', vendeurConnecte.id)
       .eq('actif', true);
-    if ((count || 0) >= limite) {
-      messageEl.textContent = auMoins('pro')
-        ? "Limite de 50 prestations atteinte avec la formule Pro. Passez en Premium pour continuer."
-        : "Limite de 20 prestations atteinte avec la formule Standard. Passez en Pro pour continuer.";
+    if ((count || 0) >= 20) {
+      messageEl.textContent = "Limite de 20 prestations atteinte avec la formule Standard. Passez en Pro pour continuer.";
       messageEl.style.color = 'red';
       return;
     }
@@ -220,26 +217,10 @@ async function chargerPersonnel() {
 }
 
 async function ajouterPersonnel() {
-  const messageEl = document.getElementById('staff-message');
-  if (!auMoins('pro')) {
-    messageEl.textContent = "L'équipe est disponible à partir de la formule Pro.";
-    messageEl.style.color = 'red';
-    return;
-  }
-  if (!auMoins('premium')) {
-    const { count } = await supabaseClient
-      .from('personnel')
-      .select('*', { count: 'exact', head: true })
-      .eq('vendeur_id', vendeurConnecte.id)
-      .eq('actif', true);
-    if ((count || 0) >= 5) {
-      messageEl.textContent = "Limite de 5 personnes atteinte avec la formule Pro. Passez en Premium pour continuer.";
-      messageEl.style.color = 'red';
-      return;
-    }
-  }
+  if (!auMoins('premium')) return;
   const nom = document.getElementById('nouveau-staff-nom').value.trim();
   const fichier = document.getElementById('nouveau-staff-fichier').files[0];
+  const messageEl = document.getElementById('staff-message');
   if (!nom) { messageEl.textContent = "Le nom est obligatoire."; messageEl.style.color = 'red'; return; }
 
   let photo_url = '';
