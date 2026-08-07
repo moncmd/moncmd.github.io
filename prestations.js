@@ -75,6 +75,7 @@ function afficherAdresse(vendeur) {
 
   if (texte) texte.textContent = vendeur.adresse;
   carte.src = `https://maps.google.com/maps?q=${encodeURIComponent(vendeur.adresse)}&output=embed`;
+}
 
 async function chargerPrestations(vendeurId) {
   const { data, error } = await supabaseClient
