@@ -174,6 +174,28 @@ function appliquerIdentiteVendeur(vendeur) {
   if (lienWhatsapp) {
     lienWhatsapp.href = `https://wa.me/${vendeur.numero_whatsapp}?text=Bonjour, je voudrais passer une commande !`;
   }
+
+  afficherReseauxSociaux(vendeur);
+}
+
+// Affiche les icônes réseaux sociaux dans le footer, seulement pour ceux
+// que le vendeur a renseignés. Le conteneur #reseaux-sociaux doit exister
+// dans le footer de chaque template (voir footer d'index.html).
+function afficherReseauxSociaux(vendeur) {
+  const conteneur = document.getElementById('reseaux-sociaux');
+  if (!conteneur) return;
+
+  const reseaux = [
+    { url: vendeur.instagram, icone: 'fa-instagram' },
+    { url: vendeur.tiktok, icone: 'fa-tiktok' },
+    { url: vendeur.facebook, icone: 'fa-facebook' }
+  ].filter(r => r.url);
+
+  if (!reseaux.length) { conteneur.style.display = 'none'; return; }
+
+  conteneur.innerHTML = reseaux.map(r =>
+    `<a href="${r.url}" target="_blank" rel="noopener"><i class="fa-brands ${r.icone}"></i></a>`
+  ).join('');
 }
 
 function remplirPaiement() {

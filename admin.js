@@ -308,12 +308,18 @@ function remplirInfosVendeur() {
   document.getElementById('info-whatsapp').value = vendeurConnecte.numero_whatsapp || '';
   document.getElementById('info-wave').value = vendeurConnecte.wave_numero || '';
   document.getElementById('info-om').value = vendeurConnecte.om_numero || '';
+  document.getElementById('info-instagram').value = vendeurConnecte.instagram || '';
+  document.getElementById('info-tiktok').value = vendeurConnecte.tiktok || '';
+  document.getElementById('info-facebook').value = vendeurConnecte.facebook || '';
 }
 
 async function enregistrerInfos() {
   const numero_whatsapp = document.getElementById('info-whatsapp').value.trim();
   const wave_numero = document.getElementById('info-wave').value.trim();
   const om_numero = document.getElementById('info-om').value.trim();
+  const instagram = document.getElementById('info-instagram').value.trim();
+  const tiktok = document.getElementById('info-tiktok').value.trim();
+  const facebook = document.getElementById('info-facebook').value.trim();
   const messageEl = document.getElementById('info-message');
 
   if (!numero_whatsapp) {
@@ -324,7 +330,7 @@ async function enregistrerInfos() {
 
   const { error } = await supabaseClient
     .from('vendeurs')
-    .update({ numero_whatsapp, wave_numero, om_numero })
+    .update({ numero_whatsapp, wave_numero, om_numero, instagram, tiktok, facebook })
     .eq('id', vendeurConnecte.id);
 
   if (error) {
@@ -336,6 +342,9 @@ async function enregistrerInfos() {
   vendeurConnecte.numero_whatsapp = numero_whatsapp;
   vendeurConnecte.wave_numero = wave_numero;
   vendeurConnecte.om_numero = om_numero;
+  vendeurConnecte.instagram = instagram;
+  vendeurConnecte.tiktok = tiktok;
+  vendeurConnecte.facebook = facebook;
 
   messageEl.textContent = "Informations mises à jour ✓";
   messageEl.style.color = 'green';

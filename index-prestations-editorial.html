@@ -6,6 +6,7 @@
 <title>Aperçu — Template Prestations (Éditorial)</title>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
   :root{
     --bg:#faf3ea;
@@ -219,6 +220,14 @@
   </div>
 </section>
 
+<section id="section-adresse">
+  <div class="wrap">
+    <div class="sh"><h2>Où nous <span>trouver</span></h2></div>
+    <p id="texte-adresse" class="mono" style="margin-bottom:16px;"></p>
+    <iframe id="carte-adresse" style="width:100%;height:320px;border:2px solid var(--ink);border-radius:var(--r);" loading="lazy"></iframe>
+  </div>
+</section>
+
 <section id="faq">
   <div class="wrap">
     <div class="sh"><h2>Questions <span>fréquentes</span></h2></div>
@@ -231,8 +240,9 @@
 </section>
 
 <footer>
-  <div class="wrap" style="display:flex;justify-content:space-between;width:100%;flex-wrap:wrap;gap:10px;">
+  <div class="wrap" style="display:flex;justify-content:space-between;width:100%;flex-wrap:wrap;gap:14px;align-items:center;">
     <span class="mono footer-nom">2026 — Votre Boutique</span>
+    <div id="reseaux-sociaux" style="display:flex;gap:14px;font-size:1.1rem;color:var(--coral);"></div>
     <span class="mono">Propulsé par CMD</span>
   </div>
 </footer>

@@ -44,7 +44,37 @@ async function chargerBoutiquePrestations() {
     chargerFAQ(vendeur.id),
     chargerAvisPrestations(vendeur.id, vendeur.formule)
   ]);
+
+  afficherReseauxSociaux(vendeur);
+  afficherAdresse(vendeur);
 }
+
+// Icônes réseaux sociaux dans le footer (#reseaux-sociaux), seulement ceux renseignés
+function afficherReseauxSociaux(vendeur) {
+  const conteneur = document.getElementById('reseaux-sociaux');
+  if (!conteneur) return;
+  const reseaux = [
+    { url: vendeur.instagram, icone: 'fa-instagram' },
+    { url: vendeur.tiktok, icone: 'fa-tiktok' },
+    { url: vendeur.facebook, icone: 'fa-facebook' }
+  ].filter(r => r.url);
+  if (!reseaux.length) { conteneur.style.display = 'none'; return; }
+  conteneur.innerHTML = reseaux.map(r =>
+    `<a href="${r.url}" target="_blank" rel="noopener"><i class="fa-brands ${r.icone}"></i></a>`
+  ).join('');
+}
+
+// Carte Google Maps intégrée (#carte-adresse), affichée seulement si une adresse est renseignée
+function afficherAdresse(vendeur) {
+  const section = document.getElementById('section-adresse');
+  const carte = document.getElementById('carte-adresse');
+  const texte = document.getElementById('texte-adresse');
+  if (!section || !carte) return;
+
+  if (!vendeur.adresse) { section.style.display = 'none'; return; }
+
+  if (texte) texte.textContent = vendeur.adresse;
+  carte.src = `https://maps.google.com/maps?q=${encodeURIComponent(vendeur.adresse)}&output=embed`;
 
 async function chargerPrestations(vendeurId) {
   const { data, error } = await supabaseClient
