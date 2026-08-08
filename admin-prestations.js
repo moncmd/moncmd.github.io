@@ -76,6 +76,7 @@ async function chargerDashboard(authUserId) {
   remplirInfosVendeur();
   genererQRCode();
   initDisponibilites();
+  chargerBlocagesHoraires();
 
   await Promise.all([
     chargerPrestations(),
@@ -134,14 +135,17 @@ async function ajouterPrestation() {
     return;
   }
 
-  if (!auMoins('pro')) {
+  if (!auMoins('premium')) {
+    const limite = auMoins('pro') ? 50 : 20;
     const { count } = await supabaseClient
       .from('prestations')
       .select('*', { count: 'exact', head: true })
       .eq('vendeur_id', vendeurConnecte.id)
       .eq('actif', true);
-    if ((count || 0) >= 20) {
-      messageEl.textContent = "Limite de 20 prestations atteinte avec la formule Standard. Passez en Pro pour continuer.";
+    if ((count || 0) >= limite) {
+      messageEl.textContent = auMoins('pro')
+        ? "Limite de 50 prestations atteinte avec la formule Pro. Passez en Premium pour continuer."
+        : "Limite de 20 prestations atteinte avec la formule Standard. Passez en Pro pour continuer.";
       messageEl.style.color = 'red';
       return;
     }
@@ -200,6 +204,12 @@ async function chargerPersonnel() {
   select.innerHTML = '<option value="">Assignée à… (optionnel)</option>' +
     personnelCache.map(p => `<option value="${p.id}">${p.nom}</option>`).join('');
 
+  const selectBlocage = document.getElementById('blocage-personnel');
+  if (selectBlocage) {
+    selectBlocage.innerHTML = '<option value="">Toute l\'équipe</option>' +
+      personnelCache.map(p => `<option value="${p.id}">${p.nom}</option>`).join('');
+  }
+
   if (!personnelCache.length) {
     liste.innerHTML = '<p class="empty-state">Aucune personne ajoutée.</p>';
     return;
@@ -217,10 +227,26 @@ async function chargerPersonnel() {
 }
 
 async function ajouterPersonnel() {
-  if (!auMoins('premium')) return;
+  const messageEl = document.getElementById('staff-message');
+  if (!auMoins('pro')) {
+    messageEl.textContent = "L'équipe est disponible à partir de la formule Pro.";
+    messageEl.style.color = 'red';
+    return;
+  }
+  if (!auMoins('premium')) {
+    const { count } = await supabaseClient
+      .from('personnel')
+      .select('*', { count: 'exact', head: true })
+      .eq('vendeur_id', vendeurConnecte.id)
+      .eq('actif', true);
+    if ((count || 0) >= 5) {
+      messageEl.textContent = "Limite de 5 personnes atteinte avec la formule Pro. Passez en Premium pour continuer.";
+      messageEl.style.color = 'red';
+      return;
+    }
+  }
   const nom = document.getElementById('nouveau-staff-nom').value.trim();
   const fichier = document.getElementById('nouveau-staff-fichier').files[0];
-  const messageEl = document.getElementById('staff-message');
   if (!nom) { messageEl.textContent = "Le nom est obligatoire."; messageEl.style.color = 'red'; return; }
 
   let photo_url = '';
@@ -253,6 +279,9 @@ async function supprimerPersonnel(id) {
 // ============================================
 function initDisponibilites() {
   document.getElementById('dispo-max-jour').value = vendeurConnecte.rdv_max_par_jour || 8;
+  document.getElementById('dispo-heure-ouverture').value = (vendeurConnecte.heure_ouverture || '09:00').slice(0, 5);
+  document.getElementById('dispo-heure-fermeture').value = (vendeurConnecte.heure_fermeture || '18:00').slice(0, 5);
+  document.getElementById('carte-blocage-horaire').classList.toggle('verrouille', !auMoins('pro'));
 
   const joursFermes = vendeurConnecte.jours_fermeture_recurrents || [0];
   document.querySelectorAll('#dispo-jours span').forEach(span => {
@@ -279,6 +308,84 @@ async function chargerJoursBloques() {
     defaultDate: datesExistantes
   });
 }
+
+async function enregistrerHoraires() {
+  const heure_ouverture = document.getElementById('dispo-heure-ouverture').value;
+  const heure_fermeture = document.getElementById('dispo-heure-fermeture').value;
+  const messageEl = document.getElementById('horaires-message');
+
+  const { error } = await supabaseClient
+    .from('vendeurs')
+    .update({ heure_ouverture, heure_fermeture })
+    .eq('id', vendeurConnecte.id);
+
+  if (error) { messageEl.textContent = "Erreur lors de l'enregistrement."; messageEl.style.color = 'red'; return; }
+
+  vendeurConnecte.heure_ouverture = heure_ouverture;
+  vendeurConnecte.heure_fermeture = heure_fermeture;
+  messageEl.textContent = "Horaires enregistrés ✓";
+  messageEl.style.color = 'green';
+}
+
+async function ajouterBlocageHoraire() {
+  if (!auMoins('pro')) return;
+  const date = document.getElementById('blocage-date').value;
+  const heure_debut = document.getElementById('blocage-heure-debut').value;
+  const heure_fin = document.getElementById('blocage-heure-fin').value;
+  const personnel_id = document.getElementById('blocage-personnel').value || null;
+  const messageEl = document.getElementById('blocage-message');
+
+  if (!date || !heure_debut || !heure_fin) {
+    messageEl.textContent = "Date, heure de début et de fin sont obligatoires.";
+    messageEl.style.color = 'red';
+    return;
+  }
+  if (heure_fin <= heure_debut) {
+    messageEl.textContent = "L'heure de fin doit être après l'heure de début.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  const { error } = await supabaseClient.from('blocages_horaires').insert({
+    vendeur_id: vendeurConnecte.id, personnel_id, date, heure_debut, heure_fin
+  });
+
+  if (error) { messageEl.textContent = "Erreur lors de l'ajout."; messageEl.style.color = 'red'; return; }
+
+  messageEl.textContent = "Créneau bloqué ✓";
+  messageEl.style.color = 'green';
+  document.getElementById('blocage-date').value = '';
+  document.getElementById('blocage-heure-debut').value = '';
+  document.getElementById('blocage-heure-fin').value = '';
+  await chargerBlocagesHoraires();
+}
+
+async function chargerBlocagesHoraires() {
+  const { data } = await supabaseClient
+    .from('blocages_horaires')
+    .select('*, personnel(nom)')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .gte('date', new Date().toISOString().split('T')[0])
+    .order('date', { ascending: true });
+
+  const liste = document.getElementById('liste-blocages-horaires');
+  if (!data || !data.length) { liste.innerHTML = '<p class="empty-state">Aucun créneau bloqué à venir.</p>'; return; }
+
+  liste.innerHTML = data.map(b => `
+    <div class="row">
+      <div class="row-infos">
+        <strong>${b.date} · ${b.heure_debut.slice(0,5)} - ${b.heure_fin.slice(0,5)}</strong>
+        <span class="sub">${b.personnel ? b.personnel.nom : "Toute l'équipe"}</span>
+      </div>
+      <div class="row-actions"><button class="icon-btn danger" onclick="supprimerBlocageHoraire('${b.id}')"><i class="fa-solid fa-trash"></i></button></div>
+    </div>`).join('');
+}
+
+async function supprimerBlocageHoraire(id) {
+  await supabaseClient.from('blocages_horaires').delete().eq('id', id);
+  await chargerBlocagesHoraires();
+}
+
 
 async function enregistrerDisponibilites() {
   const max = parseInt(document.getElementById('dispo-max-jour').value) || 8;

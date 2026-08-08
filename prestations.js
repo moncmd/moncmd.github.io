@@ -215,13 +215,16 @@ async function chargerAvisPrestations(vendeurId, formule) {
     .limit(limite);
 
   const track = document.querySelector('.rev-track');
-  const section = track ? track.closest('section') : null;
+  const marquee = track ? track.closest('.rev-marquee') : null;
   if (!track) return;
 
+  // On ne cache jamais toute la section (le bouton "Laisser un avis" doit
+  // rester visible même sans avis publié) — seul le carrousel se masque.
   if (!avis || !avis.length) {
-    if (section) section.style.display = 'none';
+    if (marquee) marquee.style.display = 'none';
     return;
   }
+  if (marquee) marquee.style.display = '';
 
   const carte = (a) => `
     <div class="rev">
@@ -391,7 +394,75 @@ async function initCalendrier(){
     disable: [
       function(date){ return joursFermes.includes(date.getDay()); },
       ...datesBloquees
-    ]
+    ],
+    onChange: function(selectedDates, dateStr){
+      genererCreneaux(dateStr);
+    }
+  });
+}
+
+// Calcule et affiche les créneaux horaires réellement disponibles pour la
+// date choisie : découpés selon la durée de la prestation, en excluant les
+// blocages précis et les créneaux déjà pris par un autre rendez-vous.
+async function genererCreneaux(dateStr){
+  const grille = document.getElementById('slot-grid');
+  if (!grille || !vendeurActuel) return;
+  booking.slot = '';
+
+  const parts = dateStr.split('/');
+  const dateISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
+  const duree = (prestationsData.find(p => p.id === booking.prestationId) || {}).duree_minutes || 30;
+
+  const [hOuv, mOuv] = (vendeurActuel.heure_ouverture || '09:00').slice(0,5).split(':').map(Number);
+  const [hFer, mFer] = (vendeurActuel.heure_fermeture || '18:00').slice(0,5).split(':').map(Number);
+  const debutMinutes = hOuv * 60 + mOuv;
+  const finMinutes = hFer * 60 + mFer;
+
+  const [{ data: blocages }, { data: rdvExistants }] = await Promise.all([
+    supabaseClient.from('blocages_horaires').select('*').eq('vendeur_id', vendeurActuel.id).eq('date', dateISO),
+    supabaseClient.from('rendez_vous').select('heure, personnel_id').eq('vendeur_id', vendeurActuel.id).eq('date', dateISO)
+  ]);
+
+  const versMinutes = (h) => { const [hh, mm] = h.slice(0,5).split(':').map(Number); return hh * 60 + mm; };
+
+  const creneaux = [];
+  for (let m = debutMinutes; m + duree <= finMinutes; m += duree) {
+    const fin = m + duree;
+
+    const bloque = (blocages || []).some(b => {
+      if (b.personnel_id && booking.staffId && b.personnel_id !== booking.staffId) return false;
+      const bd = versMinutes(b.heure_debut), bf = versMinutes(b.heure_fin);
+      return m < bf && fin > bd;
+    });
+
+    const pris = (rdvExistants || []).some(r => {
+      if (!r.heure) return false;
+      if (booking.staffId && r.personnel_id && r.personnel_id !== booking.staffId) return false;
+      return versMinutes(r.heure) === m;
+    });
+
+    const h = String(Math.floor(m/60)).padStart(2,'0');
+    const mn = String(m%60).padStart(2,'0');
+    creneaux.push({ label: `${h}h${mn}`, valeur: `${h}:${mn}`, disponible: !bloque && !pris });
+  }
+
+  if (!creneaux.length) {
+    grille.innerHTML = '<p style="grid-column:1/-1;opacity:0.6;font-size:0.85rem;">Aucun créneau ce jour-là.</p>';
+    return;
+  }
+
+  grille.innerHTML = creneaux.map(c =>
+    c.disponible
+      ? `<div class="slot" data-valeur="${c.valeur}">${c.label}</div>`
+      : `<div class="slot disabled">${c.label}</div>`
+  ).join('');
+
+  grille.querySelectorAll('.slot:not(.disabled)').forEach(el => {
+    el.addEventListener('click', () => {
+      grille.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
+      el.classList.add('selected');
+      booking.slot = el.dataset.valeur;
+    });
   });
 }
 

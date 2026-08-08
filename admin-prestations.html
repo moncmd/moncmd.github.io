@@ -199,6 +199,37 @@
       <input type="text" id="calendar-block" placeholder="Choisir des dates" style="width:100%;padding:11px;border-radius:10px;border:1px solid #e5e5e5;">
       <p class="form-message" id="dispo-message"></p>
     </div>
+
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-business-time"></i> Horaires d'ouverture</h3>
+      <div style="display:flex;gap:10px;">
+        <div style="flex:1;">
+          <label class="champ-label">Ouverture</label>
+          <input type="time" id="dispo-heure-ouverture" style="width:100%;padding:10px;border-radius:10px;border:1px solid #e5e5e5;">
+        </div>
+        <div style="flex:1;">
+          <label class="champ-label">Fermeture</label>
+          <input type="time" id="dispo-heure-fermeture" style="width:100%;padding:10px;border-radius:10px;border:1px solid #e5e5e5;">
+        </div>
+      </div>
+      <button class="admin-btn secondaire" style="margin-top:12px;" onclick="enregistrerHoraires()">Enregistrer</button>
+      <p class="form-message" id="horaires-message"></p>
+    </div>
+
+    <div class="admin-card" id="carte-blocage-horaire">
+      <h3><i class="fa-solid fa-clock"></i> Bloquer un créneau précis <span class="badge" style="margin-left:6px;">Pro</span></h3>
+      <div class="admin-form">
+        <input type="date" id="blocage-date">
+        <div style="display:flex;gap:10px;">
+          <input type="time" id="blocage-heure-debut" placeholder="Début">
+          <input type="time" id="blocage-heure-fin" placeholder="Fin">
+        </div>
+        <select id="blocage-personnel"><option value="">Toute l'équipe</option></select>
+        <button class="admin-btn" onclick="ajouterBlocageHoraire()">Bloquer ce créneau</button>
+        <p class="form-message" id="blocage-message"></p>
+      </div>
+      <div id="liste-blocages-horaires" style="margin-top:12px;"></div>
+    </div>
   </div>
 
   <!-- GALERIE -->

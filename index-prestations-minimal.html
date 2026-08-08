@@ -131,7 +131,12 @@
   .service-row{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-radius:var(--r-sm);background:var(--panel);cursor:pointer;font-size:0.88rem;}
   .service-row:hover{outline:1.5px solid var(--accent);}
   .service-row .p{font-family:'Space Mono',monospace;color:var(--accent);font-size:0.8rem;}
-  #date-rdv{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);font-family:'Instrument Sans',sans-serif;font-size:0.9rem;margin-bottom:20px;}
+  #date-rdv{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);font-family:'Instrument Sans',sans-serif;font-size:0.9rem;margin-bottom:16px;}
+  .slot-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:20px;}
+  .slot{padding:10px;text-align:center;border:1px solid var(--line);border-radius:var(--r-sm);font-size:0.8rem;font-weight:600;cursor:pointer;background:var(--bg);}
+  .slot:hover{border-color:var(--accent);}
+  .slot.disabled{opacity:0.3;text-decoration:line-through;cursor:not-allowed;}
+  .slot.selected{background:var(--ink);color:var(--bg);border-color:var(--ink);}
   .summary-box{background:var(--panel);border-radius:var(--r-sm);padding:16px;font-size:0.85rem;line-height:1.8;margin-bottom:20px;}
   .summary-box b{color:var(--accent);}
   .step-nav{display:flex;justify-content:space-between;margin-top:24px;}
@@ -281,6 +286,8 @@
       <span class="mono">Étape 3 / 4</span>
       <h3>Quand ?</h3>
       <input type="text" id="date-rdv" placeholder="Choisir une date">
+      <div class="idx" style="display:block;margin:14px 0 10px;">Créneaux disponibles</div>
+      <div class="slot-grid" id="slot-grid"></div>
       <div class="step-nav"><span onclick="goStep(2)">← Retour</span><span onclick="goStep(4)" style="border-bottom:1px solid var(--ink);">Continuer →</span></div>
     </div>
 
