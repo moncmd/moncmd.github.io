@@ -29,7 +29,7 @@
 
   const { data: vendeur, error } = await supabaseClient
     .from('vendeurs')
-    .select('template, actif')
+    .select('template, actif, type_activite')
     .eq('slug', slug)
     .single();
 
@@ -39,13 +39,26 @@
   }
 
   const template = vendeur.template ? vendeur.template.toLowerCase() : '';
-  const fichier = template ? `index-${template}.html` : 'index.html';
+
+  // Les vendeurs "prestation" ont des fichiers nommés différemment
+  // (index-prestations-minimal.html, pas index-minimal.html), et ont
+  // toujours besoin d'un template précis (pas de version "par défaut").
+  let fichier;
+  if (vendeur.type_activite === 'prestation') {
+    if (!template) {
+      messageEl.textContent = "Aucune template définie pour cette boutique.";
+      return;
+    }
+    fichier = `index-prestations-${template}`;
+  } else {
+    fichier = template ? `index-${template}` : 'index';
+  }
 
   // Vraie navigation vers le fichier réel (chargement normal, fiable, sans
   // document.write). Le paramètre "pretty=1" indique à script.js de
   // remettre l'URL "chemin propre" dans la barre d'adresse une fois arrivé,
   // via history.replaceState (voir script.js).
-  window.location.replace(`/${fichier}?v=${encodeURIComponent(slug)}&pretty=1`);
+  window.location.replace(`/${fichier}.html?v=${encodeURIComponent(slug)}&pretty=1`);
 })();
 </script>
 </body>

@@ -27,6 +27,13 @@ async function chargerBoutiquePrestations() {
   }
   vendeurActuel = vendeur;
 
+  // Si on arrive ici via 404.html (paramètre "pretty=1"), on remet l'URL
+  // "chemin propre" (/slug) dans la barre d'adresse, sans recharger la page.
+  const paramsURL = new URLSearchParams(window.location.search);
+  if (paramsURL.get('pretty') === '1') {
+    history.replaceState(null, '', `/${slug}`);
+  }
+
   // Nom de la boutique (header + titre de page)
   document.querySelectorAll('.brand span').forEach(el => el.textContent = vendeur.nom_boutique);
   const footerNom = document.querySelector('.footer-nom');
