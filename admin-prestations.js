@@ -86,7 +86,8 @@ async function chargerDashboard(authUserId) {
     chargerAvisAModerer(),
     chargerStats(),
     chargerGraphique7Jours(),
-    chargerDernieresDemandes()
+    chargerDernieresDemandes(),
+    chargerAgenda()
   ]);
 }
 
@@ -683,5 +684,42 @@ async function chargerDernieresDemandes() {
         <span class="sub">${r.prestations ? r.prestations.nom : ''} — ${r.personnel ? r.personnel.nom : "N'importe qui"}</span>
       </div>
       <span class="badge">${r.date}</span>
+    </div>`).join('');
+}
+
+async function chargerAgenda() {
+  const aujourdhui = new Date().toISOString().split('T')[0];
+
+  const { data } = await supabaseClient
+    .from('rendez_vous')
+    .select('nom_client, numero_client, lieu, adresse_client, date, heure, prestations(nom, duree_minutes), personnel(nom)')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .gte('date', aujourdhui)
+    .order('date', { ascending: true })
+    .order('heure', { ascending: true });
+
+  const container = document.getElementById('liste-agenda');
+  if (!data || !data.length) { container.innerHTML = '<p class="empty-state">Aucun rendez-vous à venir.</p>'; return; }
+
+  // Regroupement par jour
+  const parJour = {};
+  data.forEach(r => {
+    if (!parJour[r.date]) parJour[r.date] = [];
+    parJour[r.date].push(r);
+  });
+
+  const formatDate = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  container.innerHTML = Object.keys(parJour).map(date => `
+    <div style="margin-bottom:18px;">
+      <div class="mono" style="margin-bottom:8px;text-transform:capitalize;">${formatDate(date)}</div>
+      ${parJour[date].map(r => `
+        <div class="row">
+          <div class="row-infos">
+            <strong>${r.heure ? r.heure.slice(0,5) : '—'} · ${r.nom_client || 'Client'}</strong>
+            <span class="sub">${r.prestations ? r.prestations.nom : ''} — ${r.personnel ? r.personnel.nom : "N'importe qui"}${r.numero_client ? ' · ' + r.numero_client : ''}</span>
+            ${r.lieu === 'domicile' ? `<span class="sub" style="display:block;color:#e56400;">🏠 À domicile${r.adresse_client ? ' — ' + r.adresse_client : ''}</span>` : ''}
+          </div>
+        </div>`).join('')}
     </div>`).join('');
 }

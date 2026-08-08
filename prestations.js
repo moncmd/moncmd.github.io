@@ -9,7 +9,7 @@ let vendeurActuel = null;
 let prestationsData = [];
 let personnelData = [];
 
-let booking = { staffId: '', staffNom: '', prestationId: '', prestationNom: '', prestationPrix: '', date: '', slot: '' };
+let booking = { staffId: '', staffNom: '', prestationId: '', prestationNom: '', prestationPrix: '', date: '', slot: '', lieu: 'boutique' };
 
 async function chargerBoutiquePrestations() {
   const slug = getVendeurSlug();
@@ -35,7 +35,7 @@ async function chargerBoutiquePrestations() {
   }
 
   // Nom de la boutique (header + titre de page)
-  document.querySelectorAll('.brand span').forEach(el => el.textContent = vendeur.nom_boutique);
+  document.querySelectorAll('.brand h1, .brand span').forEach(el => el.textContent = vendeur.nom_boutique);
   const footerNom = document.querySelector('.footer-nom');
   if (footerNom) footerNom.textContent = `2026 — ${vendeur.nom_boutique}`;
   document.title = vendeur.nom_boutique;
@@ -294,7 +294,7 @@ async function envoyerAvis() {
 // ============================================
 function openModal(prestationId) {
   document.getElementById('modal-overlay').classList.add('open');
-  booking = { staffId: '', staffNom: '', prestationId: '', prestationNom: '', prestationPrix: '', date: '', slot: '' };
+  booking = { staffId: '', staffNom: '', prestationId: '', prestationNom: '', prestationPrix: '', date: '', slot: '', lieu: 'boutique' };
 
   if (prestationId) {
     const p = prestationsData.find(x => x.id === prestationId);
@@ -333,6 +333,13 @@ function remplirServiceList(){
   });
 }
 
+function choisirLieu(lieu){
+  booking.lieu = lieu;
+  document.getElementById('lieu-boutique').classList.toggle('selected', lieu === 'boutique');
+  document.getElementById('lieu-domicile').classList.toggle('selected', lieu === 'domicile');
+  document.getElementById('rdv-adresse').style.display = lieu === 'domicile' ? 'block' : 'none';
+}
+
 function buildSummary(){
   const dateVal = document.getElementById('date-rdv').value || '(date à confirmer)';
   booking.date = dateVal;
@@ -342,20 +349,31 @@ function buildSummary(){
      Le : <b>${dateVal}${booking.slot ? ' à ' + booking.slot : ''}</b>`;
 
   const numero = vendeurActuel ? vendeurActuel.numero_whatsapp : '221000000000';
-  const msg = encodeURIComponent(
-    `Bonjour, je voudrais réserver ${booking.prestationNom || ''} avec ${booking.staffNom || "n'importe qui"} le ${dateVal}${booking.slot ? ' à ' + booking.slot : ''}.`
-  );
   const btn = document.getElementById('confirm-btn');
-  btn.href = `https://wa.me/${numero}?text=${msg}`;
-  btn.addEventListener('click', enregistrerRendezVous);
+
+  btn.onclick = () => {
+    const nom = document.getElementById('rdv-nom').value.trim();
+    const numeroClient = document.getElementById('rdv-numero').value.trim();
+    const adresseClient = document.getElementById('rdv-adresse').value.trim();
+    const lieuTexte = booking.lieu === 'domicile' ? `à domicile (${adresseClient || 'adresse à préciser'})` : 'en boutique';
+    const msg = encodeURIComponent(
+      `Bonjour, je suis ${nom || ''}. Je voudrais réserver ${booking.prestationNom || ''} avec ${booking.staffNom || "n'importe qui"} le ${dateVal}${booking.slot ? ' à ' + booking.slot : ''}, ${lieuTexte}.`
+    );
+    btn.href = `https://wa.me/${numero}?text=${msg}`;
+    enregistrerRendezVous(nom, numeroClient, adresseClient);
+  };
 }
 
-async function enregistrerRendezVous(){
+async function enregistrerRendezVous(nom, numeroClient, adresseClient){
   if (!vendeurActuel) return;
   await supabaseClient.from('rendez_vous').insert({
     vendeur_id: vendeurActuel.id,
     prestation_id: booking.prestationId || null,
     personnel_id: booking.staffId || null,
+    nom_client: nom || null,
+    numero_client: numeroClient || null,
+    lieu: booking.lieu || 'boutique',
+    adresse_client: booking.lieu === 'domicile' ? (adresseClient || null) : null,
     date: convertirDateISO(booking.date),
     heure: booking.slot || null
   });

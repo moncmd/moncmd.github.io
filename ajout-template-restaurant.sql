@@ -11,3 +11,9 @@ alter table vendeurs add constraint check_template_valide
 -- ============================================
 alter table vendeurs add column if not exists heure_ouverture time default '09:00';
 alter table vendeurs add column if not exists heure_fermeture time default '18:00';
+
+-- ============================================
+-- AJOUT : service à domicile (prestataires)
+-- ============================================
+alter table rendez_vous add column if not exists lieu text default 'boutique';
+alter table rendez_vous add column if not exists adresse_client text;

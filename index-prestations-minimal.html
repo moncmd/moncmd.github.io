@@ -294,6 +294,13 @@
     <div class="step" id="step-4">
       <span class="mono">Étape 4 / 4</span>
       <h3>Confirmer</h3>
+      <input type="text" id="rdv-nom" placeholder="Votre nom" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);margin-bottom:10px;font-family:inherit;">
+      <input type="text" id="rdv-numero" placeholder="Votre numéro" style="width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);margin-bottom:10px;font-family:inherit;">
+      <div class="slot-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px;">
+        <div class="slot selected" id="lieu-boutique" onclick="choisirLieu('boutique')">En boutique</div>
+        <div class="slot" id="lieu-domicile" onclick="choisirLieu('domicile')">À domicile</div>
+      </div>
+      <input type="text" id="rdv-adresse" placeholder="Votre adresse" style="display:none;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);margin-bottom:16px;font-family:inherit;">
       <div class="summary-box" id="summary-box"></div>
       <a class="btn btn-fill" id="confirm-btn" style="width:100%;text-align:center;" target="_blank">Confirmer sur WhatsApp</a>
       <div class="step-nav"><span onclick="goStep(3)">← Retour</span><span></span></div>
