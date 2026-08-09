@@ -13,7 +13,7 @@ function getTemplateActif() {
   return (vendeurActuel && vendeurActuel.template) ? vendeurActuel.template.toLowerCase() : '';
 }
 
-const TEMPLATES_CONNUS = ['urbain', 'marche', 'doux'];
+const TEMPLATES_CONNUS = ['urbain', 'marche', 'doux', 'restaurant'];
 
 // Déduit le type de page (index/panier/commande) et la template actuelle
 // à partir du nom du fichier ouvert (ex: "panier-doux" -> page:"panier", template:"doux")
