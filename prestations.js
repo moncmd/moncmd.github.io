@@ -87,7 +87,7 @@ function afficherAdresse(vendeur) {
 async function chargerPrestations(vendeurId) {
   const { data, error } = await supabaseClient
     .from('prestations')
-    .select('*')
+    .select('*, personnel_prestations(personnel_id)')
     .eq('vendeur_id', vendeurId)
     .eq('actif', true)
     .order('date_creation', { ascending: true });
@@ -117,6 +117,16 @@ async function chargerPrestations(vendeurId) {
   }
 }
 
+// Règle : une prestation sans aucune personne assignée reste ouverte à toute
+// l'équipe (comportement par défaut, rien ne change pour les vendeurs qui
+// n'utilisent pas cette fonctionnalité). Si des personnes précises lui sont
+// assignées, seules elles peuvent la proposer.
+function prestationOuvertePourStaff(p, staffId) {
+  if (!staffId) return true; // "N'importe qui" → toutes les prestations restent visibles
+  if (!p.personnel_prestations || !p.personnel_prestations.length) return true; // pas de restriction définie
+  return p.personnel_prestations.some(l => l.personnel_id === staffId);
+}
+
 async function chargerPersonnel(vendeurId) {
   const { data, error } = await supabaseClient
     .from('personnel')
@@ -137,6 +147,26 @@ async function chargerPersonnel(vendeurId) {
   personnelData.forEach(p => {
     list.appendChild(creerStaffItem(p.id, p.nom, 'Voir ses prestations'));
   });
+}
+
+// Ré-affiche la liste du personnel filtrée sur ceux qui font la prestation
+// donnée. Appelée uniquement quand on entre dans le flux avec une prestation
+// déjà choisie (bouton "Réserver" sur une carte) ; sinon la liste complète
+// chargée par chargerPersonnel() reste affichée telle quelle.
+function remplirStaffList(prestationId){
+  const list = document.querySelector('.staff-list');
+  if (!list) return;
+  list.innerHTML = '';
+  list.appendChild(creerStaffItem(null, "N'importe qui", 'Premier créneau disponible'));
+
+  const p = prestationsData.find(x => x.id === prestationId);
+  const idsAssignes = (p && p.personnel_prestations && p.personnel_prestations.length)
+    ? p.personnel_prestations.map(l => l.personnel_id)
+    : null; // null = pas de restriction, toute l'équipe peut la faire
+
+  personnelData
+    .filter(staff => !idsAssignes || idsAssignes.includes(staff.id))
+    .forEach(staff => list.appendChild(creerStaffItem(staff.id, staff.nom, 'Voir ses prestations')));
 }
 
 function creerStaffItem(id, nom, sousTitre) {
@@ -299,6 +329,7 @@ function openModal(prestationId) {
   if (prestationId) {
     const p = prestationsData.find(x => x.id === prestationId);
     if (p) { booking.prestationId = p.id; booking.prestationNom = p.nom; booking.prestationPrix = p.prix; }
+    remplirStaffList(prestationId);
   }
   goStep(1);
 }
@@ -321,7 +352,15 @@ function remplirServiceList(){
   const list = document.querySelector('.service-list');
   if (!list) return;
   list.innerHTML = '';
-  prestationsData.forEach(p => {
+
+  const prestationsDisponibles = prestationsData.filter(p => prestationOuvertePourStaff(p, booking.staffId));
+
+  if (!prestationsDisponibles.length) {
+    list.innerHTML = '<p style="opacity:0.6;font-size:0.9rem;">Aucune prestation disponible avec cette personne.</p>';
+    return;
+  }
+
+  prestationsDisponibles.forEach(p => {
     const el = document.createElement('div');
     el.className = 'service-row';
     el.innerHTML = `<span>${p.nom}</span><span class="p">${p.prix.toLocaleString('fr-FR')} FCFA</span>`;
