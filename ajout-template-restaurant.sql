@@ -17,3 +17,8 @@ alter table vendeurs add column if not exists heure_fermeture time default '18:0
 -- ============================================
 alter table rendez_vous add column if not exists lieu text default 'boutique';
 alter table rendez_vous add column if not exists adresse_client text;
+
+-- ============================================
+-- AJOUT : mot du vendeur (message d'accueil affiché en haut de la boutique)
+-- ============================================
+alter table vendeurs add column if not exists message_accueil text;

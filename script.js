@@ -127,6 +127,7 @@ async function chargerBoutique() {
   restaurerURLPropre(slug);
 
   appliquerIdentiteVendeur(vendeur);
+  afficherMotVendeur(vendeur);
 
   const { data: produitsData, error: errProduits } = await supabaseClient
     .from('produits')
@@ -176,6 +177,17 @@ function appliquerIdentiteVendeur(vendeur) {
   }
 
   afficherReseauxSociaux(vendeur);
+}
+
+// Affiche le petit message d'accueil du vendeur en haut de la page,
+// seulement si un conteneur #mot-vendeur existe dans le template et
+// que le vendeur a renseigné ce champ.
+function afficherMotVendeur(vendeur) {
+  const el = document.getElementById('mot-vendeur');
+  if (!el) return;
+  if (!vendeur.message_accueil) { el.style.display = 'none'; return; }
+  el.textContent = vendeur.message_accueil;
+  el.style.display = 'block';
 }
 
 // Affiche les icônes réseaux sociaux dans le footer, seulement pour ceux

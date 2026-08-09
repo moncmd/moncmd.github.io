@@ -311,6 +311,7 @@ function remplirInfosVendeur() {
   document.getElementById('info-instagram').value = vendeurConnecte.instagram || '';
   document.getElementById('info-tiktok').value = vendeurConnecte.tiktok || '';
   document.getElementById('info-facebook').value = vendeurConnecte.facebook || '';
+
 }
 
 async function enregistrerInfos() {
@@ -320,6 +321,7 @@ async function enregistrerInfos() {
   const instagram = document.getElementById('info-instagram').value.trim();
   const tiktok = document.getElementById('info-tiktok').value.trim();
   const facebook = document.getElementById('info-facebook').value.trim();
+
   const messageEl = document.getElementById('info-message');
 
   if (!numero_whatsapp) {
@@ -330,7 +332,7 @@ async function enregistrerInfos() {
 
   const { error } = await supabaseClient
     .from('vendeurs')
-    .update({ numero_whatsapp, wave_numero, om_numero, instagram, tiktok, facebook })
+    .update({ numero_whatsapp, wave_numero, om_numero, instagram, tiktok, facebook, message_accueil })
     .eq('id', vendeurConnecte.id);
 
   if (error) {
@@ -345,6 +347,7 @@ async function enregistrerInfos() {
   vendeurConnecte.instagram = instagram;
   vendeurConnecte.tiktok = tiktok;
   vendeurConnecte.facebook = facebook;
+
 
   messageEl.textContent = "Informations mises à jour ✓";
   messageEl.style.color = 'green';
