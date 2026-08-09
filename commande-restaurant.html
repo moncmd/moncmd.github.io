@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commande</title>
+    <link rel="stylesheet" href="style-restaurant.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <header>
+        <div class="logo">
+        <a href="javascript:void(0)" onclick="allerVers('index')" style="text-decoration: none; display:flex; align-items:center; gap:10px;">
+          <img src="1C621DE3-4443-4809-A987-882F313088E0_1_105_c.jpeg" alt="CMD." class="logo-img">
+          <h5>CMD.</h5>
+        </a>
+      </div>
+        <div id="panier"></div>
+        <nav>
+            <div class="panier-count">
+                <span id="compteur">0</span>
+                <a href="#" onclick="voirpanier()">
+                    <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M223.5-103.5Q200-127 200-160t23.5-56.5Q247-240 280-240t56.5 23.5Q360-193 360-160t-23.5 56.5Q313-80 280-80t-56.5-23.5Zm400 0Q600-127 600-160t23.5-56.5Q647-240 680-240t56.5 23.5Q760-193 760-160t-23.5 56.5Q713-80 680-80t-56.5-23.5ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg>
+                </a>
+            </div>
+            <button class="btn-mode-sombre" id="btn-toggle-mode-sombre" title="Mode sombre" onclick="toggleModeSombre()"><i class="fa-solid fa-moon"></i></button>
+            <a href="https://wa.me/221784218267?text=Bonjour, je voudrais passer une commande !" target="_blank">
+                <i class="fa-brands fa-whatsapp"></i>
+            </a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="menu">
+            <p>Commande</p>
+            <h1>Finaliser votre commande</h1>
+        </div>
+
+        <div class="commande-layout">
+            <div class="lefft">
+                <div class="select">
+                    <div class="selecttt">
+                        <button class="menu-btn active" onclick="modePaiement('surplace', this)">Sur place</button>
+                    </div>
+                    <div class="selecttt">
+                        <button class="menu-btn" onclick="modePaiement('online', this)">Online</button>
+                    </div>
+                </div>
+
+                <div class="paiement" style="display: none;">
+                    <div>
+                        <img src="3E4B346A-66B9-4DC8-B178-AAD6306E16B9_4_5005_c.jpeg" alt="Wave" style="border-radius: 10px;">
+                        <h4>Payer avec Wave</h4>
+                        <p id="wave-numero">—</p>
+                    </div>
+                    <div>
+                        <img src="3FCAFAC4-67C5-44FD-87D2-1DFAB0DEF77E_4_5005_c.jpeg" alt="Orange Money" style="border-radius: 10px;">
+                        <h4>Payer avec OM</h4>
+                        <p id="om-numero">—</p>
+                    </div>
+                </div>
+
+                <div class="form">
+                    <label for="nom">Nom</label>
+                    <input type="text" id="nom" required>
+
+                    <label for="prenom">Prénom</label>
+                    <input type="text" id="prenom" required>
+
+                    <label for="numero">Numéro</label>
+                    <input type="text" id="numero" required>
+
+                    <label for="adresse">Adresse</label>
+                    <input type="text" id="adresse" placeholder="Quartier, ville...">
+
+                    <label for="heure">Heure de récupération</label>
+                    <input type="time" id="heure" required>
+                </div>
+
+                <a href="javascript:void(0)" onclick="envoyerCommande()" class="btn-envoyer">
+                    Envoyer sur WhatsApp
+                </a>
+            </div>
+
+            <div class="rightt">
+                <h3>Votre commande</h3>
+                <div id="resume"></div>
+                <p style="font-size:12px; color:#888; margin-top:14px; line-height:1.5;">
+                    NB : la livraison n'est pas incluse dans les prix affichés. Si vous en avez besoin, elle sera directement discutée avec le vendeur sur WhatsApp.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <p>2026 Copyrights - <a href="https://hilarionv.github.io/PORTFOLIO/">By HV</a></p>
+    </footer>
+
+    <script src="supabase-config.js"></script>
+    <script src="script.js"></script>
+    <script src="voirpanier.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="commande.js"></script>
+</body>
+</html>
