@@ -6,6 +6,7 @@
 let vendeurConnecte = null;
 let prestationsCache = [];
 let personnelCache = [];
+let prestationEnEdition = null; // id de la prestation en cours de modification, null = mode "ajout"
 
 const HIERARCHIE_FORMULES = ['standard', 'pro', 'premium'];
 function auMoins(niveauRequis) {
@@ -116,10 +117,55 @@ async function chargerPrestations() {
       <img class="row-thumb" src="${p.image_url || ''}">
       <div class="row-infos"><strong>${p.nom}</strong><span class="sub">${p.prix.toLocaleString('fr-FR')} FCFA · ${p.duree_minutes} min</span></div>
       <div class="row-actions">
+        <button class="icon-btn" onclick="ouvrirEditionPrestation('${p.id}')"><i class="fa-solid fa-pen"></i></button>
         <button class="icon-btn danger" onclick="supprimerPrestation('${p.id}')"><i class="fa-solid fa-trash"></i></button>
       </div>
     </div>
   `).join('');
+}
+
+// Pré-remplit le formulaire "Ajouter une prestation" avec les valeurs de la
+// prestation choisie, et le fait basculer en mode "modification".
+function ouvrirEditionPrestation(id) {
+  const p = prestationsCache.find(x => x.id === id);
+  if (!p) return;
+
+  prestationEnEdition = id;
+
+  document.getElementById('nouveau-presta-nom').value = p.nom;
+  document.getElementById('nouveau-presta-prix').value = p.prix;
+  document.getElementById('nouveau-presta-duree').value = p.duree_minutes;
+  document.getElementById('nouveau-presta-fichier').value = '';
+
+  const selectPersonnel = document.getElementById('nouveau-presta-personnel');
+  const assigneA = p.personnel_prestations && p.personnel_prestations[0] ? p.personnel_prestations[0].personnel_id : '';
+  if (selectPersonnel) selectPersonnel.value = assigneA;
+
+  document.getElementById('presta-form-titre').innerHTML = '<i class="fa-solid fa-pen"></i> Modifier la prestation';
+  document.getElementById('presta-photo-optionnelle').style.display = 'inline';
+  document.getElementById('btn-submit-presta').textContent = 'Enregistrer les modifications';
+  document.getElementById('btn-annuler-edition-presta').style.display = 'block';
+  document.getElementById('presta-message').textContent = '';
+
+  document.getElementById('onglet-prestations').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Annule le mode édition et remet le formulaire en mode "ajout"
+function annulerEditionPrestation() {
+  prestationEnEdition = null;
+
+  document.getElementById('nouveau-presta-nom').value = '';
+  document.getElementById('nouveau-presta-prix').value = '';
+  document.getElementById('nouveau-presta-duree').value = 30;
+  document.getElementById('nouveau-presta-fichier').value = '';
+  const selectPersonnel = document.getElementById('nouveau-presta-personnel');
+  if (selectPersonnel) selectPersonnel.value = '';
+
+  document.getElementById('presta-form-titre').innerHTML = '<i class="fa-solid fa-plus"></i> Ajouter une prestation';
+  document.getElementById('presta-photo-optionnelle').style.display = 'none';
+  document.getElementById('btn-submit-presta').textContent = 'Ajouter la prestation';
+  document.getElementById('btn-annuler-edition-presta').style.display = 'none';
+  document.getElementById('presta-message').textContent = '';
 }
 
 async function ajouterPrestation() {
@@ -136,7 +182,11 @@ async function ajouterPrestation() {
     return;
   }
 
-  if (!auMoins('premium')) {
+  const modeEdition = !!prestationEnEdition;
+
+  // La limite de formule ne s'applique qu'à la création, pas à la modification
+  // d'une prestation déjà existante.
+  if (!modeEdition && !auMoins('premium')) {
     const limite = auMoins('pro') ? 50 : 20;
     const { count } = await supabaseClient
       .from('prestations')
@@ -152,7 +202,9 @@ async function ajouterPrestation() {
     }
   }
 
-  let image_url = '';
+  // En mode édition, l'image n'est ré-uploadée que si un nouveau fichier a été choisi ;
+  // sinon on garde l'URL déjà enregistrée (undefined = champ non touché par le .update()).
+  let image_url = modeEdition ? undefined : '';
   if (fichier) {
     const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
     const { error: erreurUpload } = await supabaseClient.storage.from('prestations-images').upload(nomFichier, fichier);
@@ -162,24 +214,43 @@ async function ajouterPrestation() {
     }
   }
 
-  const { data: nouvellePrestation, error } = await supabaseClient
-    .from('prestations')
-    .insert({ vendeur_id: vendeurConnecte.id, nom, prix, duree_minutes, image_url })
-    .select()
-    .single();
+  const donnees = { nom, prix, duree_minutes };
+  if (image_url !== undefined) donnees.image_url = image_url;
 
-  if (error) { messageEl.textContent = "Erreur lors de l'ajout."; messageEl.style.color = 'red'; return; }
+  let prestationConcernee;
 
-  if (personnelId && nouvellePrestation) {
-    await supabaseClient.from('personnel_prestations').insert({ personnel_id: personnelId, prestation_id: nouvellePrestation.id });
+  if (modeEdition) {
+    const { data, error } = await supabaseClient
+      .from('prestations')
+      .update(donnees)
+      .eq('id', prestationEnEdition)
+      .select()
+      .single();
+
+    if (error) { messageEl.textContent = "Erreur lors de la modification."; messageEl.style.color = 'red'; return; }
+    prestationConcernee = data;
+
+    // Met à jour l'assignation personnel : on retire l'ancienne puis on remet la nouvelle
+    await supabaseClient.from('personnel_prestations').delete().eq('prestation_id', prestationEnEdition);
+  } else {
+    const { data, error } = await supabaseClient
+      .from('prestations')
+      .insert({ vendeur_id: vendeurConnecte.id, ...donnees })
+      .select()
+      .single();
+
+    if (error) { messageEl.textContent = "Erreur lors de l'ajout."; messageEl.style.color = 'red'; return; }
+    prestationConcernee = data;
   }
 
-  messageEl.textContent = "Prestation ajoutée ✓";
+  if (personnelId && prestationConcernee) {
+    await supabaseClient.from('personnel_prestations').insert({ personnel_id: personnelId, prestation_id: prestationConcernee.id });
+  }
+
+  annulerEditionPrestation(); // remet le formulaire à zéro et repasse en mode "ajout"
+  messageEl.textContent = modeEdition ? "Prestation modifiée ✓" : "Prestation ajoutée ✓";
   messageEl.style.color = 'green';
-  document.getElementById('nouveau-presta-nom').value = '';
-  document.getElementById('nouveau-presta-prix').value = '';
-  document.getElementById('nouveau-presta-duree').value = 30;
-  document.getElementById('nouveau-presta-fichier').value = '';
+
   await chargerPrestations();
 }
 

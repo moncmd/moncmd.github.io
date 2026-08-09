@@ -155,15 +155,16 @@
   <!-- PRESTATIONS -->
   <div id="onglet-prestations" class="onglet-panel">
     <div class="admin-card">
-      <h3><i class="fa-solid fa-plus"></i> Ajouter une prestation</h3>
+      <h3 id="presta-form-titre"><i class="fa-solid fa-plus"></i> Ajouter une prestation</h3>
       <div class="admin-form">
         <input type="text" id="nouveau-presta-nom" placeholder="Nom de la prestation">
         <input type="number" id="nouveau-presta-prix" placeholder="Prix (FCFA)">
         <input type="number" id="nouveau-presta-duree" placeholder="Durée (minutes)" value="30">
-        <label class="champ-label">Photo (optionnel)</label>
+        <label class="champ-label">Photo <span id="presta-photo-optionnelle" style="display:none;font-weight:400;">(laisser vide pour garder l'actuelle)</span></label>
         <input type="file" id="nouveau-presta-fichier" accept="image/*">
         <select id="nouveau-presta-personnel"><option value="">Assignée à… (optionnel)</option></select>
-        <button class="admin-btn" onclick="ajouterPrestation()">Ajouter la prestation</button>
+        <button class="admin-btn" id="btn-submit-presta" onclick="ajouterPrestation()">Ajouter la prestation</button>
+        <button class="admin-btn secondaire" id="btn-annuler-edition-presta" style="display:none;margin-top:8px;" onclick="annulerEditionPrestation()">Annuler la modification</button>
         <p class="form-message" id="presta-message"></p>
       </div>
     </div>
