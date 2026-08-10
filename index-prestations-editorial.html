@@ -132,6 +132,15 @@
   .slot:hover{border-color:var(--coral);}
   .slot.disabled{opacity:0.3;text-decoration:line-through;cursor:not-allowed;}
   .slot.selected{background:var(--ink);color:var(--bg);}
+
+  .cat-strip{border-bottom:2px solid var(--ink);position:sticky;top:70px;z-index:40;background:var(--bg);}
+  .cat-track{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;max-width:1100px;margin:0 auto;padding:0 32px;}
+  .cat-track::-webkit-scrollbar{display:none;}
+  @media(max-width:640px){.cat-track{padding:0 20px;}}
+  .cat-item{flex:0 0 auto;padding:14px 20px;font-size:0.78rem;font-weight:600;color:var(--ink);opacity:0.5;border-right:1px solid var(--line);cursor:pointer;white-space:nowrap;position:relative;}
+  .cat-item:last-child{border-right:none;}
+  .cat-item.active{opacity:1;color:var(--coral);}
+  .cat-item.active::before{content:"";position:absolute;left:20px;right:20px;bottom:-2px;height:2px;background:var(--coral);}
   .summary-box{background:#fff;border:2px solid var(--ink);border-radius:var(--r-sm);padding:16px;font-size:0.85rem;line-height:1.8;margin-bottom:20px;}
   .summary-box b{color:var(--coral);}
   .step-nav{display:flex;justify-content:space-between;margin-top:22px;font-weight:600;font-size:0.82rem;}
@@ -165,6 +174,10 @@
   </div>
 </section>
 
+<div class="cat-strip">
+  <div class="cat-track" id="cat-track"></div>
+</div>
+
 <section id="prestations">
   <div class="wrap">
     <div class="presta-grid">
@@ -173,21 +186,10 @@
   </div>
 </section>
 
-<section id="galerie" class="gallery-section">
+<section id="galerie" class="gallery-section" style="display:none;">
   <div class="wrap"><div class="sh"><h2>Nos <span>réalisations</span></h2></div></div>
   <div class="marquee">
-    <div class="marquee-track">
-      <div class="g-item" onclick="openLightbox()"><span>Photo 1</span></div>
-      <div class="g-item" onclick="openLightbox()"><span>Photo 2</span></div>
-      <div class="g-item" onclick="openLightbox()"><span>Photo 3</span></div>
-      <div class="g-item" onclick="openLightbox()"><span>Photo 4</span></div>
-      <div class="g-item" onclick="openLightbox()"><span>Photo 5</span></div>
-      <div class="g-item" onclick="openLightbox()"><span>Photo 1</span></div>
-      <div class="g-item" onclick="openLightbox()"><span>Photo 2</span></div>
-      <div class="g-item" onclick="openLightbox()"><span>Photo 3</span></div>
-      <div class="g-item" onclick="openLightbox()"><span>Photo 4</span></div>
-      <div class="g-item" onclick="openLightbox()"><span>Photo 5</span></div>
-    </div>
+    <div class="marquee-track"></div>
   </div>
 </section>
 

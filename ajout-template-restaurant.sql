@@ -22,3 +22,4 @@ alter table rendez_vous add column if not exists adresse_client text;
 -- AJOUT : mot du vendeur (message d'accueil affiché en haut de la boutique)
 -- ============================================
 alter table vendeurs add column if not exists message_accueil text;
+alter table prestations add column if not exists categorie text;

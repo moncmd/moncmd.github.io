@@ -115,13 +115,19 @@ async function chargerPrestations() {
   liste.innerHTML = prestationsCache.map(p => `
     <div class="row">
       <img class="row-thumb" src="${p.image_url || ''}">
-      <div class="row-infos"><strong>${p.nom}</strong><span class="sub">${p.prix.toLocaleString('fr-FR')} FCFA · ${p.duree_minutes} min</span></div>
+      <div class="row-infos"><strong>${p.nom}</strong><span class="sub">${p.categorie ? p.categorie + ' · ' : ''}${p.prix.toLocaleString('fr-FR')} FCFA · ${p.duree_minutes} min</span></div>
       <div class="row-actions">
         <button class="icon-btn" onclick="ouvrirEditionPrestation('${p.id}')"><i class="fa-solid fa-pen"></i></button>
         <button class="icon-btn danger" onclick="supprimerPrestation('${p.id}')"><i class="fa-solid fa-trash"></i></button>
       </div>
     </div>
   `).join('');
+
+  const datalistCategories = document.getElementById('liste-categories-existantes');
+  if (datalistCategories) {
+    const categories = [...new Set(prestationsCache.map(p => p.categorie).filter(Boolean))];
+    datalistCategories.innerHTML = categories.map(c => `<option value="${c}">`).join('');
+  }
 }
 
 // Pré-remplit le formulaire "Ajouter une prestation" avec les valeurs de la
@@ -135,6 +141,7 @@ function ouvrirEditionPrestation(id) {
   document.getElementById('nouveau-presta-nom').value = p.nom;
   document.getElementById('nouveau-presta-prix').value = p.prix;
   document.getElementById('nouveau-presta-duree').value = p.duree_minutes;
+  document.getElementById('nouveau-presta-categorie').value = p.categorie || '';
   document.getElementById('nouveau-presta-fichier').value = '';
 
   const selectPersonnel = document.getElementById('nouveau-presta-personnel');
@@ -157,6 +164,7 @@ function annulerEditionPrestation() {
   document.getElementById('nouveau-presta-nom').value = '';
   document.getElementById('nouveau-presta-prix').value = '';
   document.getElementById('nouveau-presta-duree').value = 30;
+  document.getElementById('nouveau-presta-categorie').value = '';
   document.getElementById('nouveau-presta-fichier').value = '';
   const selectPersonnel = document.getElementById('nouveau-presta-personnel');
   if (selectPersonnel) selectPersonnel.value = '';
@@ -172,6 +180,7 @@ async function ajouterPrestation() {
   const nom = document.getElementById('nouveau-presta-nom').value.trim();
   const prix = parseInt(document.getElementById('nouveau-presta-prix').value);
   const duree_minutes = parseInt(document.getElementById('nouveau-presta-duree').value) || 30;
+  const categorie = document.getElementById('nouveau-presta-categorie').value.trim() || null;
   const fichier = document.getElementById('nouveau-presta-fichier').files[0];
   const personnelId = document.getElementById('nouveau-presta-personnel').value;
   const messageEl = document.getElementById('presta-message');
@@ -214,7 +223,7 @@ async function ajouterPrestation() {
     }
   }
 
-  const donnees = { nom, prix, duree_minutes };
+  const donnees = { nom, prix, duree_minutes, categorie };
   if (image_url !== undefined) donnees.image_url = image_url;
 
   let prestationConcernee;

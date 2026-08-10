@@ -363,6 +363,7 @@ async function chargerStats() {
     .from('commandes')
     .select('total, contenu')
     .eq('vendeur_id', vendeurConnecte.id)
+    .eq('statut', 'confirmee')
     .gte('date_creation', debutMois.toISOString());
 
   const { count: nbProduits } = await supabaseClient
@@ -412,6 +413,7 @@ async function chargerGraphique7Jours() {
     .from('commandes')
     .select('date_creation')
     .eq('vendeur_id', vendeurConnecte.id)
+    .eq('statut', 'confirmee')
     .gte('date_creation', debut.toISOString());
 
   const compteurParJour = {};
@@ -740,16 +742,43 @@ function afficherListeCommandes(commandes, idConteneur) {
 
   commandes.forEach(c => {
     const date = new Date(c.date_creation).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    const estConfirmee = c.statut === 'confirmee';
     liste.innerHTML += `
       <div class="commande-row">
         <span class="total">${c.total.toLocaleString()} FCFA</span>
         <strong>${c.nom_client} ${c.prenom_client}</strong>
-        <span class="badge-statut">${c.statut}</span>
+        <span class="badge-statut" style="${estConfirmee ? '' : 'background:#fff3cd;color:#8a6d00;'}">${estConfirmee ? 'Confirmée' : 'En attente'}</span>
         <br><small style="color:#999;">${date} · ${c.numero_client}</small>
+        ${!estConfirmee ? `<br><button class="admin-btn" style="width:auto;padding:6px 14px;font-size:12px;margin-top:6px;" onclick="confirmerCommande('${c.id}')">✓ Marquer comme confirmée</button>` : ''}
         ${c.recu_url ? `<br><a href="${c.recu_url}" target="_blank" style="font-size:12px; color:var(--couleur-accent, #e56400); font-weight:600;"><i class="fa-solid fa-file-pdf"></i> Voir le reçu</a>` : ''}
       </div>
     `;
   });
+}
+
+// Le vendeur confirme qu'il a bien reçu la commande sur WhatsApp (le client a
+// vraiment envoyé le message). Seules les commandes confirmées comptent dans
+// le chiffre d'affaires et les stats — un simple clic sur "Commander" qui
+// ouvre WhatsApp sans envoi réel ne doit pas gonfler les ventes.
+async function confirmerCommande(id) {
+  const { data: commande } = await supabaseClient.from('commandes').select('contenu').eq('id', id).single();
+
+  await supabaseClient.from('commandes').update({ statut: 'confirmee' }).eq('id', id);
+
+  // Décompte du stock uniquement maintenant que la commande est confirmée
+  if (commande && commande.contenu) {
+    for (const item of commande.contenu) {
+      if (item.produit_id) {
+        await supabaseClient.rpc('decrementer_stock', {
+          p_produit_id: item.produit_id,
+          p_quantite: item.quantite
+        });
+      }
+    }
+  }
+
+  await chargerCommandes();
+  await chargerStats();
 }
 
 // ============================================

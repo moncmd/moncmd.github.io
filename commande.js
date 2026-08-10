@@ -46,6 +46,11 @@ function afficherResume() {
 
 // Envoyer sur WhatsApp (+ enregistrer la commande dans Supabase)
 async function envoyerCommande() {
+    if (!panierData || panierData.length === 0) {
+        alert('Votre panier est vide.');
+        return;
+    }
+
     const nom = document.getElementById('nom').value;
     const prenom = document.getElementById('prenom').value;
     const numero = document.getElementById('numero').value;
@@ -106,18 +111,10 @@ async function envoyerCommande() {
     if (error) {
         console.error('Erreur enregistrement commande :', error);
         // On n'empêche pas la commande WhatsApp même si l'enregistrement échoue
-    } else {
-        // Décompte automatique du stock (uniquement pour les produits qui en suivent un)
-        for (const item of contenu) {
-            const produit = produits.find(p => p.id === item.produit_id);
-            if (produit && produit.quantite_stock !== null && produit.quantite_stock !== undefined) {
-                await supabaseClient.rpc('decrementer_stock', {
-                    p_produit_id: produit.id,
-                    p_quantite: item.quantite
-                });
-            }
-        }
     }
+    // Le décompte du stock se fait maintenant uniquement quand le vendeur
+    // confirme la commande (voir confirmerCommande dans admin.js) — pas ici,
+    // pour éviter de décompter un stock pour une commande jamais envoyée.
 
     // Reçu PDF (réservé aux vendeurs Premium)
     if (vendeurActuel.formule === 'premium') {

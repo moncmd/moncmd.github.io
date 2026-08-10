@@ -102,8 +102,9 @@ async function chargerPrestations(vendeurId) {
   prestationsData.forEach(p => {
     const el = document.createElement('div');
     el.className = 'presta';
+    el.dataset.categorie = p.categorie || '';
     el.innerHTML = `
-      <div class="ph">${p.image_url ? `<img src="${p.image_url}" alt="${p.nom}" style="width:100%;height:100%;object-fit:cover;">` : '<span>Photo</span>'}</div>
+      ${p.image_url ? `<div class="ph"><img src="${p.image_url}" alt="${p.nom}" style="width:100%;height:100%;object-fit:cover;"></div>` : ''}
       <div class="name">${p.nom}</div>
       <div class="price">${p.prix.toLocaleString('fr-FR')} FCFA</div>
       <span class="mini-book">Réserver →</span>
@@ -115,6 +116,33 @@ async function chargerPrestations(vendeurId) {
   if (!prestationsData.length) {
     grid.innerHTML = '<p style="opacity:0.6;font-size:0.9rem;">Aucune prestation disponible pour le moment.</p>';
   }
+
+  afficherOngletsCategories();
+}
+
+// Génère la bande de catégories défilante (au-dessus du catalogue de
+// prestations) uniquement si au moins une prestation a une catégorie.
+function afficherOngletsCategories() {
+  const bande = document.getElementById('cat-track');
+  if (!bande) return;
+
+  const categories = [...new Set(prestationsData.map(p => p.categorie).filter(Boolean))];
+  if (!categories.length) { bande.closest('.cat-strip')?.style.setProperty('display', 'none'); return; }
+  bande.closest('.cat-strip')?.style.removeProperty('display');
+
+  bande.innerHTML = '<div class="cat-item active" data-cat="tout">Tout</div>' +
+    categories.map(c => `<div class="cat-item" data-cat="${c}">${c}</div>`).join('');
+
+  bande.querySelectorAll('.cat-item').forEach(item => {
+    item.addEventListener('click', () => {
+      bande.querySelectorAll('.cat-item').forEach(i => i.classList.remove('active'));
+      item.classList.add('active');
+      const cat = item.dataset.cat;
+      document.querySelectorAll('.presta-grid .presta').forEach(carte => {
+        carte.style.display = (cat === 'tout' || carte.dataset.categorie === cat) ? '' : 'none';
+      });
+    });
+  });
 }
 
 // Règle : une prestation sans aucune personne assignée reste ouverte à toute
@@ -199,6 +227,7 @@ async function chargerGalerie(vendeurId) {
     document.querySelector('.gallery-section')?.style.setProperty('display', 'none');
     return;
   }
+  document.querySelector('.gallery-section')?.style.removeProperty('display');
 
   // Doublé pour un défilement infini fluide
   [...data, ...data].forEach(photo => {
