@@ -511,10 +511,7 @@ async function chargerGalerie() {
   (data || []).forEach(photo => {
     const el = document.createElement('div');
     el.className = 'gal-thumb';
-    const contenu = photo.type === 'video'
-      ? `<video src="${photo.image_url}" muted style="width:100%;height:100%;object-fit:cover;"></video><i class="fa-solid fa-play" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:14px;"></i>`
-      : `<img src="${photo.image_url}">`;
-    el.innerHTML = `${contenu}<div class="del" onclick="supprimerPhotoGalerie('${photo.id}')">✕</div>`;
+    el.innerHTML = `<img src="${photo.image_url}"><div class="del" onclick="supprimerPhotoGalerie('${photo.id}')">✕</div>`;
     grid.appendChild(el);
   });
 
@@ -524,20 +521,15 @@ async function chargerGalerie() {
 async function ajouterPhotoGalerie(fichier) {
   if (!fichier) return;
   const messageEl = document.getElementById('galerie-message');
-  const estVideo = fichier.type.startsWith('video/');
   const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
 
   const { error: erreurUpload } = await supabaseClient.storage.from('galerie').upload(nomFichier, fichier);
   if (erreurUpload) { messageEl.textContent = "Erreur lors de l'envoi."; messageEl.style.color = 'red'; return; }
 
   const { data: pub } = supabaseClient.storage.from('galerie').getPublicUrl(nomFichier);
-  await supabaseClient.from('galerie').insert({
-    vendeur_id: vendeurConnecte.id,
-    image_url: pub.publicUrl,
-    type: estVideo ? 'video' : 'photo'
-  });
+  await supabaseClient.from('galerie').insert({ vendeur_id: vendeurConnecte.id, image_url: pub.publicUrl });
 
-  messageEl.textContent = `${estVideo ? 'Vidéo' : 'Photo'} ajoutée ✓`;
+  messageEl.textContent = "Photo ajoutée ✓";
   messageEl.style.color = 'green';
   document.getElementById('gal-input').value = '';
   await chargerGalerie();
