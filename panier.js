@@ -9,8 +9,11 @@ function afficherProduitDetail() {
   const produit = produits.find(p => p.id === id);
   if (!produit) return;
 
-  document.querySelector('.left img').src = produit.image_url;
-  document.querySelector('.left img').alt = produit.nom;
+  const conteneurGauche = document.querySelector('.left');
+  conteneurGauche.innerHTML = produit.video_url
+    ? `<video src="${produit.video_url}" muted loop playsinline autoplay controls></video>`
+    : `<img src="${produit.image_url}" alt="${produit.nom}">`;
+
   document.querySelector('.right .nom').textContent = produit.nom;
   document.querySelector('.right .description').textContent = produit.description || '';
   document.querySelector('.right .prix').textContent = produit.prix + ' FCFA';

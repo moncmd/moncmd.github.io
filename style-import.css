@@ -177,7 +177,7 @@ main {
     box-shadow: 0 4px 16px rgba(74,51,35,0.06);
 }
 
-.product-card img {
+.product-card img, .product-card video { object-fit: cover;
     width: 100%;
     height: 220px;
     object-fit: contain;
@@ -444,7 +444,7 @@ footer a { color: var(--or); text-decoration: none; font-weight: 600; }
     align-items: flex-start;
 }
 .left { flex: 1; }
-.left img {
+.left img, .left video {
     width: 100%;
     border-radius: 14px;
     object-fit: contain;

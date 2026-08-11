@@ -121,7 +121,7 @@ main {
     position: relative;
     margin: 1px;
 }
-.product-card img {
+.product-card img, .product-card video { object-fit: cover;
     width: 100%;
     height: 220px;
     object-fit: contain;
@@ -292,7 +292,7 @@ footer a { color: var(--acc); text-decoration: none; font-weight: 600; }
     max-width: 900px; margin: 0 auto; align-items: flex-start;
 }
 .left { flex: 1; }
-.left img { width: 100%; border-radius: 14px; object-fit: contain; background-color: #fafafa; }
+.left img, .left video { width: 100%; border-radius: 14px; object-fit: contain; background-color: #fafafa; }
 .right { flex: 1; display: flex; flex-direction: column; gap: 16px; }
 .right .nom { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 1.35rem; color: var(--ink); margin: 0; }
 .right .prix { font-size: 1.1rem; font-weight: 700; color: var(--acc); margin: 0; }

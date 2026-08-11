@@ -171,6 +171,11 @@ function appliquerIdentiteVendeur(vendeur) {
   document.querySelectorAll('.logo h5').forEach(el => el.textContent = vendeur.nom_boutique);
   document.documentElement.style.setProperty('--couleur-accent', vendeur.couleur_accent || '#e56400');
 
+  // Logo propre du vendeur (blanc-marque) — si non renseigné, on garde le logo CMD par défaut déjà présent dans le HTML.
+  if (vendeur.logo_url) {
+    document.querySelectorAll('.logo-img').forEach(el => el.src = vendeur.logo_url);
+  }
+
   const lienWhatsapp = document.querySelector('a[href*="wa.me"]');
   if (lienWhatsapp) {
     lienWhatsapp.href = `https://wa.me/${vendeur.numero_whatsapp}?text=Bonjour, je voudrais passer une commande !`;
@@ -420,7 +425,9 @@ function genererCards() {
         <div class="product-card">
             ${produit.favori ? '<span class="badge-favori">★ Populaire</span>' : ''}
             ${rupture ? '<span class="badge-rupture">Rupture de stock</span>' : (stockBas ? `<span class="badge-stock-bas">Il en reste ${produit.quantite_stock} !</span>` : '')}
-            <img src="${produit.image_url}" alt="${produit.nom}">
+            ${produit.video_url
+              ? `<video src="${produit.video_url}" muted loop playsinline autoplay onmouseover="this.play()" onclick="this.paused ? this.play() : this.pause()"></video>`
+              : `<img src="${produit.image_url}" alt="${produit.nom}">`}
             <p class="produit">${produit.nom}</p>
             <p class="prix">${produit.prix} FCFA</p>
             ${blocAction}

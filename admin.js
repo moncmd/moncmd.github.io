@@ -518,6 +518,7 @@ async function ajouterProduit() {
   const nom = document.getElementById('nouveau-nom').value;
   const prix = parseInt(document.getElementById('nouveau-prix').value);
   const fichier = document.getElementById('nouveau-image-fichier').files[0];
+  const fichierVideo = document.getElementById('nouveau-video-fichier').files[0];
   const selectCategorie = document.getElementById('nouveau-categorie-select').value;
   const texteCategorie = document.getElementById('nouveau-categorie').value.trim();
   const categorie = (selectCategorie === '__nouvelle__' ? texteCategorie : selectCategorie) || 'general';
@@ -584,8 +585,36 @@ async function ajouterProduit() {
     image_url = urlData.publicUrl;
   }
 
+  let video_url = enEdition ? undefined : ''; // même logique que la photo : en édition, on ne touche pas au champ si pas de nouveau fichier
+
+  if (fichierVideo) {
+    messageEl.textContent = "Envoi de la vidéo en cours...";
+    messageEl.style.color = '#777';
+
+    const nomFichierVideo = `${vendeurConnecte.id}/${Date.now()}-${fichierVideo.name}`;
+
+    const { error: erreurUploadVideo } = await supabaseClient
+      .storage
+      .from('produits-videos')
+      .upload(nomFichierVideo, fichierVideo);
+
+    if (erreurUploadVideo) {
+      messageEl.textContent = "Erreur lors de l'envoi de la vidéo.";
+      messageEl.style.color = 'red';
+      return;
+    }
+
+    const { data: urlDataVideo } = supabaseClient
+      .storage
+      .from('produits-videos')
+      .getPublicUrl(nomFichierVideo);
+
+    video_url = urlDataVideo.publicUrl;
+  }
+
   const donneesProduit = { nom, prix, categorie, favori, description };
   if (image_url !== undefined) donneesProduit.image_url = image_url;
+  if (video_url !== undefined) donneesProduit.video_url = video_url;
   if (!enEdition) donneesProduit.vendeur_id = vendeurConnecte.id;
 
   if (auMoins('pro') && stockInput && stockInput.value !== '') {
@@ -625,6 +654,7 @@ function chargerProduitPourEdition(id) {
   document.getElementById('nouveau-prix').value = produit.prix;
   document.getElementById('nouveau-description').value = produit.description || '';
   document.getElementById('nouveau-image-fichier').value = '';
+  document.getElementById('nouveau-video-fichier').value = '';
   document.getElementById('nouveau-favori').checked = !!produit.favori;
 
   const select = document.getElementById('nouveau-categorie-select');
@@ -657,6 +687,7 @@ function annulerEditionProduit() {
   document.getElementById('nouveau-prix').value = '';
   document.getElementById('nouveau-description').value = '';
   document.getElementById('nouveau-image-fichier').value = '';
+  document.getElementById('nouveau-video-fichier').value = '';
   document.getElementById('nouveau-categorie').value = '';
   document.getElementById('nouveau-categorie').style.display = 'none';
   document.getElementById('nouveau-categorie-select').value = '';
