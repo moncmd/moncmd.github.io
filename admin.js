@@ -735,17 +735,25 @@ function afficherListeCommandes(commandes, idConteneur) {
   const liste = document.getElementById(idConteneur);
   liste.innerHTML = '';
 
+  // La sélection multiple n'existe que dans l'onglet "Commandes" complet,
+  // pas dans le mini-résumé du dashboard.
+  const avecSelection = idConteneur === 'liste-commandes-complete';
+
   if (!commandes || commandes.length === 0) {
     liste.innerHTML = '<p class="empty-state">Aucune commande pour le moment.</p>';
+    if (avecSelection) majBoutonConfirmerSelection();
     return;
   }
 
   commandes.forEach(c => {
     const date = new Date(c.date_creation).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
     const estConfirmee = c.statut === 'confirmee';
+    const checkbox = (avecSelection && !estConfirmee)
+      ? `<input type="checkbox" class="check-commande" data-id="${c.id}" onchange="majBoutonConfirmerSelection()" style="margin-right:8px;">`
+      : '';
     liste.innerHTML += `
       <div class="commande-row">
-        <span class="total">${c.total.toLocaleString()} FCFA</span>
+        ${checkbox}<span class="total">${c.total.toLocaleString()} FCFA</span>
         <strong>${c.nom_client} ${c.prenom_client}</strong>
         <span class="badge-statut" style="${estConfirmee ? '' : 'background:#fff3cd;color:#8a6d00;'}">${estConfirmee ? 'Confirmée' : 'En attente'}</span>
         <br><small style="color:#999;">${date} · ${c.numero_client}</small>
@@ -754,13 +762,24 @@ function afficherListeCommandes(commandes, idConteneur) {
       </div>
     `;
   });
+
+  if (avecSelection) majBoutonConfirmerSelection();
 }
 
-// Le vendeur confirme qu'il a bien reçu la commande sur WhatsApp (le client a
-// vraiment envoyé le message). Seules les commandes confirmées comptent dans
-// le chiffre d'affaires et les stats — un simple clic sur "Commander" qui
-// ouvre WhatsApp sans envoi réel ne doit pas gonfler les ventes.
-async function confirmerCommande(id) {
+// Affiche/masque le bouton "Confirmer la sélection" selon le nombre de
+// commandes cochées, et met à jour son texte avec le compteur.
+function majBoutonConfirmerSelection() {
+  const bouton = document.getElementById('btn-confirmer-selection');
+  if (!bouton) return;
+  const nb = document.querySelectorAll('#liste-commandes-complete .check-commande:checked').length;
+  bouton.style.display = nb ? 'inline-block' : 'none';
+  bouton.textContent = `✓ Confirmer la sélection (${nb})`;
+}
+
+// Logique de confirmation "brute" (mise à jour du statut + décompte de stock),
+// réutilisée par confirmerCommande() (une seule) et confirmerSelection() (plusieurs
+// d'un coup) — sans recharger les listes/stats à chaque itération.
+async function confirmerCommandeInterne(id) {
   const { data: commande } = await supabaseClient.from('commandes').select('contenu').eq('id', id).single();
 
   await supabaseClient.from('commandes').update({ statut: 'confirmee' }).eq('id', id);
@@ -776,6 +795,34 @@ async function confirmerCommande(id) {
       }
     }
   }
+}
+
+// Le vendeur confirme qu'il a bien reçu la commande sur WhatsApp (le client a
+// vraiment envoyé le message). Seules les commandes confirmées comptent dans
+// le chiffre d'affaires et les stats — un simple clic sur "Commander" qui
+// ouvre WhatsApp sans envoi réel ne doit pas gonfler les ventes.
+async function confirmerCommande(id) {
+  await confirmerCommandeInterne(id);
+  await chargerCommandes();
+  await chargerStats();
+}
+
+// Confirme en une seule fois toutes les commandes cochées dans l'onglet
+// "Commandes" — utile pour un vendeur qui a beaucoup de commandes en attente
+// et ne veut pas cliquer une par une.
+async function confirmerSelection() {
+  const cases = document.querySelectorAll('#liste-commandes-complete .check-commande:checked');
+  const ids = Array.from(cases).map(el => el.dataset.id);
+  if (!ids.length) return;
+
+  const bouton = document.getElementById('btn-confirmer-selection');
+  if (bouton) { bouton.disabled = true; bouton.textContent = 'Confirmation en cours…'; }
+
+  for (const id of ids) {
+    await confirmerCommandeInterne(id);
+  }
+
+  if (bouton) bouton.disabled = false;
 
   await chargerCommandes();
   await chargerStats();

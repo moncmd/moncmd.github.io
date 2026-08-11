@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="style-import.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@splidejs/splide@4/dist/css/splide.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Jost:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+</head>
+<body>
+    <div id="ecran-chargement" style="position:fixed; inset:0; background:#111; z-index:9999; display:flex; align-items:center; justify-content:center; transition: opacity 0.4s ease;">
+        <img src="Photoroom_20260718_090427.PNG" alt="CMD." style="width:70px; height:70px; animation: cmd-tourner 1s linear infinite;">
+        <p style="color: white;">Powered by HV</p>
+    </div>
+    <style>
+        @keyframes cmd-tourner {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+
+    <header>
+      <div class="logo">
+        <a href="javascript:void(0)" onclick="allerVers('index')" style="text-decoration: none; display:flex; align-items:center; gap:10px;">
+          <img src="1C621DE3-4443-4809-A987-882F313088E0_1_105_c.jpeg" alt="CMD." class="logo-img">
+          <h5>CMD.</h5>
+        </a>
+      </div>
+        <div id="panier"></div>
+        <nav>
+          <div class="panier-count">
+           <span id="compteur">0</span> <a href="#" onclick="voirpanier()"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M223.5-103.5Q200-127 200-160t23.5-56.5Q247-240 280-240t56.5 23.5Q360-193 360-160t-23.5 56.5Q313-80 280-80t-56.5-23.5Zm400 0Q600-127 600-160t23.5-56.5Q647-240 680-240t56.5 23.5Q760-193 760-160t-23.5 56.5Q713-80 680-80t-56.5-23.5ZM246-720l96 200h280l110-200H246Zm-38-80h590q23 0 35 20.5t1 41.5L692-482q-11 20-29.5 31T622-440H324l-44 80h480v80H280q-45 0-68-39.5t-2-78.5l54-98-144-304H40v-80h130l38 80Zm134 280h280-280Z"/></svg></a>
+          </div>
+          <a href="admin.html" title="Espace vendeur"><svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#000000"><path d="M367-527q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Zm80-80h480v-32q0-11-5.5-20T700-306q-54-27-109-40.5T480-360q-56 0-111 13.5T260-306q-9 5-14.5 14t-5.5 20v32Zm296.5-343.5Q560-607 560-640t-23.5-56.5Q513-720 480-720t-56.5 23.5Q400-673 400-640t23.5 56.5Q447-560 480-560t56.5-23.5ZM480-640Zm0 400Z"/></svg></a>
+          <button class="btn-mode-sombre" id="btn-toggle-mode-sombre" title="Mode sombre" onclick="toggleModeSombre()"><i class="fa-solid fa-moon"></i></button>
+       <a href="https://wa.me/221784218267?text=Bonjour, je voudrais passer une commande !" target="_blank">
+<i class="fa-brands fa-whatsapp"></i>
+          </a>
+        </nav>
+    </header>
+    <main>
+      <div class="menu">
+        <p>Sélection du moment</p>
+        <h1>Pièces choisies avec soin</h1>
+      </div>
+      <div class="select" id="categories-boutons">
+        <!-- généré dynamiquement selon les catégories du vendeur -->
+      </div>
+      <div id="categories-produits" style="display: flex; flex-direction: column; gap: 0;">
+        <!-- généré dynamiquement selon les catégories du vendeur -->
+      </div>
+
+<section id="avis-section" class="avis-section">
+  <h2 class="avis-titre">Ils ont validé</h2>
+
+  <button id="btn-toggle-avis" class="btn-laisser-avis" onclick="toggleFormulaireAvis()">
+      Laisser un avis ✎
+  </button>
+
+  <div id="formulaire-avis" class="formulaire-avis" style="display:none;">
+      <input type="text" id="avis-nom" placeholder="Votre nom">
+      <input type="text" id="avis-numero" placeholder="Votre numéro">
+      <div class="etoiles-input" id="etoiles-input">
+          <span data-valeur="1">★</span>
+          <span data-valeur="2">★</span>
+          <span data-valeur="3">★</span>
+          <span data-valeur="4">★</span>
+          <span data-valeur="5">★</span>
+      </div>
+      <textarea id="avis-commentaire" placeholder="Votre commentaire" rows="3"></textarea>
+      <button class="btn-envoyer-avis" onclick="envoyerAvis()">Envoyer</button>
+      <p id="avis-message" style="margin-top:8px; font-size:13px;"></p>
+  </div>
+
+  <div class="avis-marquee-wrapper">
+      <div id="avis-liste" class="avis-marquee-track"></div>
+  </div>
+</section>
+
+<section id="faq-section" class="faq-section">
+  <h2 class="faq-titre">Questions fréquentes</h2>
+  <div id="faq-liste"></div>
+</section>
+
+    </main>
+    <footer>
+      <p>2026 Copyrights - <a href="https://hilarionv.github.io/PORTFOLIO/">By HV</a></p>
+      <div id="reseaux-sociaux" style="display:flex;gap:14px;"></div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@splidejs/splide@4/dist/js/splide.min.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="script.js"></script>
+    <script src="voirpanier.js"></script>
+
+</body>
+</html>

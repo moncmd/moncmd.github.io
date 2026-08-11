@@ -23,4 +23,3 @@ alter table rendez_vous add column if not exists adresse_client text;
 -- ============================================
 alter table vendeurs add column if not exists message_accueil text;
 alter table prestations add column if not exists categorie text;
-alter table galerie add column if not exists type text default 'photo';
