@@ -164,7 +164,8 @@
         <datalist id="liste-categories-existantes"></datalist>
         <label class="champ-label">Photo <span id="presta-photo-optionnelle" style="display:none;font-weight:400;">(laisser vide pour garder l'actuelle)</span></label>
         <input type="file" id="nouveau-presta-fichier" accept="image/*">
-        <select id="nouveau-presta-personnel"><option value="">Assignée à… (optionnel)</option></select>
+        <label class="champ-label">Assignée à (une ou plusieurs personnes, optionnel)</label>
+        <div id="nouveau-presta-personnel-liste" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;"></div>
         <button class="admin-btn" id="btn-submit-presta" onclick="ajouterPrestation()">Ajouter la prestation</button>
         <button class="admin-btn secondaire" id="btn-annuler-edition-presta" style="display:none;margin-top:8px;" onclick="annulerEditionPrestation()">Annuler la modification</button>
         <p class="form-message" id="presta-message"></p>
@@ -250,7 +251,7 @@
       <div class="gal-grid" id="gal-grid">
         <div class="gal-thumb gal-add" onclick="document.getElementById('gal-input').click()"><i class="fa-solid fa-plus"></i></div>
       </div>
-      <input type="file" id="gal-input" accept="image/*" style="display:none;" onchange="ajouterPhotoGalerie(this.files[0])">
+      <input type="file" id="gal-input" accept="image/*,video/*" style="display:none;" onchange="ajouterPhotoGalerie(this.files[0])">
       <p class="form-message" id="galerie-message"></p>
     </div>
   </div>

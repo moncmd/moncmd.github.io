@@ -144,9 +144,8 @@ function ouvrirEditionPrestation(id) {
   document.getElementById('nouveau-presta-categorie').value = p.categorie || '';
   document.getElementById('nouveau-presta-fichier').value = '';
 
-  const selectPersonnel = document.getElementById('nouveau-presta-personnel');
-  const assigneA = p.personnel_prestations && p.personnel_prestations[0] ? p.personnel_prestations[0].personnel_id : '';
-  if (selectPersonnel) selectPersonnel.value = assigneA;
+  const idsAssignes = (p.personnel_prestations || []).map(l => l.personnel_id);
+  document.querySelectorAll('.case-presta-personnel').forEach(c => c.checked = idsAssignes.includes(c.value));
 
   document.getElementById('presta-form-titre').innerHTML = '<i class="fa-solid fa-pen"></i> Modifier la prestation';
   document.getElementById('presta-photo-optionnelle').style.display = 'inline';
@@ -166,8 +165,7 @@ function annulerEditionPrestation() {
   document.getElementById('nouveau-presta-duree').value = 30;
   document.getElementById('nouveau-presta-categorie').value = '';
   document.getElementById('nouveau-presta-fichier').value = '';
-  const selectPersonnel = document.getElementById('nouveau-presta-personnel');
-  if (selectPersonnel) selectPersonnel.value = '';
+  document.querySelectorAll('.case-presta-personnel').forEach(c => c.checked = false);
 
   document.getElementById('presta-form-titre').innerHTML = '<i class="fa-solid fa-plus"></i> Ajouter une prestation';
   document.getElementById('presta-photo-optionnelle').style.display = 'none';
@@ -182,7 +180,7 @@ async function ajouterPrestation() {
   const duree_minutes = parseInt(document.getElementById('nouveau-presta-duree').value) || 30;
   const categorie = document.getElementById('nouveau-presta-categorie').value.trim() || null;
   const fichier = document.getElementById('nouveau-presta-fichier').files[0];
-  const personnelId = document.getElementById('nouveau-presta-personnel').value;
+  const personnelIds = [...document.querySelectorAll('.case-presta-personnel:checked')].map(c => c.value);
   const messageEl = document.getElementById('presta-message');
 
   if (!nom || !prix) {
@@ -252,8 +250,10 @@ async function ajouterPrestation() {
     prestationConcernee = data;
   }
 
-  if (personnelId && prestationConcernee) {
-    await supabaseClient.from('personnel_prestations').insert({ personnel_id: personnelId, prestation_id: prestationConcernee.id });
+  if (personnelIds.length && prestationConcernee) {
+    await supabaseClient.from('personnel_prestations').insert(
+      personnelIds.map(id => ({ personnel_id: id, prestation_id: prestationConcernee.id }))
+    );
   }
 
   annulerEditionPrestation(); // remet le formulaire à zéro et repasse en mode "ajout"
@@ -280,10 +280,17 @@ async function chargerPersonnel() {
 
   personnelCache = data || [];
   const liste = document.getElementById('liste-personnel');
-  const select = document.getElementById('nouveau-presta-personnel');
+  const listePersonnelPresta = document.getElementById('nouveau-presta-personnel-liste');
 
-  select.innerHTML = '<option value="">Assignée à… (optionnel)</option>' +
-    personnelCache.map(p => `<option value="${p.id}">${p.nom}</option>`).join('');
+  if (listePersonnelPresta) {
+    listePersonnelPresta.innerHTML = personnelCache.length
+      ? personnelCache.map(p => `
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;">
+            <input type="checkbox" class="case-presta-personnel" value="${p.id}" style="width:auto;margin:0;">
+            ${p.nom}
+          </label>`).join('')
+      : '<p style="font-size:12px;color:#999;margin:0;">Aucune personne dans l\'équipe pour le moment.</p>';
+  }
 
   const selectBlocage = document.getElementById('blocage-personnel');
   if (selectBlocage) {
@@ -511,7 +518,10 @@ async function chargerGalerie() {
   (data || []).forEach(photo => {
     const el = document.createElement('div');
     el.className = 'gal-thumb';
-    el.innerHTML = `<img src="${photo.image_url}"><div class="del" onclick="supprimerPhotoGalerie('${photo.id}')">✕</div>`;
+    const contenu = photo.type === 'video'
+      ? `<video src="${photo.image_url}" muted style="width:100%;height:100%;object-fit:cover;"></video><i class="fa-solid fa-play" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:14px;"></i>`
+      : `<img src="${photo.image_url}">`;
+    el.innerHTML = `${contenu}<div class="del" onclick="supprimerPhotoGalerie('${photo.id}')">✕</div>`;
     grid.appendChild(el);
   });
 
@@ -521,15 +531,20 @@ async function chargerGalerie() {
 async function ajouterPhotoGalerie(fichier) {
   if (!fichier) return;
   const messageEl = document.getElementById('galerie-message');
+  const estVideo = fichier.type.startsWith('video/');
   const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
 
   const { error: erreurUpload } = await supabaseClient.storage.from('galerie').upload(nomFichier, fichier);
   if (erreurUpload) { messageEl.textContent = "Erreur lors de l'envoi."; messageEl.style.color = 'red'; return; }
 
   const { data: pub } = supabaseClient.storage.from('galerie').getPublicUrl(nomFichier);
-  await supabaseClient.from('galerie').insert({ vendeur_id: vendeurConnecte.id, image_url: pub.publicUrl });
+  await supabaseClient.from('galerie').insert({
+    vendeur_id: vendeurConnecte.id,
+    image_url: pub.publicUrl,
+    type: estVideo ? 'video' : 'photo'
+  });
 
-  messageEl.textContent = "Photo ajoutée ✓";
+  messageEl.textContent = `${estVideo ? 'Vidéo' : 'Photo'} ajoutée ✓`;
   messageEl.style.color = 'green';
   document.getElementById('gal-input').value = '';
   await chargerGalerie();

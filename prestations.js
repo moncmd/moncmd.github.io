@@ -173,7 +173,7 @@ async function chargerPersonnel(vendeurId) {
   list.appendChild(creerStaffItem(null, "N'importe qui", 'Premier créneau disponible'));
 
   personnelData.forEach(p => {
-    list.appendChild(creerStaffItem(p.id, p.nom, 'Voir ses prestations'));
+    list.appendChild(creerStaffItem(p.id, p.nom, 'Voir ses prestations', p.photo_url));
   });
 }
 
@@ -197,12 +197,15 @@ function remplirStaffList(prestationId){
     .forEach(staff => list.appendChild(creerStaffItem(staff.id, staff.nom, 'Voir ses prestations')));
 }
 
-function creerStaffItem(id, nom, sousTitre) {
+function creerStaffItem(id, nom, sousTitre, photoUrl) {
   const el = document.createElement('div');
   el.className = 'staff-item';
+  const avatar = photoUrl
+    ? `<div class="staff-avatar" style="background-image:url('${photoUrl}');background-size:cover;background-position:center;"></div>`
+    : `<div class="staff-avatar"></div>`;
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;">
-      <div class="staff-avatar"></div>
+      ${avatar}
       <div><div class="n">${nom}</div><div class="r">${sousTitre}</div></div>
     </div>
   `;
