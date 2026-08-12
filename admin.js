@@ -312,6 +312,70 @@ function remplirInfosVendeur() {
   document.getElementById('info-tiktok').value = vendeurConnecte.tiktok || '';
   document.getElementById('info-facebook').value = vendeurConnecte.facebook || '';
 
+  // Logo : fonctionnalité payante à la carte, indépendante de la formule standard/pro/premium.
+  // Débloquée uniquement pour les vendeurs qui ont payé spécifiquement pour ça (vendeurs.logo_debloque).
+  const blocLogo = document.getElementById('bloc-upload-logo');
+  if (blocLogo) blocLogo.classList.toggle('verrouille-logo', !vendeurConnecte.logo_debloque);
+
+  const apercu = document.getElementById('apercu-logo-actuel');
+  if (apercu) {
+    if (vendeurConnecte.logo_url) { apercu.src = vendeurConnecte.logo_url; apercu.style.display = 'block'; }
+    else { apercu.style.display = 'none'; }
+  }
+}
+
+async function uploaderLogo() {
+  const messageEl = document.getElementById('logo-message');
+
+  if (!vendeurConnecte.logo_debloque) {
+    messageEl.textContent = "Cette fonctionnalité n'est pas activée sur votre compte.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  const fichier = document.getElementById('nouveau-logo-fichier').files[0];
+  if (!fichier) {
+    messageEl.textContent = "Choisissez d'abord une image.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  messageEl.textContent = "Envoi en cours...";
+  messageEl.style.color = '#777';
+
+  const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
+
+  const { error: erreurUpload } = await supabaseClient
+    .storage
+    .from('logos-vendeurs')
+    .upload(nomFichier, fichier);
+
+  if (erreurUpload) {
+    messageEl.textContent = "Erreur lors de l'envoi.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  const { data: urlData } = supabaseClient.storage.from('logos-vendeurs').getPublicUrl(nomFichier);
+
+  const { error: erreurMaj } = await supabaseClient
+    .from('vendeurs')
+    .update({ logo_url: urlData.publicUrl })
+    .eq('id', vendeurConnecte.id);
+
+  if (erreurMaj) {
+    messageEl.textContent = "Erreur lors de l'enregistrement.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  vendeurConnecte.logo_url = urlData.publicUrl;
+  document.getElementById('apercu-logo-actuel').src = urlData.publicUrl;
+  document.getElementById('apercu-logo-actuel').style.display = 'block';
+  document.getElementById('nouveau-logo-fichier').value = '';
+
+  messageEl.textContent = "Logo mis à jour ✓";
+  messageEl.style.color = 'green';
 }
 
 async function enregistrerInfos() {
