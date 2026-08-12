@@ -79,16 +79,16 @@ main { padding: 104px 0 40px; max-width: 560px; margin: 0 auto; }
 }
 .selectt { flex-shrink: 0; }
 .selectt button {
-    padding: 0 0 4px;
+    padding: 8px 6px 12px;
     background: none;
     color: #9a8f80;
     border: none;
-    border-bottom: 1px solid transparent;
+    border-bottom: 1.5px solid transparent;
     width: auto;
     height: auto;
     white-space: nowrap;
     font-family: "Inter", sans-serif;
-    font-size: 12.5px;
+    font-size: 15px;
     cursor: pointer;
     transition: all 0.15s ease;
 }
@@ -102,22 +102,22 @@ main { padding: 104px 0 40px; max-width: 560px; margin: 0 auto; }
 .product-card {
     background-color: var(--card);
     border: 1px solid var(--line);
-    border-radius: 18px;
+    border-radius: 20px;
     padding: 18px;
     display: flex;
     flex-direction: column;
     gap: 12px;
     position: relative;
     margin: 1px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.01);
+    box-shadow: 0 6px 18px rgba(184,137,111,0.08);
 }
 
 .product-card img, .product-card video { object-fit: cover;
     width: 100%;
     height: 220px; /* Aligné sur la hauteur du standard */
     object-fit: contain;
-    border-radius: 12px;
-    background-color: #fafafa; /* Ajuste si tu préfères garder ta couleur de fond douce #f3ebe0 */
+    border-radius: 14px;
+    background-color: #f3ebe0; /* beige chaud, cohérent avec la palette douce (plus de gris froid) */
     margin-bottom: 4px;
 }
 
@@ -130,7 +130,7 @@ main { padding: 104px 0 40px; max-width: 560px; margin: 0 auto; }
 }
 
 .product-card .prix { 
-    color: var(--couleur-accent, var(--acc)); 
+    color: var(--acc); /* couleur fixe du template, indépendante de la couleur choisie par le vendeur */
     font-weight: 600;
     font-size: 15px; 
     margin: 0 0 6px 0; 
@@ -139,7 +139,7 @@ main { padding: 104px 0 40px; max-width: 560px; margin: 0 auto; }
 .product-card a {
     text-decoration: none;
     padding: 12px;
-    border-radius: 10px;
+    border-radius: 12px;
     text-align: center;
     font-size: 13px;
     font-weight: 600;
@@ -158,9 +158,9 @@ main { padding: 104px 0 40px; max-width: 560px; margin: 0 auto; }
 }
 
 .product-card a:last-of-type {
-    background-color: var(--couleur-accent, var(--acc));
+    background-color: var(--acc); /* couleur fixe du template, indépendante de la couleur choisie par le vendeur */
     color: #fff;
-    border: 2px solid var(--couleur-accent, var(--acc));
+    border: 2px solid var(--acc);
 }
 
 .product-card a:last-of-type:hover { 
@@ -317,7 +317,7 @@ footer a { color: var(--acc); text-decoration: none; font-weight: 600; }
     background-color: #fff; width: 100%; box-sizing: border-box;
 }
 .right a {
-    background-color: var(--couleur-accent, var(--acc));
+    background-color: var(--acc); /* couleur fixe du template */
     color: #fff; text-align: center; padding: 14px; border-radius: 12px;
     text-decoration: none; font-weight: 500; font-size: 13px; width: 100%; box-sizing: border-box; display: block;
 }
@@ -344,7 +344,7 @@ footer a { color: var(--acc); text-decoration: none; font-weight: 600; }
 }
 .form input:focus { border-color: var(--acc); }
 .btn-envoyer {
-    background-color: var(--couleur-accent, var(--acc));
+    background-color: var(--acc); /* couleur fixe du template */
     color: #fff; text-align: center; padding: 14px; border-radius: 12px;
     text-decoration: none; font-weight: 500; font-size: 13px; display: block; margin-top: 6px;
 }
