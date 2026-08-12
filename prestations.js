@@ -173,7 +173,7 @@ async function chargerPersonnel(vendeurId) {
   list.appendChild(creerStaffItem(null, "N'importe qui", 'Premier créneau disponible'));
 
   personnelData.forEach(p => {
-    list.appendChild(creerStaffItem(p.id, p.nom, 'Voir ses prestations'));
+    list.appendChild(creerStaffItem(p.id, p.nom, 'Voir ses prestations', p.photo_url));
   });
 }
 
@@ -194,15 +194,18 @@ function remplirStaffList(prestationId){
 
   personnelData
     .filter(staff => !idsAssignes || idsAssignes.includes(staff.id))
-    .forEach(staff => list.appendChild(creerStaffItem(staff.id, staff.nom, 'Voir ses prestations')));
+    .forEach(staff => list.appendChild(creerStaffItem(staff.id, staff.nom, 'Voir ses prestations', staff.photo_url)));
 }
 
-function creerStaffItem(id, nom, sousTitre) {
+function creerStaffItem(id, nom, sousTitre, photoUrl) {
   const el = document.createElement('div');
   el.className = 'staff-item';
+  const styleAvatar = photoUrl
+    ? ` style="background-image:url('${photoUrl}');background-size:cover;background-position:center;"`
+    : '';
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;">
-      <div class="staff-avatar"></div>
+      <div class="staff-avatar"${styleAvatar}></div>
       <div><div class="n">${nom}</div><div class="r">${sousTitre}</div></div>
     </div>
   `;
