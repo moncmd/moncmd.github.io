@@ -78,6 +78,10 @@
   .day-toggle span{padding:7px 12px;border-radius:20px;background:#f1f1f1;font-size:12px;cursor:pointer;}
   .day-toggle span.off{background:#1a1a1a;color:#fff;}
 
+  .staff-checkbox-list{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+  .staff-pill{padding:7px 12px;border-radius:20px;background:#f1f1f1;font-size:12px;cursor:pointer;user-select:none;transition:background .15s,color .15s;}
+  .staff-pill.actif{background:var(--couleur-accent);color:#fff;}
+
   .admin-tabs{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #eee;display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom);}
   .admin-tab{flex:1;text-align:center;padding:10px 2px 9px;cursor:pointer;color:#999;font-size:9.5px;border:none;background:none;}
   .admin-tab i{display:block;font-size:15px;margin-bottom:3px;}
@@ -164,7 +168,8 @@
         <datalist id="liste-categories-existantes"></datalist>
         <label class="champ-label">Photo <span id="presta-photo-optionnelle" style="display:none;font-weight:400;">(laisser vide pour garder l'actuelle)</span></label>
         <input type="file" id="nouveau-presta-fichier" accept="image/*">
-        <select id="nouveau-presta-personnel"><option value="">Assignée à… (optionnel)</option></select>
+        <label class="champ-label">Faite par <span style="font-weight:400;">(laisser vide = toute l'équipe)</span></label>
+        <div id="nouveau-presta-personnel" class="staff-checkbox-list"></div>
         <button class="admin-btn" id="btn-submit-presta" onclick="ajouterPrestation()">Ajouter la prestation</button>
         <button class="admin-btn secondaire" id="btn-annuler-edition-presta" style="display:none;margin-top:8px;" onclick="annulerEditionPrestation()">Annuler la modification</button>
         <p class="form-message" id="presta-message"></p>
@@ -183,8 +188,10 @@
       <div id="liste-personnel"><p class="empty-state">Chargement…</p></div>
       <div class="admin-form" style="margin-top:14px;">
         <input type="text" id="nouveau-staff-nom" placeholder="Nom de la personne">
+        <label class="champ-label">Photo <span id="staff-photo-optionnelle" style="display:none; font-weight:400;">(laisser vide pour garder l'actuelle)</span></label>
         <input type="file" id="nouveau-staff-fichier" accept="image/*">
-        <button class="admin-btn secondaire" onclick="ajouterPersonnel()">+ Ajouter une personne</button>
+        <button class="admin-btn secondaire" id="btn-submit-staff" onclick="ajouterPersonnel()">+ Ajouter une personne</button>
+        <button class="admin-btn secondaire" id="btn-annuler-edition-staff" style="display:none; margin-top:8px;" onclick="annulerEditionPersonnel()">Annuler la modification</button>
         <p class="form-message" id="staff-message"></p>
       </div>
     </div>

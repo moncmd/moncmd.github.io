@@ -6,6 +6,7 @@
 let vendeurConnecte = null;
 let prestationsCache = [];
 let personnelCache = [];
+let personnelEnEdition = null; // id de la personne en cours de modification, null = mode "ajout"
 let prestationEnEdition = null; // id de la prestation en cours de modification, null = mode "ajout"
 
 const HIERARCHIE_FORMULES = ['standard', 'pro', 'premium'];
@@ -144,9 +145,10 @@ function ouvrirEditionPrestation(id) {
   document.getElementById('nouveau-presta-categorie').value = p.categorie || '';
   document.getElementById('nouveau-presta-fichier').value = '';
 
-  const selectPersonnel = document.getElementById('nouveau-presta-personnel');
-  const assigneA = p.personnel_prestations && p.personnel_prestations[0] ? p.personnel_prestations[0].personnel_id : '';
-  if (selectPersonnel) selectPersonnel.value = assigneA;
+  const idsAssignes = (p.personnel_prestations || []).map(l => l.personnel_id);
+  document.querySelectorAll('#nouveau-presta-personnel .staff-pill').forEach(el => {
+    el.classList.toggle('actif', idsAssignes.includes(el.dataset.id));
+  });
 
   document.getElementById('presta-form-titre').innerHTML = '<i class="fa-solid fa-pen"></i> Modifier la prestation';
   document.getElementById('presta-photo-optionnelle').style.display = 'inline';
@@ -166,8 +168,7 @@ function annulerEditionPrestation() {
   document.getElementById('nouveau-presta-duree').value = 30;
   document.getElementById('nouveau-presta-categorie').value = '';
   document.getElementById('nouveau-presta-fichier').value = '';
-  const selectPersonnel = document.getElementById('nouveau-presta-personnel');
-  if (selectPersonnel) selectPersonnel.value = '';
+  document.querySelectorAll('#nouveau-presta-personnel .staff-pill').forEach(el => el.classList.remove('actif'));
 
   document.getElementById('presta-form-titre').innerHTML = '<i class="fa-solid fa-plus"></i> Ajouter une prestation';
   document.getElementById('presta-photo-optionnelle').style.display = 'none';
@@ -182,7 +183,7 @@ async function ajouterPrestation() {
   const duree_minutes = parseInt(document.getElementById('nouveau-presta-duree').value) || 30;
   const categorie = document.getElementById('nouveau-presta-categorie').value.trim() || null;
   const fichier = document.getElementById('nouveau-presta-fichier').files[0];
-  const personnelId = document.getElementById('nouveau-presta-personnel').value;
+  const personnelIds = Array.from(document.querySelectorAll('#nouveau-presta-personnel .staff-pill.actif')).map(el => el.dataset.id);
   const messageEl = document.getElementById('presta-message');
 
   if (!nom || !prix) {
@@ -252,8 +253,10 @@ async function ajouterPrestation() {
     prestationConcernee = data;
   }
 
-  if (personnelId && prestationConcernee) {
-    await supabaseClient.from('personnel_prestations').insert({ personnel_id: personnelId, prestation_id: prestationConcernee.id });
+  if (personnelIds.length && prestationConcernee) {
+    await supabaseClient.from('personnel_prestations').insert(
+      personnelIds.map(personnel_id => ({ personnel_id, prestation_id: prestationConcernee.id }))
+    );
   }
 
   annulerEditionPrestation(); // remet le formulaire à zéro et repasse en mode "ajout"
@@ -280,10 +283,13 @@ async function chargerPersonnel() {
 
   personnelCache = data || [];
   const liste = document.getElementById('liste-personnel');
-  const select = document.getElementById('nouveau-presta-personnel');
 
-  select.innerHTML = '<option value="">Assignée à… (optionnel)</option>' +
-    personnelCache.map(p => `<option value="${p.id}">${p.nom}</option>`).join('');
+  const conteneurPersonnel = document.getElementById('nouveau-presta-personnel');
+  if (conteneurPersonnel) {
+    conteneurPersonnel.innerHTML = personnelCache.length
+      ? personnelCache.map(p => `<span class="staff-pill" data-id="${p.id}" onclick="this.classList.toggle('actif')">${p.nom}</span>`).join('')
+      : '<p class="empty-state" style="padding:2px 0;">Ajoutez d\'abord des membres dans l\'onglet Équipe.</p>';
+  }
 
   const selectBlocage = document.getElementById('blocage-personnel');
   if (selectBlocage) {
@@ -301,20 +307,56 @@ async function chargerPersonnel() {
       <img class="row-thumb" style="border-radius:50%;" src="${p.photo_url || ''}">
       <div class="row-infos"><strong>${p.nom}</strong><span class="sub">Membre de l'équipe</span></div>
       <div class="row-actions">
+        <button class="icon-btn" onclick="ouvrirEditionPersonnel('${p.id}')"><i class="fa-solid fa-pen"></i></button>
         <button class="icon-btn danger" onclick="supprimerPersonnel('${p.id}')"><i class="fa-solid fa-trash"></i></button>
       </div>
     </div>
   `).join('');
 }
 
+// Pré-remplit le formulaire avec les valeurs de la personne choisie, et le
+// fait basculer en mode "modification" (même schéma que l'édition de prestation).
+function ouvrirEditionPersonnel(id) {
+  const p = personnelCache.find(x => x.id === id);
+  if (!p) return;
+
+  personnelEnEdition = id;
+
+  document.getElementById('nouveau-staff-nom').value = p.nom;
+  document.getElementById('nouveau-staff-fichier').value = '';
+
+  document.getElementById('staff-photo-optionnelle').style.display = 'inline';
+  document.getElementById('btn-submit-staff').textContent = 'Enregistrer les modifications';
+  document.getElementById('btn-annuler-edition-staff').style.display = 'block';
+  document.getElementById('staff-message').textContent = '';
+
+  document.getElementById('carte-equipe').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Annule le mode édition et remet le formulaire en mode "ajout"
+function annulerEditionPersonnel() {
+  personnelEnEdition = null;
+
+  document.getElementById('nouveau-staff-nom').value = '';
+  document.getElementById('nouveau-staff-fichier').value = '';
+
+  document.getElementById('staff-photo-optionnelle').style.display = 'none';
+  document.getElementById('btn-submit-staff').textContent = '+ Ajouter une personne';
+  document.getElementById('btn-annuler-edition-staff').style.display = 'none';
+  document.getElementById('staff-message').textContent = '';
+}
+
 async function ajouterPersonnel() {
   const messageEl = document.getElementById('staff-message');
+  const modeEdition = !!personnelEnEdition;
+
   if (!auMoins('pro')) {
     messageEl.textContent = "L'équipe est disponible à partir de la formule Pro.";
     messageEl.style.color = 'red';
     return;
   }
-  if (!auMoins('premium')) {
+  // La limite de formule ne s'applique qu'à la création, pas à la modification d'une personne déjà existante.
+  if (!modeEdition && !auMoins('premium')) {
     const { count } = await supabaseClient
       .from('personnel')
       .select('*', { count: 'exact', head: true })
@@ -330,7 +372,9 @@ async function ajouterPersonnel() {
   const fichier = document.getElementById('nouveau-staff-fichier').files[0];
   if (!nom) { messageEl.textContent = "Le nom est obligatoire."; messageEl.style.color = 'red'; return; }
 
-  let photo_url = '';
+  // En mode édition, la photo n'est ré-uploadée que si un nouveau fichier a été choisi ;
+  // sinon on garde l'URL déjà enregistrée (undefined = champ non touché par le .update()).
+  let photo_url = modeEdition ? undefined : '';
   if (fichier) {
     const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
     const { error: erreurUpload } = await supabaseClient.storage.from('personnel-images').upload(nomFichier, fichier);
@@ -340,13 +384,21 @@ async function ajouterPersonnel() {
     }
   }
 
-  const { error } = await supabaseClient.from('personnel').insert({ vendeur_id: vendeurConnecte.id, nom, photo_url });
-  if (error) { messageEl.textContent = "Erreur lors de l'ajout."; messageEl.style.color = 'red'; return; }
+  const donnees = { nom };
+  if (photo_url !== undefined) donnees.photo_url = photo_url;
 
-  messageEl.textContent = "Personne ajoutée ✓";
+  if (modeEdition) {
+    const { error } = await supabaseClient.from('personnel').update(donnees).eq('id', personnelEnEdition);
+    if (error) { messageEl.textContent = "Erreur lors de la modification."; messageEl.style.color = 'red'; return; }
+  } else {
+    const { error } = await supabaseClient.from('personnel').insert({ vendeur_id: vendeurConnecte.id, ...donnees });
+    if (error) { messageEl.textContent = "Erreur lors de l'ajout."; messageEl.style.color = 'red'; return; }
+  }
+
+  annulerEditionPersonnel(); // remet le formulaire à zéro et repasse en mode "ajout"
+  messageEl.textContent = modeEdition ? "Personne modifiée ✓" : "Personne ajoutée ✓";
   messageEl.style.color = 'green';
-  document.getElementById('nouveau-staff-nom').value = '';
-  document.getElementById('nouveau-staff-fichier').value = '';
+
   await chargerPersonnel();
 }
 
