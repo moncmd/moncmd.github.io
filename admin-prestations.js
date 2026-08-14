@@ -102,7 +102,7 @@ async function chargerPrestations() {
     .select('*, personnel_prestations(personnel_id)')
     .eq('vendeur_id', vendeurConnecte.id)
     .eq('actif', true)
-    .order('date_creation', { ascending: false });
+    .order('ordre', { ascending: true });
 
   prestationsCache = data || [];
   const liste = document.getElementById('liste-prestations');
@@ -113,11 +113,13 @@ async function chargerPrestations() {
     return;
   }
 
-  liste.innerHTML = prestationsCache.map(p => `
+  liste.innerHTML = prestationsCache.map((p, index) => `
     <div class="row">
       <img class="row-thumb" src="${p.image_url || ''}">
       <div class="row-infos"><strong>${p.nom}</strong><span class="sub">${p.categorie ? p.categorie + ' · ' : ''}${p.prix.toLocaleString('fr-FR')} FCFA · ${p.duree_minutes} min</span></div>
       <div class="row-actions">
+        <button class="icon-btn" ${index === 0 ? 'disabled style="opacity:0.3;"' : ''} onclick="deplacerPrestation('${p.id}', -1)"><i class="fa-solid fa-arrow-up"></i></button>
+        <button class="icon-btn" ${index === prestationsCache.length - 1 ? 'disabled style="opacity:0.3;"' : ''} onclick="deplacerPrestation('${p.id}', 1)"><i class="fa-solid fa-arrow-down"></i></button>
         <button class="icon-btn" onclick="ouvrirEditionPrestation('${p.id}')"><i class="fa-solid fa-pen"></i></button>
         <button class="icon-btn danger" onclick="supprimerPrestation('${p.id}')"><i class="fa-solid fa-trash"></i></button>
       </div>
@@ -129,6 +131,21 @@ async function chargerPrestations() {
     const categories = [...new Set(prestationsCache.map(p => p.categorie).filter(Boolean))];
     datalistCategories.innerHTML = categories.map(c => `<option value="${c}">`).join('');
   }
+}
+
+// Échange l'ordre de la prestation avec sa voisine immédiate (direction : -1 = monter, 1 = descendre)
+async function deplacerPrestation(id, direction) {
+  const index = prestationsCache.findIndex(p => p.id === id);
+  const indexVoisin = index + direction;
+  if (indexVoisin < 0 || indexVoisin >= prestationsCache.length) return;
+
+  const actuelle = prestationsCache[index];
+  const voisine = prestationsCache[indexVoisin];
+
+  await supabaseClient.from('prestations').update({ ordre: voisine.ordre }).eq('id', actuelle.id);
+  await supabaseClient.from('prestations').update({ ordre: actuelle.ordre }).eq('id', voisine.id);
+
+  await chargerPrestations();
 }
 
 // Pré-remplit le formulaire "Ajouter une prestation" avec les valeurs de la
@@ -243,9 +260,13 @@ async function ajouterPrestation() {
     // Met à jour l'assignation personnel : on retire l'ancienne puis on remet la nouvelle
     await supabaseClient.from('personnel_prestations').delete().eq('prestation_id', prestationEnEdition);
   } else {
+    const ordreSuivant = prestationsCache.length
+      ? Math.max(...prestationsCache.map(p => p.ordre || 0)) + 1
+      : 0;
+
     const { data, error } = await supabaseClient
       .from('prestations')
-      .insert({ vendeur_id: vendeurConnecte.id, ...donnees })
+      .insert({ vendeur_id: vendeurConnecte.id, ordre: ordreSuivant, ...donnees })
       .select()
       .single();
 
