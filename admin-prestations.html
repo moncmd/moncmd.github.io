@@ -190,6 +190,7 @@
         <input type="text" id="nouveau-staff-nom" placeholder="Nom de la personne">
         <label class="champ-label">Photo <span id="staff-photo-optionnelle" style="display:none; font-weight:400;">(laisser vide pour garder l'actuelle)</span></label>
         <input type="file" id="nouveau-staff-fichier" accept="image/*">
+        <p id="lien-supprimer-photo-staff" style="display:none; font-size:12px; color:#e00; cursor:pointer; margin:-4px 0 10px;" onclick="supprimerPhotoPersonnel()">🗑 Supprimer la photo actuelle</p>
         <button class="admin-btn secondaire" id="btn-submit-staff" onclick="ajouterPersonnel()">+ Ajouter une personne</button>
         <button class="admin-btn secondaire" id="btn-annuler-edition-staff" style="display:none; margin-top:8px;" onclick="annulerEditionPersonnel()">Annuler la modification</button>
         <p class="form-message" id="staff-message"></p>
