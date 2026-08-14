@@ -521,7 +521,7 @@ async function chargerProduits() {
     .select('*')
     .eq('vendeur_id', vendeurConnecte.id)
     .eq('actif', true)
-    .order('date_creation', { ascending: false });
+    .order('ordre', { ascending: true });
 
   produitsCache = produits || [];
 
@@ -533,7 +533,7 @@ async function chargerProduits() {
     return;
   }
 
-  produits.forEach(p => {
+  produits.forEach((p, index) => {
     const imgSrc = p.image_url || '';
     const estPro = auMoins('pro');
     const infoStock = estPro
@@ -550,6 +550,12 @@ async function chargerProduits() {
           ${infoStock}
         </div>
         <div class="produit-actions">
+          <button class="icon-btn" ${index === 0 ? 'disabled style="opacity:0.3;"' : ''} title="Monter" onclick="deplacerProduit('${p.id}', -1)">
+            <i class="fa-solid fa-arrow-up"></i>
+          </button>
+          <button class="icon-btn" ${index === produits.length - 1 ? 'disabled style="opacity:0.3;"' : ''} title="Descendre" onclick="deplacerProduit('${p.id}', 1)">
+            <i class="fa-solid fa-arrow-down"></i>
+          </button>
           <button class="icon-btn" title="Modifier ce produit" onclick="chargerProduitPourEdition('${p.id}')">
             <i class="fa-solid fa-pen"></i>
           </button>
@@ -567,6 +573,21 @@ async function chargerProduits() {
       </div>
     `;
   });
+}
+
+// Échange l'ordre du produit avec son voisin immédiat (direction : -1 = monter, 1 = descendre)
+async function deplacerProduit(id, direction) {
+  const index = produitsCache.findIndex(p => p.id === id);
+  const indexVoisin = index + direction;
+  if (indexVoisin < 0 || indexVoisin >= produitsCache.length) return;
+
+  const actuel = produitsCache[index];
+  const voisin = produitsCache[indexVoisin];
+
+  await supabaseClient.from('produits').update({ ordre: voisin.ordre }).eq('id', actuel.id);
+  await supabaseClient.from('produits').update({ ordre: actuel.ordre }).eq('id', voisin.id);
+
+  await chargerProduits();
 }
 
 async function modifierStock(id, stockActuel) {
@@ -679,7 +700,12 @@ async function ajouterProduit() {
   const donneesProduit = { nom, prix, categorie, favori, description };
   if (image_url !== undefined) donneesProduit.image_url = image_url;
   if (video_url !== undefined) donneesProduit.video_url = video_url;
-  if (!enEdition) donneesProduit.vendeur_id = vendeurConnecte.id;
+  if (!enEdition) {
+    donneesProduit.vendeur_id = vendeurConnecte.id;
+    donneesProduit.ordre = produitsCache.length
+      ? Math.max(...produitsCache.map(p => p.ordre || 0)) + 1
+      : 0;
+  }
 
   if (auMoins('pro') && stockInput && stockInput.value !== '') {
     donneesProduit.quantite_stock = parseInt(stockInput.value);
