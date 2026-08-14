@@ -133,7 +133,8 @@ async function chargerBoutique() {
     .from('produits')
     .select('*')
     .eq('vendeur_id', vendeur.id)
-    .eq('actif', true);
+    .eq('actif', true)
+    .order('ordre', { ascending: true });
 
   if (errProduits) {
     console.error('Erreur chargement produits :', errProduits);
