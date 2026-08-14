@@ -554,62 +554,90 @@ function renderListeProduits(produits, avecReorder) {
     return;
   }
 
-  produits.forEach((p, index) => {
-    const imgSrc = p.image_url || '';
-    const estPro = auMoins('pro');
-    const infoStock = estPro
-      ? `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie} · Stock : ${p.quantite_stock === null || p.quantite_stock === undefined ? 'illimité' : p.quantite_stock}</span>`
-      : `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie}</span>`;
+  if (!avecReorder) {
+    // Mode recherche : liste plate (les résultats traversent plusieurs catégories,
+    // regrouper n'aiderait pas à retrouver vite un produit précis).
+    liste.innerHTML = produits.map(p => construireLigneProduit(p, false)).join('');
+    return;
+  }
 
-    const boutonsReorder = avecReorder ? `
-          <button class="icon-btn" ${index === 0 ? 'disabled style="opacity:0.3;"' : ''} title="Monter" onclick="deplacerProduit('${p.id}', -1)">
-            <i class="fa-solid fa-arrow-up"></i>
-          </button>
-          <button class="icon-btn" ${index === produits.length - 1 ? 'disabled style="opacity:0.3;"' : ''} title="Descendre" onclick="deplacerProduit('${p.id}', 1)">
-            <i class="fa-solid fa-arrow-down"></i>
-          </button>` : '';
-
-    liste.innerHTML += `
-      <div class="produit-row">
-        ${imgSrc
-          ? `<img src="${imgSrc}" class="produit-thumb" alt="${p.nom}">`
-          : `<div class="produit-thumb" style="display:flex;align-items:center;justify-content:center;color:#ccc;"><i class="fa-solid fa-image"></i></div>`}
-        <div class="produit-infos">
-          <strong>${p.nom}</strong>
-          ${infoStock}
-        </div>
-        <div class="produit-actions">
-          ${boutonsReorder}
-          <button class="icon-btn" title="Modifier ce produit" onclick="chargerProduitPourEdition('${p.id}')">
-            <i class="fa-solid fa-pen"></i>
-          </button>
-          ${estPro ? `
-          <button class="icon-btn" title="Modifier le stock" onclick="modifierStock('${p.id}', ${p.quantite_stock === null || p.quantite_stock === undefined ? 'null' : p.quantite_stock})">
-            <i class="fa-solid fa-boxes-stacked"></i>
-          </button>` : ''}
-          <button class="icon-btn ${p.favori ? 'favori-actif' : ''}" title="${p.favori ? 'Retirer de la une' : 'Mettre en avant'}" onclick="basculerFavori('${p.id}', ${p.favori})">
-            <i class="fa-solid fa-star"></i>
-          </button>
-          <button class="icon-btn danger" title="Retirer du site" onclick="supprimerProduit('${p.id}')">
-            <i class="fa-solid fa-trash"></i>
-          </button>
-        </div>
-      </div>
-    `;
+  // Regroupement par catégorie, dans l'ordre d'apparition (cohérent avec le tri
+  // global déjà appliqué par "ordre" — la première catégorie rencontrée est celle
+  // du produit avec le plus petit ordre).
+  const categories = [];
+  produits.forEach(p => {
+    const cat = p.categorie || 'Sans catégorie';
+    if (!categories.includes(cat)) categories.push(cat);
   });
+
+  liste.innerHTML = categories.map((cat, catIndex) => {
+    const produitsCategorie = produits.filter(p => (p.categorie || 'Sans catégorie') === cat);
+    return `
+      <div class="categorie-titre-admin" style="font-size:11.5px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:0.05em; margin:${catIndex === 0 ? '4px' : '20px'} 0 4px; padding-top:${catIndex === 0 ? '0' : '14px'}; ${catIndex === 0 ? '' : 'border-top:1px solid #f0f0f0;'}">${cat}</div>
+      ${produitsCategorie.map((p, index) => construireLigneProduit(p, true, index, produitsCategorie.length)).join('')}
+    `;
+  }).join('');
 }
 
-// Échange l'ordre du produit avec son voisin immédiat (direction : -1 = monter, 1 = descendre)
+function construireLigneProduit(p, avecReorder, index, totalCategorie) {
+  const imgSrc = p.image_url || '';
+  const estPro = auMoins('pro');
+  const infoStock = estPro
+    ? `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie} · Stock : ${p.quantite_stock === null || p.quantite_stock === undefined ? 'illimité' : p.quantite_stock}</span>`
+    : `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie}</span>`;
+
+  const boutonsReorder = avecReorder ? `
+        <button class="icon-btn" ${index === 0 ? 'disabled style="opacity:0.3;"' : ''} title="Monter dans cette catégorie" onclick="deplacerProduit('${p.id}', -1)">
+          <i class="fa-solid fa-arrow-up"></i>
+        </button>
+        <button class="icon-btn" ${index === totalCategorie - 1 ? 'disabled style="opacity:0.3;"' : ''} title="Descendre dans cette catégorie" onclick="deplacerProduit('${p.id}', 1)">
+          <i class="fa-solid fa-arrow-down"></i>
+        </button>` : '';
+
+  return `
+    <div class="produit-row">
+      ${imgSrc
+        ? `<img src="${imgSrc}" class="produit-thumb" alt="${p.nom}">`
+        : `<div class="produit-thumb" style="display:flex;align-items:center;justify-content:center;color:#ccc;"><i class="fa-solid fa-image"></i></div>`}
+      <div class="produit-infos">
+        <strong>${p.nom}</strong>
+        ${infoStock}
+      </div>
+      <div class="produit-actions">
+        ${boutonsReorder}
+        <button class="icon-btn" title="Modifier ce produit" onclick="chargerProduitPourEdition('${p.id}')">
+          <i class="fa-solid fa-pen"></i>
+        </button>
+        ${estPro ? `
+        <button class="icon-btn" title="Modifier le stock" onclick="modifierStock('${p.id}', ${p.quantite_stock === null || p.quantite_stock === undefined ? 'null' : p.quantite_stock})">
+          <i class="fa-solid fa-boxes-stacked"></i>
+        </button>` : ''}
+        <button class="icon-btn ${p.favori ? 'favori-actif' : ''}" title="${p.favori ? 'Retirer de la une' : 'Mettre en avant'}" onclick="basculerFavori('${p.id}', ${p.favori})">
+          <i class="fa-solid fa-star"></i>
+        </button>
+        <button class="icon-btn danger" title="Retirer du site" onclick="supprimerProduit('${p.id}')">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// Échange l'ordre du produit avec son voisin immédiat DANS LA MÊME CATÉGORIE
+// (direction : -1 = monter, 1 = descendre). On ne mélange jamais deux catégories entre elles.
 async function deplacerProduit(id, direction) {
-  const index = produitsCache.findIndex(p => p.id === id);
+  const produit = produitsCache.find(p => p.id === id);
+  if (!produit) return;
+
+  const memeCategorie = produitsCache.filter(p => (p.categorie || 'Sans catégorie') === (produit.categorie || 'Sans catégorie'));
+  const index = memeCategorie.findIndex(p => p.id === id);
   const indexVoisin = index + direction;
-  if (indexVoisin < 0 || indexVoisin >= produitsCache.length) return;
+  if (indexVoisin < 0 || indexVoisin >= memeCategorie.length) return;
 
-  const actuel = produitsCache[index];
-  const voisin = produitsCache[indexVoisin];
+  const voisin = memeCategorie[indexVoisin];
 
-  await supabaseClient.from('produits').update({ ordre: voisin.ordre }).eq('id', actuel.id);
-  await supabaseClient.from('produits').update({ ordre: actuel.ordre }).eq('id', voisin.id);
+  await supabaseClient.from('produits').update({ ordre: voisin.ordre }).eq('id', produit.id);
+  await supabaseClient.from('produits').update({ ordre: produit.ordre }).eq('id', voisin.id);
 
   await chargerProduits();
 }
