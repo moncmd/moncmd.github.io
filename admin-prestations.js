@@ -347,11 +347,35 @@ function ouvrirEditionPersonnel(id) {
   document.getElementById('nouveau-staff-fichier').value = '';
 
   document.getElementById('staff-photo-optionnelle').style.display = 'inline';
+  document.getElementById('lien-supprimer-photo-staff').style.display = p.photo_url ? 'block' : 'none';
   document.getElementById('btn-submit-staff').textContent = 'Enregistrer les modifications';
   document.getElementById('btn-annuler-edition-staff').style.display = 'block';
   document.getElementById('staff-message').textContent = '';
 
   document.getElementById('carte-equipe').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Supprime la photo actuelle de la personne en cours d'édition (sans attendre
+// l'enregistrement du reste du formulaire) — action immédiate en base.
+async function supprimerPhotoPersonnel() {
+  if (!personnelEnEdition) return;
+  if (!confirm('Supprimer la photo de cette personne ?')) return;
+
+  const { error } = await supabaseClient
+    .from('personnel')
+    .update({ photo_url: null })
+    .eq('id', personnelEnEdition);
+
+  const messageEl = document.getElementById('staff-message');
+  if (error) { messageEl.textContent = "Erreur lors de la suppression."; messageEl.style.color = 'red'; return; }
+
+  document.getElementById('lien-supprimer-photo-staff').style.display = 'none';
+  messageEl.textContent = "Photo supprimée ✓";
+  messageEl.style.color = 'green';
+
+  await chargerPersonnel();
+  // chargerPersonnel() réaffiche la liste, mais reste en mode édition pour cette personne
+  ouvrirEditionPersonnel(personnelEnEdition);
 }
 
 // Annule le mode édition et remet le formulaire en mode "ajout"
@@ -362,6 +386,7 @@ function annulerEditionPersonnel() {
   document.getElementById('nouveau-staff-fichier').value = '';
 
   document.getElementById('staff-photo-optionnelle').style.display = 'none';
+  document.getElementById('lien-supprimer-photo-staff').style.display = 'none';
   document.getElementById('btn-submit-staff').textContent = '+ Ajouter une personne';
   document.getElementById('btn-annuler-edition-staff').style.display = 'none';
   document.getElementById('staff-message').textContent = '';
