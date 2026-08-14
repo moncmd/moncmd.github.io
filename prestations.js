@@ -90,7 +90,7 @@ async function chargerPrestations(vendeurId) {
     .select('*, personnel_prestations(personnel_id)')
     .eq('vendeur_id', vendeurId)
     .eq('actif', true)
-    .order('date_creation', { ascending: true });
+    .order('ordre', { ascending: true });
 
   if (error) { console.error('Erreur chargement prestations :', error); return; }
   prestationsData = data || [];
