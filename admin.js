@@ -524,12 +524,33 @@ async function chargerProduits() {
     .order('ordre', { ascending: true });
 
   produitsCache = produits || [];
+  const champRecherche = document.getElementById('recherche-produit-admin');
+  if (champRecherche) champRecherche.value = '';
 
+  renderListeProduits(produitsCache, true);
+}
+
+// Filtre localement (sans re-requêter Supabase) la liste déjà chargée, par nom.
+// Le réordonnancement (flèches ↑↓) est désactivé pendant une recherche, car les
+// index affichés ne correspondraient plus à l'ordre réel dans produitsCache.
+function filtrerProduitsAdmin() {
+  const requete = document.getElementById('recherche-produit-admin').value
+    .trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  if (!requete) { renderListeProduits(produitsCache, true); return; }
+
+  const resultats = produitsCache.filter(p =>
+    p.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(requete)
+  );
+  renderListeProduits(resultats, false);
+}
+
+function renderListeProduits(produits, avecReorder) {
   const liste = document.getElementById('liste-produits-admin');
   liste.innerHTML = '';
 
   if (!produits || produits.length === 0) {
-    liste.innerHTML = '<p class="empty-state">Aucun produit pour le moment.</p>';
+    liste.innerHTML = '<p class="empty-state">Aucun produit ne correspond à votre recherche.</p>';
     return;
   }
 
@@ -539,6 +560,14 @@ async function chargerProduits() {
     const infoStock = estPro
       ? `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie} · Stock : ${p.quantite_stock === null || p.quantite_stock === undefined ? 'illimité' : p.quantite_stock}</span>`
       : `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie}</span>`;
+
+    const boutonsReorder = avecReorder ? `
+          <button class="icon-btn" ${index === 0 ? 'disabled style="opacity:0.3;"' : ''} title="Monter" onclick="deplacerProduit('${p.id}', -1)">
+            <i class="fa-solid fa-arrow-up"></i>
+          </button>
+          <button class="icon-btn" ${index === produits.length - 1 ? 'disabled style="opacity:0.3;"' : ''} title="Descendre" onclick="deplacerProduit('${p.id}', 1)">
+            <i class="fa-solid fa-arrow-down"></i>
+          </button>` : '';
 
     liste.innerHTML += `
       <div class="produit-row">
@@ -550,12 +579,7 @@ async function chargerProduits() {
           ${infoStock}
         </div>
         <div class="produit-actions">
-          <button class="icon-btn" ${index === 0 ? 'disabled style="opacity:0.3;"' : ''} title="Monter" onclick="deplacerProduit('${p.id}', -1)">
-            <i class="fa-solid fa-arrow-up"></i>
-          </button>
-          <button class="icon-btn" ${index === produits.length - 1 ? 'disabled style="opacity:0.3;"' : ''} title="Descendre" onclick="deplacerProduit('${p.id}', 1)">
-            <i class="fa-solid fa-arrow-down"></i>
-          </button>
+          ${boutonsReorder}
           <button class="icon-btn" title="Modifier ce produit" onclick="chargerProduitPourEdition('${p.id}')">
             <i class="fa-solid fa-pen"></i>
           </button>
