@@ -164,6 +164,10 @@
         <input type="text" id="nouveau-presta-nom" placeholder="Nom de la prestation">
         <input type="number" id="nouveau-presta-prix" placeholder="Prix (FCFA)">
         <input type="number" id="nouveau-presta-duree" placeholder="Durée (minutes)" value="30">
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:10px;">
+          <input type="checkbox" id="nouveau-presta-prix-variable" style="width:auto;">
+          Le prix final dépend du modèle choisi
+        </label>
         <input type="text" id="nouveau-presta-categorie" placeholder="Catégorie (ex: Ongles, Maquillage)" list="liste-categories-existantes">
         <datalist id="liste-categories-existantes"></datalist>
         <label class="champ-label">Photo <span id="presta-photo-optionnelle" style="display:none;font-weight:400;">(laisser vide pour garder l'actuelle)</span></label>
@@ -245,6 +249,19 @@
 
   <!-- AGENDA -->
   <div id="onglet-agenda" class="onglet-panel">
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-calendar-plus"></i> Ajouter un rendez-vous</h3>
+      <div class="admin-form">
+        <input type="text" id="manuel-rdv-nom" placeholder="Nom de la cliente">
+        <input type="text" id="manuel-rdv-numero" placeholder="Numéro (optionnel)">
+        <select id="manuel-rdv-prestation"><option value="">Choisir une prestation</option></select>
+        <select id="manuel-rdv-personnel"><option value="">Toute l'équipe / peu importe</option></select>
+        <input type="date" id="manuel-rdv-date">
+        <input type="time" id="manuel-rdv-heure">
+        <button class="admin-btn secondaire" onclick="ajouterRendezVousManuel()">+ Ajouter ce rendez-vous</button>
+        <p class="form-message" id="manuel-rdv-message"></p>
+      </div>
+    </div>
     <div class="admin-card">
       <h3><i class="fa-solid fa-calendar-days"></i> Vos rendez-vous à venir</h3>
       <div id="liste-agenda"><p class="empty-state">Chargement…</p></div>
