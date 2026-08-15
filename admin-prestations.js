@@ -131,6 +131,12 @@ async function chargerPrestations() {
     const categories = [...new Set(prestationsCache.map(p => p.categorie).filter(Boolean))];
     datalistCategories.innerHTML = categories.map(c => `<option value="${c}">`).join('');
   }
+
+  const selectRdvPrestation = document.getElementById('manuel-rdv-prestation');
+  if (selectRdvPrestation) {
+    selectRdvPrestation.innerHTML = '<option value="">Choisir une prestation</option>' +
+      prestationsCache.map(p => `<option value="${p.id}">${p.nom} (${p.duree_minutes} min)</option>`).join('');
+  }
 }
 
 // Échange l'ordre de la prestation avec sa voisine immédiate (direction : -1 = monter, 1 = descendre)
@@ -318,6 +324,12 @@ async function chargerPersonnel() {
   const selectBlocage = document.getElementById('blocage-personnel');
   if (selectBlocage) {
     selectBlocage.innerHTML = '<option value="">Toute l\'équipe</option>' +
+      personnelCache.map(p => `<option value="${p.id}">${p.nom}</option>`).join('');
+  }
+
+  const selectRdvPersonnel = document.getElementById('manuel-rdv-personnel');
+  if (selectRdvPersonnel) {
+    selectRdvPersonnel.innerHTML = '<option value="">Toute l\'équipe / peu importe</option>' +
       personnelCache.map(p => `<option value="${p.id}">${p.nom}</option>`).join('');
   }
 
@@ -903,4 +915,52 @@ async function chargerAgenda() {
           </div>
         </div>`).join('')}
     </div>`).join('');
+}
+
+// Ajout manuel d'un rendez-vous par le vendeur (client venu directement,
+// appel téléphonique, etc.) — confirmé immédiatement, puisque c'est le
+// vendeur lui-même qui le saisit (pas d'ambiguïté "a-t-il vraiment été pris").
+async function ajouterRendezVousManuel() {
+  const messageEl = document.getElementById('manuel-rdv-message');
+  const nom = document.getElementById('manuel-rdv-nom').value.trim();
+  const numero = document.getElementById('manuel-rdv-numero').value.trim();
+  const prestationId = document.getElementById('manuel-rdv-prestation').value;
+  const personnelId = document.getElementById('manuel-rdv-personnel').value;
+  const date = document.getElementById('manuel-rdv-date').value;
+  const heure = document.getElementById('manuel-rdv-heure').value;
+
+  if (!prestationId || !date || !heure) {
+    messageEl.textContent = "Prestation, date et heure sont obligatoires.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  const prestation = prestationsCache.find(p => p.id === prestationId);
+
+  const { error } = await supabaseClient.from('rendez_vous').insert({
+    vendeur_id: vendeurConnecte.id,
+    prestation_id: prestationId,
+    personnel_id: personnelId || null,
+    nom_client: nom || null,
+    numero_client: numero || null,
+    date, heure,
+    duree_minutes: prestation ? prestation.duree_minutes : 30,
+    lieu: 'boutique',
+    statut: 'confirme'
+  });
+
+  if (error) { messageEl.textContent = "Erreur lors de l'ajout."; messageEl.style.color = 'red'; return; }
+
+  messageEl.textContent = "Rendez-vous ajouté ✓";
+  messageEl.style.color = 'green';
+  document.getElementById('manuel-rdv-nom').value = '';
+  document.getElementById('manuel-rdv-numero').value = '';
+  document.getElementById('manuel-rdv-prestation').value = '';
+  document.getElementById('manuel-rdv-personnel').value = '';
+  document.getElementById('manuel-rdv-date').value = '';
+  document.getElementById('manuel-rdv-heure').value = '';
+
+  await chargerAgenda();
+  await chargerStats();
+  await chargerGraphique7Jours();
 }
