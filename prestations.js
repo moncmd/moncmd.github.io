@@ -9,7 +9,12 @@ let vendeurActuel = null;
 let prestationsData = [];
 let personnelData = [];
 
-let booking = { staffId: '', staffNom: '', prestationId: '', prestationNom: '', prestationPrix: '', date: '', slot: '', lieu: 'boutique' };
+let booking = { staffId: '', staffNom: '', prestationId: '', prestationNom: '', prestationPrix: '', date: '', slot: '', lieu: 'boutique', services: [], modeRecap: false };
+
+// Convertit "HH:MM" en minutes depuis minuit, et inversement — utilisé partout
+// pour calculer les horaires séquentiels des services multiples.
+function versMinutesGlobal(h){ const [hh, mm] = (h || '00:00').slice(0,5).split(':').map(Number); return hh * 60 + mm; }
+function formatHM(m){ return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
 
 async function chargerBoutiquePrestations() {
   const slug = getVendeurSlug();
@@ -356,7 +361,7 @@ async function envoyerAvis() {
 // ============================================
 function openModal(prestationId) {
   document.getElementById('modal-overlay').classList.add('open');
-  booking = { staffId: '', staffNom: '', prestationId: '', prestationNom: '', prestationPrix: '', date: '', slot: '', lieu: 'boutique' };
+  booking = { staffId: '', staffNom: '', prestationId: '', prestationNom: '', prestationPrix: '', date: '', slot: '', lieu: 'boutique', services: [], modeRecap: false };
 
   if (prestationId) {
     const p = prestationsData.find(x => x.id === prestationId);
@@ -370,19 +375,46 @@ function closeModal(){ document.getElementById('modal-overlay').classList.remove
 function goStep(n){
   document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
   document.getElementById('step-'+n).classList.add('active');
-  if (n === 2) remplirServiceList();
+  if (n === 2) {
+    if (booking.modeRecap) afficherRecapServicesChoisis();
+    else remplirServiceList();
+  }
   if (n === 4) buildSummary();
 }
 
 function chooseStaff(id, nom){
   booking.staffId = id;
   booking.staffNom = nom;
-  goStep(booking.prestationId ? 3 : 2); // si prestation déjà choisie (mini-book), on saute l'étape service
+
+  if (booking.prestationId) {
+    // Mini-book (bouton "Réserver" sur une carte précise) : la prestation est déjà
+    // connue, on l'ajoute directement au lieu de repasser par la liste.
+    const p = prestationsData.find(x => x.id === booking.prestationId);
+    ajouterServiceEtAfficherRecap(p, id, nom);
+    booking.prestationId = ''; // on vide le "champ courant" pour ne pas le réutiliser sur un service suivant
+    goStep(2);
+  } else {
+    goStep(2);
+  }
+}
+
+function ajouterServiceEtAfficherRecap(p, staffId, staffNom){
+  if (!p) return;
+  booking.services.push({
+    prestationId: p.id, prestationNom: p.nom, prestationPrix: p.prix,
+    staffId: staffId, staffNom: staffNom, duree_minutes: p.duree_minutes || 30,
+    prixVariable: !!p.prix_variable
+  });
+  booking.modeRecap = true;
 }
 
 function remplirServiceList(){
   const list = document.querySelector('.service-list');
   if (!list) return;
+  list.style.display = '';
+  const recap = document.getElementById('recap-services-choisis');
+  if (recap) recap.style.display = 'none';
+
   list.innerHTML = '';
 
   const prestationsDisponibles = prestationsData.filter(p => prestationOuvertePourStaff(p, booking.staffId));
@@ -395,13 +427,65 @@ function remplirServiceList(){
   prestationsDisponibles.forEach(p => {
     const el = document.createElement('div');
     el.className = 'service-row';
-    el.innerHTML = `<span>${p.nom}</span><span class="p">${p.prix.toLocaleString('fr-FR')} FCFA</span>`;
+    el.innerHTML = `<span>${p.nom}${p.prix_variable ? ' <span style="opacity:0.5;font-size:0.75em;">(± modèle)</span>' : ''}</span><span class="p">${p.prix.toLocaleString('fr-FR')} FCFA</span>`;
     el.addEventListener('click', () => {
-      booking.prestationId = p.id; booking.prestationNom = p.nom; booking.prestationPrix = p.prix;
-      goStep(3);
+      ajouterServiceEtAfficherRecap(p, booking.staffId, booking.staffNom);
+      goStep(2);
     });
     list.appendChild(el);
   });
+}
+
+// Affiche la liste des services déjà choisis (avec la personne assignée à
+// chacun), un bouton pour en ajouter un autre, et un bouton pour continuer
+// vers le choix de la date. Vit dans le même conteneur que .service-list,
+// injecté dynamiquement (aucune modification des fichiers HTML nécessaire).
+function afficherRecapServicesChoisis(){
+  const list = document.querySelector('.service-list');
+  if (!list) return;
+  list.style.display = 'none';
+
+  let recap = document.getElementById('recap-services-choisis');
+  if (!recap) {
+    recap = document.createElement('div');
+    recap.id = 'recap-services-choisis';
+    list.parentNode.insertBefore(recap, list.nextSibling);
+  }
+  recap.style.display = '';
+
+  const total = booking.services.reduce((t, s) => t + (s.prestationPrix || 0), 0);
+
+  recap.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+      ${booking.services.map((s, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:2px solid var(--ink,#000);border-radius:8px;">
+          <div>
+            <div style="font-weight:600;font-size:0.88rem;">${s.prestationNom}</div>
+            <div style="font-size:0.72rem;opacity:0.6;">avec ${s.staffNom || "n'importe qui"} · ${s.prestationPrix.toLocaleString('fr-FR')} FCFA</div>
+          </div>
+          <span style="cursor:pointer;opacity:0.5;font-size:1.1rem;" onclick="retirerServiceChoisi(${i})">✕</span>
+        </div>
+      `).join('')}
+    </div>
+    <p style="font-weight:600;font-size:0.85rem;margin-bottom:14px;">Total : ${total.toLocaleString('fr-FR')} FCFA</p>
+    <div style="display:flex;gap:10px;">
+      <span class="mono" style="cursor:pointer;" onclick="ajouterAutreService()">+ Ajouter un service</span>
+      <span class="mono" style="cursor:pointer;font-weight:700;" onclick="goStep(3)">Continuer →</span>
+    </div>
+  `;
+}
+
+function retirerServiceChoisi(index){
+  booking.services.splice(index, 1);
+  if (!booking.services.length) { booking.modeRecap = false; }
+  afficherRecapServicesChoisis();
+  if (!booking.services.length) remplirServiceList();
+}
+
+function ajouterAutreService(){
+  booking.modeRecap = false;
+  booking.staffId = ''; booking.staffNom = ''; booking.prestationId = '';
+  goStep(1);
 }
 
 function choisirLieu(lieu){
@@ -414,10 +498,34 @@ function choisirLieu(lieu){
 function buildSummary(){
   const dateVal = document.getElementById('date-rdv').value || '(date à confirmer)';
   booking.date = dateVal;
+
+  // Calcule l'horaire de chaque service, l'un après l'autre, à partir du créneau choisi
+  let curseur = versMinutesGlobal(booking.slot || '00:00');
+  const lignesDetail = booking.services.map(s => {
+    const heure = formatHM(curseur);
+    curseur += (s.duree_minutes || 30);
+    return { ...s, heure };
+  });
+
+  const total = booking.services.reduce((t, s) => t + (s.prestationPrix || 0), 0);
+  const prixVariable = booking.services.some(s => s.prixVariable);
+
+  const infosPaiement = (vendeurActuel && (vendeurActuel.wave_numero || vendeurActuel.om_numero))
+    ? `<br><br><span style="font-size:0.78rem;opacity:0.75;">Acompte / paiement :<br>` +
+      (vendeurActuel.wave_numero ? `Wave : <b>${vendeurActuel.wave_numero}</b><br>` : '') +
+      (vendeurActuel.om_numero ? `Orange Money : <b>${vendeurActuel.om_numero}</b>` : '') +
+      `</span>`
+    : '';
+
+  const noteModele = prixVariable
+    ? `<br><br><span style="font-size:0.75rem;opacity:0.7;">NB : le prix final de certains services dépend du modèle choisi, à confirmer avec la prestataire.</span>`
+    : '';
+
   document.getElementById('summary-box').innerHTML =
-    `Prestation : <b>${booking.prestationNom || '(à préciser)'}</b><br>
-     Avec : <b>${booking.staffNom || "N'importe qui"}</b><br>
-     Le : <b>${dateVal}${booking.slot ? ' à ' + booking.slot : ''}</b>`;
+    lignesDetail.map(l => `${l.prestationNom} avec <b>${l.staffNom || "n'importe qui"}</b> à <b>${l.heure}</b>`).join('<br>') +
+    `<br>Le : <b>${dateVal}</b>` +
+    (booking.services.length > 1 ? `<br>Total : <b>${total.toLocaleString('fr-FR')} FCFA</b>` : '') +
+    infosPaiement + noteModele;
 
   const numero = vendeurActuel ? vendeurActuel.numero_whatsapp : '221000000000';
   const btn = document.getElementById('confirm-btn');
@@ -427,8 +535,13 @@ function buildSummary(){
     const numeroClient = document.getElementById('rdv-numero').value.trim();
     const adresseClient = document.getElementById('rdv-adresse').value.trim();
     const lieuTexte = booking.lieu === 'domicile' ? `à domicile (${adresseClient || 'adresse à préciser'})` : 'en boutique';
+
+    const detailServices = lignesDetail
+      .map(l => `${l.prestationNom} avec ${l.staffNom || "n'importe qui"} à ${l.heure}`)
+      .join(', puis ');
+
     const msg = encodeURIComponent(
-      `Bonjour, je suis ${nom || ''}. Je voudrais réserver ${booking.prestationNom || ''} avec ${booking.staffNom || "n'importe qui"} le ${dateVal}${booking.slot ? ' à ' + booking.slot : ''}, ${lieuTexte}.`
+      `Bonjour, je suis ${nom || ''}. Je voudrais réserver : ${detailServices}, le ${dateVal}, ${lieuTexte}.`
     );
     btn.href = `https://wa.me/${numero}?text=${msg}`;
     enregistrerRendezVous(nom, numeroClient, adresseClient);
@@ -437,17 +550,31 @@ function buildSummary(){
 
 async function enregistrerRendezVous(nom, numeroClient, adresseClient){
   if (!vendeurActuel) return;
-  await supabaseClient.from('rendez_vous').insert({
-    vendeur_id: vendeurActuel.id,
-    prestation_id: booking.prestationId || null,
-    personnel_id: booking.staffId || null,
-    nom_client: nom || null,
-    numero_client: numeroClient || null,
-    lieu: booking.lieu || 'boutique',
-    adresse_client: booking.lieu === 'domicile' ? (adresseClient || null) : null,
-    date: convertirDateISO(booking.date),
-    heure: booking.slot || null
+
+  const dateISO = convertirDateISO(booking.date);
+  const groupeId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+
+  let curseur = versMinutesGlobal(booking.slot || '00:00');
+
+  const lignes = booking.services.map(s => {
+    const ligne = {
+      vendeur_id: vendeurActuel.id,
+      prestation_id: s.prestationId || null,
+      personnel_id: s.staffId || null,
+      nom_client: nom || null,
+      numero_client: numeroClient || null,
+      lieu: booking.lieu || 'boutique',
+      adresse_client: booking.lieu === 'domicile' ? (adresseClient || null) : null,
+      date: dateISO,
+      heure: formatHM(curseur),
+      duree_minutes: s.duree_minutes || 30,
+      groupe_reservation: groupeId
+    };
+    curseur += (s.duree_minutes || 30);
+    return ligne;
   });
+
+  await supabaseClient.from('rendez_vous').insert(lignes);
 }
 
 function convertirDateISO(dateStr){
@@ -500,7 +627,12 @@ async function genererCreneaux(dateStr){
 
   const parts = dateStr.split('/');
   const dateISO = `${parts[2]}-${parts[1]}-${parts[0]}`;
-  const duree = (prestationsData.find(p => p.id === booking.prestationId) || {}).duree_minutes || 30;
+
+  const services = booking.services;
+  if (!services.length) { grille.innerHTML = ''; return; }
+
+  const dureeTotale = services.reduce((t, s) => t + (s.duree_minutes || 30), 0);
+  const dureePremierService = services[0].duree_minutes || 30; // pas d'incrément de la grille de créneaux
 
   const [hOuv, mOuv] = (vendeurActuel.heure_ouverture || '09:00').slice(0,5).split(':').map(Number);
   const [hFer, mFer] = (vendeurActuel.heure_fermeture || '18:00').slice(0,5).split(':').map(Number);
@@ -509,30 +641,53 @@ async function genererCreneaux(dateStr){
 
   const [{ data: blocages }, { data: rdvExistants }] = await Promise.all([
     supabaseClient.from('blocages_horaires').select('*').eq('vendeur_id', vendeurActuel.id).eq('date', dateISO),
-    supabaseClient.from('rendez_vous').select('heure, personnel_id').eq('vendeur_id', vendeurActuel.id).eq('date', dateISO)
+    supabaseClient.from('rendez_vous').select('heure, personnel_id, duree_minutes').eq('vendeur_id', vendeurActuel.id).eq('date', dateISO)
   ]);
 
-  const versMinutes = (h) => { const [hh, mm] = h.slice(0,5).split(':').map(Number); return hh * 60 + mm; };
+  const versMinutes = versMinutesGlobal;
+  const maintenant = new Date();
+
+  // Un créneau candidat "m" n'est valable que si CHAQUE service de la chaîne,
+  // à son propre horaire décalé, est libre pour SON prestataire assigné.
+  function chaineValide(m){
+    let curseur = m;
+    for (const s of services) {
+      const debutService = curseur;
+      const finService = curseur + (s.duree_minutes || 30);
+      const staffService = s.staffId;
+
+      const bloque = (blocages || []).some(b => {
+        if (b.personnel_id && staffService && b.personnel_id !== staffService) return false;
+        const bd = versMinutes(b.heure_debut), bf = versMinutes(b.heure_fin);
+        return debutService < bf && finService > bd;
+      });
+      if (bloque) return false;
+
+      const pris = (rdvExistants || []).some(r => {
+        if (!r.heure) return false;
+        if (staffService && r.personnel_id && r.personnel_id !== staffService) return false;
+        const rDebut = versMinutes(r.heure), rFin = rDebut + (r.duree_minutes || 30);
+        return debutService < rFin && finService > rDebut;
+      });
+      if (pris) return false;
+
+      curseur = finService;
+    }
+    return true;
+  }
 
   const creneaux = [];
-  for (let m = debutMinutes; m + duree <= finMinutes; m += duree) {
-    const fin = m + duree;
-
-    const bloque = (blocages || []).some(b => {
-      if (b.personnel_id && booking.staffId && b.personnel_id !== booking.staffId) return false;
-      const bd = versMinutes(b.heure_debut), bf = versMinutes(b.heure_fin);
-      return m < bf && fin > bd;
-    });
-
-    const pris = (rdvExistants || []).some(r => {
-      if (!r.heure) return false;
-      if (booking.staffId && r.personnel_id && r.personnel_id !== booking.staffId) return false;
-      return versMinutes(r.heure) === m;
-    });
-
+  for (let m = debutMinutes; m + dureeTotale <= finMinutes; m += dureePremierService) {
     const h = String(Math.floor(m/60)).padStart(2,'0');
     const mn = String(m%60).padStart(2,'0');
-    creneaux.push({ label: `${h}h${mn}`, valeur: `${h}:${mn}`, disponible: !bloque && !pris });
+
+    // Comparaison sur des dates complètes (jour + heure), pour gérer correctement
+    // le passage à minuit — pas juste une comparaison d'heures dans la journée.
+    const dateHeureCreneau = new Date(`${dateISO}T${h}:${mn}:00`);
+    const minutesAvantCreneau = (dateHeureCreneau - maintenant) / 60000;
+    const tropTot = minutesAvantCreneau < 12 * 60;
+
+    creneaux.push({ label: `${h}h${mn}`, valeur: `${h}:${mn}`, disponible: !tropTot && chaineValide(m) });
   }
 
   if (!creneaux.length) {
