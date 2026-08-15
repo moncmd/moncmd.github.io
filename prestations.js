@@ -540,8 +540,12 @@ function buildSummary(){
       .map(l => `${l.prestationNom} avec ${l.staffNom || "n'importe qui"} à ${l.heure}`)
       .join(', puis ');
 
+    const messagePersonnalise = (vendeurActuel && vendeurActuel.slug === 'Lees')
+      ? " Veuillez m'envoyer le lien de validation wave pour réserver le créneau."
+      : '';
+
     const msg = encodeURIComponent(
-      `Bonjour, je suis ${nom || ''}. Je voudrais réserver : ${detailServices}, le ${dateVal}, ${lieuTexte}.`
+      `Bonjour, je suis ${nom || ''}. Je voudrais réserver : ${detailServices}, le ${dateVal}, ${lieuTexte}.${messagePersonnalise}`
     );
     btn.href = `https://wa.me/${numero}?text=${msg}`;
     enregistrerRendezVous(nom, numeroClient, adresseClient);
@@ -681,8 +685,6 @@ async function genererCreneaux(dateStr){
     const h = String(Math.floor(m/60)).padStart(2,'0');
     const mn = String(m%60).padStart(2,'0');
 
-    // Comparaison sur des dates complètes (jour + heure), pour gérer correctement
-    // le passage à minuit — pas juste une comparaison d'heures dans la journée.
     const dateHeureCreneau = new Date(`${dateISO}T${h}:${mn}:00`);
     const minutesAvantCreneau = (dateHeureCreneau - maintenant) / 60000;
     const tropTot = minutesAvantCreneau < 12 * 60;
