@@ -254,11 +254,20 @@
       <div class="admin-form">
         <input type="text" id="manuel-rdv-nom" placeholder="Nom de la cliente">
         <input type="text" id="manuel-rdv-numero" placeholder="Numéro (optionnel)">
+
+        <label class="champ-label">Services</label>
         <select id="manuel-rdv-prestation"><option value="">Choisir une prestation</option></select>
         <select id="manuel-rdv-personnel"><option value="">Toute l'équipe / peu importe</option></select>
-        <input type="date" id="manuel-rdv-date">
-        <input type="time" id="manuel-rdv-heure">
-        <button class="admin-btn secondaire" onclick="ajouterRendezVousManuel()">+ Ajouter ce rendez-vous</button>
+        <button type="button" class="admin-btn secondaire" style="margin-bottom:12px;" onclick="ajouterServiceRdvManuel()">+ Ajouter ce service à la liste</button>
+
+        <div id="liste-services-rdv-manuel" style="margin-bottom:14px;"></div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+          <input type="date" id="manuel-rdv-date" style="flex:1; min-width:140px; margin-bottom:0;">
+          <input type="time" id="manuel-rdv-heure" style="flex:1; min-width:110px; margin-bottom:0;">
+        </div>
+
+        <button class="admin-btn" onclick="enregistrerRendezVousManuel()">Enregistrer le(s) rendez-vous</button>
         <p class="form-message" id="manuel-rdv-message"></p>
       </div>
     </div>
