@@ -917,46 +917,113 @@ async function chargerAgenda() {
     </div>`).join('');
 }
 
-// Ajout manuel d'un rendez-vous par le vendeur (client venu directement,
-// appel téléphonique, etc.) — confirmé immédiatement, puisque c'est le
-// vendeur lui-même qui le saisit (pas d'ambiguïté "a-t-il vraiment été pris").
-async function ajouterRendezVousManuel() {
-  const messageEl = document.getElementById('manuel-rdv-message');
-  const nom = document.getElementById('manuel-rdv-nom').value.trim();
-  const numero = document.getElementById('manuel-rdv-numero').value.trim();
+// Liste temporaire des services en cours d'ajout pour le rendez-vous manuel
+// (avant l'enregistrement final). Remise à zéro après chaque enregistrement.
+let servicesRdvManuel = [];
+
+function ajouterServiceRdvManuel() {
   const prestationId = document.getElementById('manuel-rdv-prestation').value;
   const personnelId = document.getElementById('manuel-rdv-personnel').value;
-  const date = document.getElementById('manuel-rdv-date').value;
-  const heure = document.getElementById('manuel-rdv-heure').value;
+  const messageEl = document.getElementById('manuel-rdv-message');
 
-  if (!prestationId || !date || !heure) {
-    messageEl.textContent = "Prestation, date et heure sont obligatoires.";
+  if (!prestationId) {
+    messageEl.textContent = "Choisissez d'abord une prestation.";
     messageEl.style.color = 'red';
     return;
   }
 
   const prestation = prestationsCache.find(p => p.id === prestationId);
+  const personnel = personnelCache.find(p => p.id === personnelId);
 
-  const { error } = await supabaseClient.from('rendez_vous').insert({
-    vendeur_id: vendeurConnecte.id,
-    prestation_id: prestationId,
-    personnel_id: personnelId || null,
-    nom_client: nom || null,
-    numero_client: numero || null,
-    date, heure,
+  servicesRdvManuel.push({
+    prestationId,
+    prestationNom: prestation ? prestation.nom : '',
     duree_minutes: prestation ? prestation.duree_minutes : 30,
-    lieu: 'boutique',
-    statut: 'confirme'
+    personnelId: personnelId || null,
+    personnelNom: personnel ? personnel.nom : "N'importe qui"
   });
 
-  if (error) { messageEl.textContent = "Erreur lors de l'ajout."; messageEl.style.color = 'red'; return; }
-
-  messageEl.textContent = "Rendez-vous ajouté ✓";
-  messageEl.style.color = 'green';
-  document.getElementById('manuel-rdv-nom').value = '';
-  document.getElementById('manuel-rdv-numero').value = '';
   document.getElementById('manuel-rdv-prestation').value = '';
   document.getElementById('manuel-rdv-personnel').value = '';
+  messageEl.textContent = '';
+
+  afficherServicesRdvManuel();
+}
+
+function retirerServiceRdvManuel(index) {
+  servicesRdvManuel.splice(index, 1);
+  afficherServicesRdvManuel();
+}
+
+function afficherServicesRdvManuel() {
+  const conteneur = document.getElementById('liste-services-rdv-manuel');
+  if (!servicesRdvManuel.length) { conteneur.innerHTML = ''; return; }
+
+  conteneur.innerHTML = servicesRdvManuel.map((s, i) => `
+    <div class="row" style="padding:9px 0;">
+      <div class="row-infos">
+        <strong style="font-size:13px;">${s.prestationNom}</strong>
+        <span class="sub">avec ${s.personnelNom} · ${s.duree_minutes} min</span>
+      </div>
+      <button class="icon-btn danger" onclick="retirerServiceRdvManuel(${i})"><i class="fa-solid fa-trash"></i></button>
+    </div>
+  `).join('');
+}
+
+// Enregistre tous les services de la liste comme des rendez-vous séquentiels,
+// à partir de l'heure de départ choisie — exactement la même logique que le
+// flux multi-service côté client (une ligne par service, horaires décalés
+// automatiquement selon la durée de chacun, reliées par un groupe_reservation).
+async function enregistrerRendezVousManuel() {
+  const messageEl = document.getElementById('manuel-rdv-message');
+  const nom = document.getElementById('manuel-rdv-nom').value.trim();
+  const numero = document.getElementById('manuel-rdv-numero').value.trim();
+  const date = document.getElementById('manuel-rdv-date').value;
+  const heure = document.getElementById('manuel-rdv-heure').value;
+
+  if (!servicesRdvManuel.length) {
+    messageEl.textContent = "Ajoutez au moins un service à la liste.";
+    messageEl.style.color = 'red';
+    return;
+  }
+  if (!date || !heure) {
+    messageEl.textContent = "Date et heure de départ sont obligatoires.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  const groupeId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+  const versMinutes = (h) => { const [hh, mm] = h.slice(0,5).split(':').map(Number); return hh * 60 + mm; };
+  const formatHM = (m) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+
+  let curseur = versMinutes(heure);
+  const lignes = servicesRdvManuel.map(s => {
+    const ligne = {
+      vendeur_id: vendeurConnecte.id,
+      prestation_id: s.prestationId,
+      personnel_id: s.personnelId,
+      nom_client: nom || null,
+      numero_client: numero || null,
+      date, heure: formatHM(curseur),
+      duree_minutes: s.duree_minutes,
+      lieu: 'boutique',
+      statut: 'confirme',
+      groupe_reservation: groupeId
+    };
+    curseur += s.duree_minutes;
+    return ligne;
+  });
+
+  const { error } = await supabaseClient.from('rendez_vous').insert(lignes);
+  if (error) { messageEl.textContent = "Erreur lors de l'ajout."; messageEl.style.color = 'red'; return; }
+
+  messageEl.textContent = `${lignes.length > 1 ? lignes.length + ' rendez-vous ajoutés ✓' : 'Rendez-vous ajouté ✓'}`;
+  messageEl.style.color = 'green';
+
+  servicesRdvManuel = [];
+  afficherServicesRdvManuel();
+  document.getElementById('manuel-rdv-nom').value = '';
+  document.getElementById('manuel-rdv-numero').value = '';
   document.getElementById('manuel-rdv-date').value = '';
   document.getElementById('manuel-rdv-heure').value = '';
 
