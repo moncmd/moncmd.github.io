@@ -556,7 +556,12 @@ async function enregistrerRendezVous(nom, numeroClient, adresseClient){
   if (!vendeurActuel) return;
 
   const dateISO = convertirDateISO(booking.date);
-  const groupeId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+  const groupeId = crypto.randomUUID
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
 
   let curseur = versMinutesGlobal(booking.slot || '00:00');
 
@@ -572,13 +577,15 @@ async function enregistrerRendezVous(nom, numeroClient, adresseClient){
       date: dateISO,
       heure: formatHM(curseur),
       duree_minutes: s.duree_minutes || 30,
-      groupe_reservation: groupeId
+      groupe_reservation: groupeId,
+      statut: 'en_attente'
     };
     curseur += (s.duree_minutes || 30);
     return ligne;
   });
 
-  await supabaseClient.from('rendez_vous').insert(lignes);
+  const { error } = await supabaseClient.from('rendez_vous').insert(lignes);
+  if (error) console.error('Erreur enregistrement rendez-vous :', error);
 }
 
 function convertirDateISO(dateStr){
@@ -685,6 +692,8 @@ async function genererCreneaux(dateStr){
     const h = String(Math.floor(m/60)).padStart(2,'0');
     const mn = String(m%60).padStart(2,'0');
 
+    // Comparaison sur des dates complètes (jour + heure), pour gérer correctement
+    // le passage à minuit — pas juste une comparaison d'heures dans la journée.
     const dateHeureCreneau = new Date(`${dateISO}T${h}:${mn}:00`);
     const minutesAvantCreneau = (dateHeureCreneau - maintenant) / 60000;
     const tropTot = minutesAvantCreneau < 12 * 60;
