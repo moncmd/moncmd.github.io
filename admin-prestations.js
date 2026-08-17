@@ -1004,7 +1004,12 @@ async function enregistrerRendezVousManuel() {
     return;
   }
 
-  const groupeId = (crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+  const groupeId = crypto.randomUUID
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
   const versMinutes = (h) => { const [hh, mm] = h.slice(0,5).split(':').map(Number); return hh * 60 + mm; };
   const formatHM = (m) => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
 
@@ -1027,7 +1032,12 @@ async function enregistrerRendezVousManuel() {
   });
 
   const { error } = await supabaseClient.from('rendez_vous').insert(lignes);
-  if (error) { messageEl.textContent = "Erreur lors de l'ajout."; messageEl.style.color = 'red'; return; }
+  if (error) {
+    console.error('Erreur ajout rendez-vous manuel :', error);
+    messageEl.textContent = `Erreur lors de l'ajout : ${error.message}`;
+    messageEl.style.color = 'red';
+    return;
+  }
 
   messageEl.textContent = `${lignes.length > 1 ? lignes.length + ' rendez-vous ajoutés ✓' : 'Rendez-vous ajouté ✓'}`;
   messageEl.style.color = 'green';
