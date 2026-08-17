@@ -6,8 +6,8 @@
 let vendeurConnecte = null;
 let prestationsCache = [];
 let personnelCache = [];
-let personnelEnEdition = null; // id de la personne en cours de modification, null = mode "ajout"
-let prestationEnEdition = null; // id de la prestation en cours de modification, null = mode "ajout"
+let personnelEnEdition = null; // id de la personne en cours de modif, null = mode "ajout"
+let prestationEnEdition = null; // id de la prestation en cours de modif, null = mode "ajout"
 
 const HIERARCHIE_FORMULES = ['standard', 'pro', 'premium'];
 function auMoins(niveauRequis) {
