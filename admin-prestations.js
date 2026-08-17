@@ -48,10 +48,11 @@ function changerOnglet(nom, boutonEl) {
   boutonEl.classList.add('actif');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // Recharge les données à chaque ouverture de l'onglet Agenda, pour ne jamais
-  // afficher une liste périmée (ex: un client a réservé pendant que la
-  // vendeuse était sur un autre onglet).
+  // Recharge les données à chaque ouverture de l'onglet, pour ne jamais
+  // afficher des chiffres/listes périmés (ex: une réservation vient d'arriver
+  // pendant que la vendeuse était sur un autre onglet).
   if (nom === 'agenda') chargerAgenda();
+  if (nom === 'dashboard') { chargerStats(); chargerGraphique7Jours(); chargerDernieresDemandes(); }
 }
 
 async function chargerDashboard(authUserId) {
