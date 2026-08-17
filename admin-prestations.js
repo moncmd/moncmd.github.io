@@ -47,6 +47,11 @@ function changerOnglet(nom, boutonEl) {
   document.getElementById('onglet-' + nom).classList.add('actif');
   boutonEl.classList.add('actif');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Recharge les données à chaque ouverture de l'onglet Agenda, pour ne jamais
+  // afficher une liste périmée (ex: un client a réservé pendant que la
+  // vendeuse était sur un autre onglet).
+  if (nom === 'agenda') chargerAgenda();
 }
 
 async function chargerDashboard(authUserId) {
@@ -883,7 +888,7 @@ async function chargerDernieresDemandes() {
 async function chargerAgenda() {
   const aujourdhui = new Date().toISOString().split('T')[0];
 
-  const { data } = await supabaseClient
+  const { data, error } = await supabaseClient
     .from('rendez_vous')
     .select('nom_client, numero_client, lieu, adresse_client, date, heure, prestations(nom, duree_minutes), personnel(nom)')
     .eq('vendeur_id', vendeurConnecte.id)
@@ -892,6 +897,13 @@ async function chargerAgenda() {
     .order('heure', { ascending: true });
 
   const container = document.getElementById('liste-agenda');
+
+  if (error) {
+    console.error('Erreur chargement agenda :', error);
+    container.innerHTML = `<p class="empty-state" style="color:#e00;">Erreur de chargement (${error.message}). Ouvre la console (F12) pour le détail.</p>`;
+    return;
+  }
+
   if (!data || !data.length) { container.innerHTML = '<p class="empty-state">Aucun rendez-vous à venir.</p>'; return; }
 
   // Regroupement par jour
