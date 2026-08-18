@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 <style>
   :root{ --couleur-accent:#e56400; }
   *{margin:0;padding:0;box-sizing:border-box;}
@@ -272,8 +273,8 @@
       </div>
     </div>
     <div class="admin-card">
-      <h3><i class="fa-solid fa-calendar-days"></i> Vos rendez-vous à venir</h3>
-      <div id="liste-agenda"><p class="empty-state">Chargement…</p></div>
+      <h3><i class="fa-solid fa-calendar-days"></i> Vos rendez-vous</h3>
+      <div id="calendrier-agenda"></div>
     </div>
   </div>
 
