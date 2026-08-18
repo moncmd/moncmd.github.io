@@ -1,7 +1,7 @@
 // ============================================
 // CMD. — admin-prestations.js
 // Login vendeur + dashboard prestataire (mêmes conventions que admin.js)
-// ============================================
+// ===
 
 let vendeurConnecte = null;
 let prestationsCache = [];
