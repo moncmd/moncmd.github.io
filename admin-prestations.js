@@ -6,8 +6,8 @@
 let vendeurConnecte = null;
 let prestationsCache = [];
 let personnelCache = [];
-let personnelEnEdition = null; // id de la personne en cours de modif, null = mode "ajout"
-let prestationEnEdition = null; // id de la prestation en cours de modif, null = mode "ajout"
+let personnelEnEdition = null; // id de la personne en cours de modification, null = mode "ajout"
+let prestationEnEdition = null; // id de la prestation en cours de modification, null = mode "ajout"
 
 const HIERARCHIE_FORMULES = ['standard', 'pro', 'premium'];
 function auMoins(niveauRequis) {
@@ -886,48 +886,74 @@ async function chargerDernieresDemandes() {
     </div>`).join('');
 }
 
-async function chargerAgenda() {
-  const aujourdhui = new Date().toISOString().split('T')[0];
+let calendrierAgenda = null;
 
+async function chargerAgenda() {
   const { data, error } = await supabaseClient
     .from('rendez_vous')
-    .select('nom_client, numero_client, lieu, adresse_client, date, heure, prestations(nom, duree_minutes), personnel(nom)')
-    .eq('vendeur_id', vendeurConnecte.id)
-    .gte('date', aujourdhui)
-    .order('date', { ascending: true })
-    .order('heure', { ascending: true });
+    .select('nom_client, numero_client, lieu, adresse_client, date, heure, duree_minutes, personnel_id, prestations(nom), personnel(nom)')
+    .eq('vendeur_id', vendeurConnecte.id);
 
-  const container = document.getElementById('liste-agenda');
+  const conteneur = document.getElementById('calendrier-agenda');
+  if (!conteneur) return;
 
   if (error) {
     console.error('Erreur chargement agenda :', error);
-    container.innerHTML = `<p class="empty-state" style="color:#e00;">Erreur de chargement (${error.message}). Ouvre la console (F12) pour le détail.</p>`;
+    conteneur.innerHTML = `<p class="empty-state" style="color:#e00;">Erreur de chargement (${error.message}). Ouvre la console (F12) pour le détail.</p>`;
     return;
   }
 
-  if (!data || !data.length) { container.innerHTML = '<p class="empty-state">Aucun rendez-vous à venir.</p>'; return; }
+  // Une couleur stable par prestataire, pour repérer visuellement qui fait quoi d'un coup d'œil
+  const couleurs = ['#e56400', '#2a9d8f', '#8a4fff', '#e0527a', '#3f7cff', '#c9a227'];
+  const couleurPersonnel = {};
+  let indexCouleur = 0;
+  function couleurPour(id) {
+    if (!id) return '#999';
+    if (!couleurPersonnel[id]) couleurPersonnel[id] = couleurs[indexCouleur++ % couleurs.length];
+    return couleurPersonnel[id];
+  }
 
-  // Regroupement par jour
-  const parJour = {};
-  data.forEach(r => {
-    if (!parJour[r.date]) parJour[r.date] = [];
-    parJour[r.date].push(r);
-  });
+  const evenements = (data || []).map(r => {
+    if (!r.date || !r.heure) return null;
+    const debut = `${r.date}T${r.heure.slice(0,5)}:00`;
+    const finDate = new Date(debut);
+    finDate.setMinutes(finDate.getMinutes() + (r.duree_minutes || 30));
 
-  const formatDate = (iso) => new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return {
+      title: `${r.nom_client || 'Client'} — ${r.prestations ? r.prestations.nom : ''}`,
+      start: debut,
+      end: finDate.toISOString().slice(0, 19),
+      backgroundColor: couleurPour(r.personnel_id),
+      borderColor: couleurPour(r.personnel_id),
+      extendedProps: {
+        prestataire: r.personnel ? r.personnel.nom : "N'importe qui",
+        numero: r.numero_client || '',
+        lieu: r.lieu === 'domicile' ? `À domicile${r.adresse_client ? ' — ' + r.adresse_client : ''}` : 'En boutique'
+      }
+    };
+  }).filter(Boolean);
 
-  container.innerHTML = Object.keys(parJour).map(date => `
-    <div style="margin-bottom:18px;">
-      <div class="mono" style="margin-bottom:8px;text-transform:capitalize;">${formatDate(date)}</div>
-      ${parJour[date].map(r => `
-        <div class="row">
-          <div class="row-infos">
-            <strong>${r.heure ? r.heure.slice(0,5) : '—'} · ${r.nom_client || 'Client'}</strong>
-            <span class="sub">${r.prestations ? r.prestations.nom : ''} — ${r.personnel ? r.personnel.nom : "N'importe qui"}${r.numero_client ? ' · ' + r.numero_client : ''}</span>
-            ${r.lieu === 'domicile' ? `<span class="sub" style="display:block;color:#e56400;">🏠 À domicile${r.adresse_client ? ' — ' + r.adresse_client : ''}</span>` : ''}
-          </div>
-        </div>`).join('')}
-    </div>`).join('');
+  if (!calendrierAgenda) {
+    calendrierAgenda = new FullCalendar.Calendar(conteneur, {
+      locale: 'fr',
+      initialView: 'timeGridWeek',
+      headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridDay,timeGridWeek,dayGridMonth' },
+      slotMinTime: (vendeurConnecte.heure_ouverture || '08:00').slice(0,5) + ':00',
+      slotMaxTime: (vendeurConnecte.heure_fermeture || '20:00').slice(0,5) + ':00',
+      height: 'auto',
+      nowIndicator: true,
+      allDaySlot: false,
+      events: evenements,
+      eventClick: (info) => {
+        const p = info.event.extendedProps;
+        alert(`${info.event.title}\nAvec : ${p.prestataire}\n${p.lieu}${p.numero ? '\nTél : ' + p.numero : ''}`);
+      }
+    });
+    calendrierAgenda.render();
+  } else {
+    calendrierAgenda.removeAllEvents();
+    calendrierAgenda.addEventSource(evenements);
+  }
 }
 
 // Liste temporaire des services en cours d'ajout pour le rendez-vous manuel
