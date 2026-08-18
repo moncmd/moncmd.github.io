@@ -200,6 +200,91 @@ function changerOnglet(nom, boutonEl) {
   document.getElementById('onglet-' + nom).classList.add('actif');
   boutonEl.classList.add('actif');
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  if (nom === 'clients') chargerClientsAdmin();
+}
+
+// ============================================
+// MINI-CRM CLIENTS (agrégé depuis les commandes confirmées, aucune saisie requise)
+// ============================================
+let clientsCache = [];
+
+async function chargerClientsAdmin() {
+  const { data, error } = await supabaseClient
+    .from('commandes')
+    .select('nom_client, prenom_client, numero_client, total, date_creation, statut')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .eq('statut', 'confirmee');
+
+  const conteneur = document.getElementById('liste-clients-admin');
+  if (!conteneur) return;
+
+  if (error) {
+    console.error('Erreur chargement clients :', error);
+    conteneur.innerHTML = `<p class="empty-state" style="color:#e00;">Erreur de chargement (${error.message}).</p>`;
+    return;
+  }
+
+  // Regroupement par numéro de téléphone (identifiant fiable, contrairement
+  // au nom qui peut être écrit différemment d'une commande à l'autre).
+  const parNumero = {};
+  (data || []).forEach(c => {
+    const cle = c.numero_client || `inconnu-${c.nom_client}-${c.date_creation}`;
+    if (!parNumero[cle]) {
+      parNumero[cle] = {
+        nom: `${c.nom_client || ''} ${c.prenom_client || ''}`.trim() || 'Client',
+        numero: c.numero_client,
+        nbCommandes: 0,
+        total: 0,
+        derniere: c.date_creation
+      };
+    }
+    parNumero[cle].nbCommandes++;
+    parNumero[cle].total += c.total;
+    if (new Date(c.date_creation) > new Date(parNumero[cle].derniere)) parNumero[cle].derniere = c.date_creation;
+  });
+
+  clientsCache = Object.values(parNumero).sort((a, b) => b.total - a.total);
+
+  const champRecherche = document.getElementById('recherche-client-admin');
+  if (champRecherche) champRecherche.value = '';
+
+  renderListeClients(clientsCache);
+}
+
+function filtrerClientsAdmin() {
+  const requete = document.getElementById('recherche-client-admin').value
+    .trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  if (!requete) { renderListeClients(clientsCache); return; }
+
+  const resultats = clientsCache.filter(c =>
+    c.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(requete) ||
+    (c.numero || '').includes(requete)
+  );
+  renderListeClients(resultats);
+}
+
+function renderListeClients(clients) {
+  const conteneur = document.getElementById('liste-clients-admin');
+  if (!clients || !clients.length) { conteneur.innerHTML = '<p class="empty-state">Aucun client pour le moment.</p>'; return; }
+
+  conteneur.innerHTML = clients.map(c => {
+    const joursDepuis = Math.floor((Date.now() - new Date(c.derniere)) / 86400000);
+    const texteDerniere = joursDepuis <= 0 ? "aujourd'hui" : joursDepuis === 1 ? "hier" : `il y a ${joursDepuis} jours`;
+    const fidele = c.nbCommandes >= 3;
+
+    return `
+      <div class="row">
+        <div class="row-infos">
+          <strong>${c.nom}${fidele ? ' ⭐' : ''}</strong>
+          <span class="sub">${c.nbCommandes} commande${c.nbCommandes > 1 ? 's' : ''} · ${c.total.toLocaleString('fr-FR')} FCFA · dernière ${texteDerniere}</span>
+          ${c.numero ? `<span class="sub" style="display:block;">${c.numero}</span>` : ''}
+        </div>
+        ${c.numero ? `<a href="https://wa.me/${c.numero}" target="_blank" class="icon-btn"><i class="fa-brands fa-whatsapp"></i></a>` : ''}
+      </div>
+    `;
+  }).join('');
 }
 
 async function chargerDashboard(authUserId) {
