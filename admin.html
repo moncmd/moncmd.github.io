@@ -248,6 +248,15 @@
                 </div>
             </div>
 
+            <!-- ===== ONGLET CLIENTS (mini-CRM) ===== -->
+            <div id="onglet-clients" class="onglet-panel">
+                <div class="admin-card">
+                    <h3><i class="fa-solid fa-users"></i> Vos clients</h3>
+                    <input type="text" id="recherche-client-admin" placeholder="🔍 Rechercher un client..." oninput="filtrerClientsAdmin()" style="width:100%; padding:11px; margin-bottom:14px; border-radius:10px; border:1px solid #e5e5e5; font-family:inherit; font-size:14px; box-sizing:border-box;">
+                    <div id="liste-clients-admin"><p class="empty-state">Chargement…</p></div>
+                </div>
+            </div>
+
 
   <!-- ===== ONGLET AVIS ===== -->
             <div id="onglet-avis" class="onglet-panel">
@@ -325,6 +334,9 @@
             </button>
             <button class="admin-tab" onclick="changerOnglet('commandes', this)">
                 <i class="fa-solid fa-receipt"></i>Commandes
+            </button>
+            <button class="admin-tab" onclick="changerOnglet('clients', this)">
+                <i class="fa-solid fa-users"></i>Clients
             </button>
             <button class="admin-tab" onclick="changerOnglet('reglages', this)">
                 <i class="fa-solid fa-gear"></i>Réglages
