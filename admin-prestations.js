@@ -890,6 +890,8 @@ async function chargerDernieresDemandes() {
     </div>`).join('');
 }
 
+let calendrierAgenda = null;
+
 async function chargerAgenda() {
   const { data, error } = await supabaseClient
     .from('rendez_vous')
