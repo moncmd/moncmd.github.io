@@ -618,9 +618,131 @@ function construireLigneProduit(p, avecReorder, index, totalCategorie) {
         <button class="icon-btn danger" title="Retirer du site" onclick="supprimerProduit('${p.id}')">
           <i class="fa-solid fa-trash"></i>
         </button>
+        <button class="icon-btn" title="Créer un visuel pour Statut WhatsApp" onclick="genererStatutProduit('${p.id}')">
+          <i class="fa-solid fa-camera-retro"></i>
+        </button>
       </div>
     </div>
   `;
+}
+
+// Génère un visuel prêt pour le Statut WhatsApp (format portrait 1080x1920)
+// à partir d'un produit : photo + nom + prix + logo/nom de la boutique.
+// Tout se fait localement dans le navigateur via Canvas, aucun envoi serveur.
+async function genererStatutProduit(id) {
+  const p = produitsCache.find(x => x.id === id);
+  if (!p) return;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1920;
+  const ctx = canvas.getContext('2d');
+
+  const couleurAccent = (vendeurConnecte && vendeurConnecte.couleur_accent) || '#e56400';
+
+  // Fond en dégradé, teinté par la couleur de la boutique
+  const degrade = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  degrade.addColorStop(0, couleurAccent);
+  degrade.addColorStop(1, '#1a1a1a');
+  ctx.fillStyle = degrade;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Nom de la boutique en haut
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 46px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(vendeurConnecte.nom_boutique || 'Ma boutique', canvas.width / 2, 130);
+
+  // Carte blanche centrale avec la photo du produit
+  const carteX = 90, carteY = 300, carteW = canvas.width - 180, carteH = 1100;
+  ctx.fillStyle = '#ffffff';
+  arrondi(ctx, carteX, carteY, carteW, carteH, 32);
+  ctx.fill();
+
+  async function chargerImage(src) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  }
+
+  if (p.image_url) {
+    const img = await chargerImage(p.image_url);
+    if (img) {
+      // Recadrage "cover" pour remplir la carte sans déformer l'image
+      const pad = 30;
+      const zoneW = carteW - pad * 2, zoneH = carteH - pad * 2 - 40;
+      const ratioZone = zoneW / zoneH;
+      const ratioImg = img.width / img.height;
+      let sx, sy, sw, sh;
+      if (ratioImg > ratioZone) { sh = img.height; sw = sh * ratioZone; sx = (img.width - sw) / 2; sy = 0; }
+      else { sw = img.width; sh = sw / ratioZone; sx = 0; sy = (img.height - sh) / 2; }
+
+      ctx.save();
+      arrondi(ctx, carteX + pad, carteY + pad, zoneW, zoneH, 20);
+      ctx.clip();
+      ctx.drawImage(img, sx, sy, sw, sh, carteX + pad, carteY + pad, zoneW, zoneH);
+      ctx.restore();
+    }
+  }
+
+  // Nom du produit
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = '700 52px Arial, sans-serif';
+  enveloppeTexte(ctx, p.nom, canvas.width / 2, carteY + carteH - 90, carteW - 80, 58);
+
+  // Prix, en bas de la carte
+  ctx.fillStyle = couleurAccent;
+  ctx.font = '800 64px Arial, sans-serif';
+  ctx.fillText(`${p.prix.toLocaleString('fr-FR')} FCFA`, canvas.width / 2, carteY + carteH + 90);
+
+  // Appel à l'action en bas de l'écran
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '600 40px Arial, sans-serif';
+  ctx.fillText('📲 Commande sur WhatsApp', canvas.width / 2, canvas.height - 120);
+
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `statut-${p.nom.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+}
+
+// Dessine un rectangle aux coins arrondis (utilisé par le générateur de statut)
+function arrondi(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Écrit un texte centré sur plusieurs lignes si besoin, jamais coupé au milieu d'un mot
+function enveloppeTexte(ctx, texte, cx, y, largeurMax, interligne) {
+  const mots = texte.split(' ');
+  const lignes = [];
+  let ligneActuelle = '';
+  mots.forEach(mot => {
+    const test = ligneActuelle ? ligneActuelle + ' ' + mot : mot;
+    if (ctx.measureText(test).width > largeurMax && ligneActuelle) {
+      lignes.push(ligneActuelle);
+      ligneActuelle = mot;
+    } else {
+      ligneActuelle = test;
+    }
+  });
+  if (ligneActuelle) lignes.push(ligneActuelle);
+
+  const yDepart = y - (lignes.length - 1) * interligne / 2;
+  lignes.forEach((ligne, i) => ctx.fillText(ligne, cx, yDepart + i * interligne));
 }
 
 // Échange l'ordre du produit avec son voisin immédiat DANS LA MÊME CATÉGORIE
