@@ -87,6 +87,22 @@
   .admin-tab{flex:1;text-align:center;padding:10px 2px 9px;cursor:pointer;color:#999;font-size:9.5px;border:none;background:none;}
   .admin-tab i{display:block;font-size:15px;margin-bottom:3px;}
   .admin-tab.actif{color:var(--couleur-accent);}
+  /* ---------- Calendrier agenda (FullCalendar) — resserré pour mobile ---------- */
+  #calendrier-agenda .fc-toolbar { flex-direction: column; gap: 8px; align-items: stretch; }
+  #calendrier-agenda .fc-toolbar-chunk { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px; }
+  #calendrier-agenda .fc-toolbar-title { font-size: 15px; text-align: center; }
+  #calendrier-agenda .fc-button { padding: 5px 9px; font-size: 12px; }
+  #calendrier-agenda .fc-col-header-cell-cushion { font-size: 11px; padding: 4px 2px; }
+  #calendrier-agenda .fc-timegrid-slot-label-cushion { font-size: 10px; }
+  #calendrier-agenda .fc-timegrid-axis-cushion { font-size: 10px; }
+  #calendrier-agenda .fc-event-title, #calendrier-agenda .fc-event-time { font-size: 10px; padding: 1px 2px; }
+  #calendrier-agenda .fc-daygrid-day-number { font-size: 11px; }
+  #calendrier-agenda .rdv-annule .fc-event-title,
+  #calendrier-agenda .rdv-annule .fc-event-time { text-decoration: line-through; opacity: 0.7; }
+  @media (max-width: 480px) {
+    #calendrier-agenda .fc-button { padding: 4px 7px; font-size: 11px; }
+    #calendrier-agenda .fc-toolbar-title { font-size: 13px; }
+  }
 </style>
 </head>
 <body>
@@ -132,9 +148,10 @@
       <p style="color:#999;font-size:12px;margin-top:2px;">FCFA — RDV moins dépenses</p>
     </div>
 
-    <div class="stats-grid two">
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
       <div class="stat-box"><div class="stat-icon"><i class="fa-solid fa-money-bill-trend-up"></i></div><h2 style="font-size:15px;" id="stat-panier-moyen">—</h2><p>Panier moyen (FCFA)</p></div>
       <div class="stat-box"><div class="stat-icon"><i class="fa-solid fa-star"></i></div><h2 style="font-size:13px;" id="stat-top-prestation">—</h2><p>Prestation + demandée</p></div>
+      <div class="stat-box"><div class="stat-icon"><i class="fa-solid fa-circle-xmark"></i></div><h2 style="font-size:15px;" id="stat-annules">—</h2><p>Non payés (mois)</p></div>
     </div>
 
     <div class="admin-card">
@@ -361,6 +378,34 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="supabase-config.js"></script>
 <script src="admin-prestations.js"></script>
+
+<!-- Modal d'édition d'un rendez-vous (ouvert au clic sur un événement du calendrier) -->
+<div id="modal-edition-rdv" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#fff; border-radius:16px; padding:22px; max-width:380px; width:100%; max-height:85vh; overflow-y:auto;">
+    <h3 style="margin-bottom:14px;"><i class="fa-solid fa-calendar-pen"></i> Modifier le rendez-vous</h3>
+    <p id="edition-rdv-client" style="font-weight:700; margin-bottom:12px;"></p>
+    <div class="admin-form">
+      <label class="champ-label">Prestation</label>
+      <select id="edition-rdv-prestation"></select>
+      <label class="champ-label">Prestataire</label>
+      <select id="edition-rdv-personnel"></select>
+      <div style="display:flex; gap:10px;">
+        <input type="date" id="edition-rdv-date" style="flex:1;">
+        <input type="time" id="edition-rdv-heure" style="flex:1;">
+      </div>
+      <label class="champ-label">Statut du paiement</label>
+      <select id="edition-rdv-statut">
+        <option value="en_attente">🟡 En attente (on hold)</option>
+        <option value="paye">🟢 Payé</option>
+        <option value="annule">🔴 Non payé / Annulé</option>
+      </select>
+      <button class="admin-btn" onclick="enregistrerModifRendezVous()">Enregistrer les modifications</button>
+      <button class="admin-btn secondaire" style="margin-top:8px; color:#e00;" onclick="supprimerRendezVousAgenda()">🗑 Supprimer ce rendez-vous</button>
+      <button class="admin-btn secondaire" style="margin-top:8px;" onclick="fermerModalEditionRdv()">Fermer</button>
+      <p class="form-message" id="edition-rdv-message"></p>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
