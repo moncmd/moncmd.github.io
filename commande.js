@@ -1,5 +1,6 @@
 // Mode paiement
 let modePaiementActuel = 'surplace';
+let codePromoApplique = null; // { code, reduction_pourcent } — exclusivité premium
 
 function modePaiement(mode, bouton) {
     document.querySelectorAll('.menu-btn').forEach(btn => {
@@ -41,7 +42,65 @@ function afficherResume() {
         `;
     });
 
-    resume.innerHTML += `<p class="total">Total : ${total} FCFA</p>`;
+    // Code promo — exclusivité premium, aucun champ affiché pour les autres formules
+    if (vendeurActuel && vendeurActuel.formule === 'premium') {
+        resume.innerHTML += `
+            <div style="display:flex; gap:8px; margin:14px 0 4px;">
+                <input type="text" id="input-code-promo" placeholder="Code promo" maxlength="30"
+                    style="flex:1; padding:9px; border-radius:8px; border:1px solid #ddd; text-transform:uppercase; font-family:inherit;"
+                    value="${codePromoApplique ? codePromoApplique.code : ''}" ${codePromoApplique ? 'disabled' : ''}>
+                ${codePromoApplique
+                  ? `<button type="button" onclick="retirerCodePromo()" style="padding:9px 14px; border-radius:8px; border:none; background:#eee; cursor:pointer;">✕</button>`
+                  : `<button type="button" onclick="appliquerCodePromo()" style="padding:9px 14px; border-radius:8px; border:none; background:#1a1a1a; color:#fff; cursor:pointer; white-space:nowrap;">Appliquer</button>`}
+            </div>
+            <p id="message-code-promo" style="font-size:12px; margin-bottom:10px; color:${codePromoApplique ? 'green' : '#999'};">${codePromoApplique ? `Code "${codePromoApplique.code}" appliqué : -${codePromoApplique.reduction_pourcent}%` : ''}</p>
+        `;
+    }
+
+    let totalFinal = total;
+    if (codePromoApplique) {
+        const reduction = Math.round(total * codePromoApplique.reduction_pourcent / 100);
+        totalFinal = total - reduction;
+        resume.innerHTML += `<p style="color:#999; font-size:13px;">Sous-total : ${total.toLocaleString('fr-FR')} FCFA</p>`;
+        resume.innerHTML += `<p style="color:green; font-size:13px;">Réduction (${codePromoApplique.code}) : -${reduction.toLocaleString('fr-FR')} FCFA</p>`;
+    }
+
+    resume.innerHTML += `<p class="total">Total : ${totalFinal.toLocaleString('fr-FR')} FCFA</p>`;
+}
+
+async function appliquerCodePromo() {
+    const input = document.getElementById('input-code-promo');
+    const messageEl = document.getElementById('message-code-promo');
+    const code = input.value.trim().toUpperCase();
+    if (!code || !vendeurActuel) return;
+
+    const { data, error } = await supabaseClient
+        .from('codes_promo')
+        .select('code, reduction_pourcent, date_expiration')
+        .eq('vendeur_id', vendeurActuel.id)
+        .ilike('code', code)
+        .eq('actif', true)
+        .maybeSingle();
+
+    if (error || !data) {
+        messageEl.textContent = "Code promo invalide.";
+        messageEl.style.color = 'red';
+        return;
+    }
+
+    if (data.date_expiration && new Date(data.date_expiration) < new Date()) {
+        messageEl.textContent = "Ce code promo a expiré.";
+        messageEl.style.color = 'red';
+        return;
+    }
+
+    codePromoApplique = data;
+    afficherResume();
+}
+
+function retirerCodePromo() {
+    codePromoApplique = null;
+    afficherResume();
 }
 
 // Envoyer sur WhatsApp (+ enregistrer la commande dans Supabase)
@@ -89,7 +148,16 @@ async function envoyerCommande() {
         });
     });
 
-    message += `\nTotal : ${total} FCFA`;
+    message += `\nSous-total : ${total} FCFA`;
+
+    let reductionAppliquee = 0;
+    if (codePromoApplique) {
+        reductionAppliquee = Math.round(total * codePromoApplique.reduction_pourcent / 100);
+        message += `\nCode promo ${codePromoApplique.code} : -${reductionAppliquee} FCFA`;
+    }
+    const totalFinal = total - reductionAppliquee;
+
+    message += `\nTotal : ${totalFinal} FCFA`;
     message += `\n\nNom : ${nom} ${prenom}`;
     message += `\nNuméro : ${numero}`;
     if (adresse) message += `\nAdresse : ${adresse}`;
@@ -104,8 +172,10 @@ async function envoyerCommande() {
         adresse: adresse,
         heure_recuperation: heure,
         mode_paiement: modePaiementActuel,
+        code_promo: codePromoApplique ? codePromoApplique.code : null,
+        reduction: reductionAppliquee,
         contenu: contenu,
-        total: total
+        total: totalFinal
     }).select().single();
 
     if (error) {
@@ -118,7 +188,7 @@ async function envoyerCommande() {
 
     // Reçu PDF (réservé aux vendeurs Premium)
     if (vendeurActuel.formule === 'premium') {
-        genererRecuPDF(contenu, total, nom, prenom, commandeCreee ? commandeCreee.id : null);
+        genererRecuPDF(contenu, totalFinal, nom, prenom, commandeCreee ? commandeCreee.id : null);
     }
 
     const url = `https://wa.me/${vendeurActuel.numero_whatsapp}?text=${encodeURIComponent(message)}`;
@@ -126,6 +196,7 @@ async function envoyerCommande() {
 
     localStorage.removeItem('panier');
     panierData = [];
+    codePromoApplique = null;
     if (document.getElementById('compteur')) {
         document.getElementById('compteur').textContent = 0;
     }
