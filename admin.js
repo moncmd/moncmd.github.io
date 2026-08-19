@@ -205,10 +205,75 @@ function changerOnglet(nom, boutonEl) {
 }
 
 // ============================================
-// MINI-CRM CLIENTS (agrégé depuis les commandes confirmées, aucune saisie requise)
+// CODES PROMO (exclusivité Premium)
 // ============================================
+async function chargerCodesPromo() {
+  const { data } = await supabaseClient
+    .from('codes_promo')
+    .select('*')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .eq('actif', true)
+    .order('date_creation', { ascending: false });
+
+  const liste = document.getElementById('liste-codes-promo');
+  if (!liste) return;
+
+  if (!data || !data.length) { liste.innerHTML = '<p class="empty-state">Aucun code promo actif.</p>'; return; }
+
+  liste.innerHTML = data.map(c => `
+    <div class="row">
+      <div class="row-infos">
+        <strong>${c.code}</strong>
+        <span class="sub">-${c.reduction_pourcent}%${c.date_expiration ? ' · expire le ' + new Date(c.date_expiration).toLocaleDateString('fr-FR') : ' · sans expiration'}</span>
+      </div>
+      <button class="icon-btn danger" onclick="supprimerCodePromo('${c.id}')"><i class="fa-solid fa-trash"></i></button>
+    </div>
+  `).join('');
+}
+
+async function ajouterCodePromo() {
+  const messageEl = document.getElementById('code-promo-message');
+  const code = document.getElementById('nouveau-code-promo').value.trim().toUpperCase();
+  const reduction = parseInt(document.getElementById('nouveau-code-reduction').value);
+  const expiration = document.getElementById('nouveau-code-expiration').value || null;
+
+  if (!code || !reduction || reduction < 1 || reduction > 90) {
+    messageEl.textContent = "Code et réduction (1 à 90%) obligatoires.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  const { error } = await supabaseClient.from('codes_promo').insert({
+    vendeur_id: vendeurConnecte.id,
+    code,
+    reduction_pourcent: reduction,
+    date_expiration: expiration
+  });
+
+  if (error) {
+    messageEl.textContent = error.code === '23505' ? "Ce code existe déjà." : "Erreur lors de la création.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  messageEl.textContent = "Code promo créé ✓";
+  messageEl.style.color = 'green';
+  document.getElementById('nouveau-code-promo').value = '';
+  document.getElementById('nouveau-code-reduction').value = '';
+  document.getElementById('nouveau-code-expiration').value = '';
+  await chargerCodesPromo();
+}
+
+async function supprimerCodePromo(id) {
+  if (!confirm('Désactiver ce code promo ?')) return;
+  await supabaseClient.from('codes_promo').update({ actif: false }).eq('id', id);
+  await chargerCodesPromo();
+}
 let clientsCache = [];
 
+// ============================================
+// MINI-CRM CLIENTS (agrégé depuis les commandes confirmées, aucune saisie requise)
+// ============================================
 async function chargerClientsAdmin() {
   const { data, error } = await supabaseClient
     .from('commandes')
@@ -348,6 +413,10 @@ function appliquerLimitesFormule() {
 
   const btnExport = document.getElementById('btn-export-commandes');
   if (btnExport) btnExport.style.display = estPremium ? 'block' : 'none';
+
+  const blocCodesPromo = document.getElementById('bloc-codes-promo');
+  if (blocCodesPromo) blocCodesPromo.classList.toggle('verrouille-premium', !estPremium);
+  if (estPremium) chargerCodesPromo();
 }
 
 async function chargerListeAttenteStock() {
