@@ -3,6 +3,7 @@
 // ============================================
 
 let produits = [];
+let produitTendanceId = null; // produit le plus commandé cette semaine, mis en avant automatiquement
 let vendeurActuel = null;
 let noteSelectionnee = 0;
 
@@ -128,6 +129,7 @@ async function chargerBoutique() {
 
   appliquerIdentiteVendeur(vendeur);
   afficherMotVendeur(vendeur);
+  activerFonctionnalitesPremiumMarche(vendeur);
 
   const { data: produitsData, error: errProduits } = await supabaseClient
     .from('produits')
@@ -142,6 +144,12 @@ async function chargerBoutique() {
   }
 
   produits = produitsData || [];
+
+  // Produit le plus commandé (confirmé) sur les 7 derniers jours — calculé
+  // côté base via une fonction sécurisée (aucune donnée client exposée au public).
+  const { data: idTendance } = await supabaseClient.rpc('produit_tendance', { p_vendeur_id: vendeur.id });
+  produitTendanceId = idTendance || null;
+
   genererCards();
   mettreAJourCompteur();
   remplirPaiement();
@@ -355,6 +363,117 @@ async function chargerAvis() {
   conteneur.innerHTML = html + html;
 }
 
+// Fonctionnalités additionnelles réservées au template "marché" + formule Premium :
+// carte de localisation de la boutique, et barre de recherche produit.
+function activerFonctionnalitesPremiumMarche(vendeur) {
+  if (!(vendeur.formule === 'premium' && getTemplateActif() === 'marche')) return;
+
+  const categoriesBoutons = document.getElementById('categories-boutons');
+  if (!categoriesBoutons) return;
+
+  // Carte de localisation, uniquement si le vendeur a renseigné une adresse
+  if (vendeur.adresse) {
+    const carteMap = document.createElement('div');
+    carteMap.style.cssText = 'padding:0 20px 18px;';
+    carteMap.innerHTML = `
+      <iframe
+        src="https://www.google.com/maps?q=${encodeURIComponent(vendeur.adresse)}&output=embed"
+        style="width:100%; height:180px; border:0; border-radius:14px;"
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade">
+      </iframe>
+      <p style="font-size:12px; color:#999; margin-top:6px;">📍 ${vendeur.adresse}</p>
+    `;
+    categoriesBoutons.insertAdjacentElement('beforebegin', carteMap);
+  }
+
+  // Barre de recherche produit
+  const barreRecherche = document.createElement('div');
+  barreRecherche.style.cssText = 'padding:0 20px 14px;';
+  barreRecherche.innerHTML = `
+    <input type="text" id="recherche-produit-client" placeholder="🔍 Rechercher un produit..."
+      oninput="filtrerProduitsClient()"
+      style="width:100%; padding:11px 14px; border-radius:24px; border:1px solid #ddd; font-family:inherit; font-size:14px; box-sizing:border-box;">
+  `;
+  categoriesBoutons.insertAdjacentElement('beforebegin', barreRecherche);
+}
+
+// Filtre local (sans re-requêter Supabase) sur ce qui est déjà chargé.
+// Recherche insensible aux accents/casse, sur tout le catalogue à la fois
+// (traverse toutes les catégories, comme côté admin).
+function filtrerProduitsClient() {
+  const requete = document.getElementById('recherche-produit-client').value
+    .trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  const boutonsContainer = document.getElementById('categories-boutons');
+  const produitsContainer = document.getElementById('categories-produits');
+  if (!produitsContainer) return;
+
+  if (!requete) {
+    if (boutonsContainer) boutonsContainer.style.display = '';
+    genererCards();
+    return;
+  }
+
+  if (boutonsContainer) boutonsContainer.style.display = 'none';
+
+  const resultats = produits.filter(p =>
+    p.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(requete)
+  );
+
+  produitsContainer.innerHTML = resultats.length
+    ? `<div class="grille-produits-premium">${resultats.map(construireCarteProduitClient).join('')}</div>`
+    : '<p style="text-align:center; padding:40px 20px; color:#999;">Aucun produit trouvé.</p>';
+}
+
+// Construit le HTML d'une carte produit seule (sans le conteneur splide__slide/div qui l'entoure)
+function construireCarteProduitClient(produit) {
+  const stockBas = produit.quantite_stock !== null && produit.quantite_stock !== undefined
+    && produit.quantite_stock > 0 && produit.quantite_stock <= 3;
+  const rupture = produit.quantite_stock === 0;
+
+  const blocAction = rupture ? `
+        <a href="javascript:void(0)" onclick="allerVers('panier', '${produit.id}')">Voir</a>
+        <div class="attente-stock">
+            <input type="text" class="input-attente-stock" id="attente-numero-${produit.id}" placeholder="Votre numéro">
+            <button class="btn-attente-stock" onclick="demanderNotifStock('${produit.id}')">Me prévenir</button>
+            <p class="attente-message" id="attente-message-${produit.id}"></p>
+        </div>
+      ` : `
+        <a href="javascript:void(0)" onclick="allerVers('panier', '${produit.id}')">Voir</a>
+        <a href="javascript:void(0)" onclick="ajouterAuPanier('${produit.id}')">Ajouter au panier</a>
+      `;
+
+  return `
+    <div class="product-card">
+        ${produit.favori
+          ? '<span class="badge-favori">★ Populaire</span>'
+          : (produit.id === produitTendanceId ? '<span class="badge-favori">🔥 Tendance</span>' : '')}
+        ${rupture ? '<span class="badge-rupture">Rupture de stock</span>' : (stockBas ? `<span class="badge-stock-bas">Il en reste ${produit.quantite_stock} !</span>` : '')}
+        ${produit.video_url
+          ? `<video src="${produit.video_url}" muted loop playsinline autoplay onmouseover="this.play()" onclick="this.paused ? this.play() : this.pause()"></video>`
+          : `<img src="${produit.image_url}" alt="${produit.nom}">`}
+        <p class="produit">${produit.nom}</p>
+        <p class="prix">${produit.prix} FCFA</p>
+        ${blocAction}
+    </div>
+  `;
+}
+
+// Grille de produits (Premium) : injectée une seule fois, générique à tous les
+// templates — remplace le slide horizontal par une vraie grille visible d'un
+// coup, sans avoir besoin de glisser sur le côté.
+function injecterStyleGrillePremium() {
+  if (document.getElementById('style-grille-premium')) return;
+  const style = document.createElement('style');
+  style.id = 'style-grille-premium';
+  style.textContent = `
+    .grille-produits-premium { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding: 0 20px; }
+    @media (min-width: 600px) { .grille-produits-premium { grid-template-columns: repeat(3, 1fr); } }
+  `;
+  document.head.appendChild(style);
+}
+
 function genererCards() {
   const boutonsContainer = document.getElementById('categories-boutons');
   const produitsContainer = document.getElementById('categories-produits');
@@ -362,6 +481,9 @@ function genererCards() {
 
   boutonsContainer.innerHTML = '';
   produitsContainer.innerHTML = '';
+
+  const enGrille = vendeurActuel && vendeurActuel.formule === 'premium' && getTemplateActif() === 'marche';
+  if (enGrille) injecterStyleGrillePremium();
 
   const categories = [];
   produits.forEach(p => {
@@ -372,6 +494,23 @@ function genererCards() {
   if (categories.length === 0) {
     produitsContainer.innerHTML = '<p style="text-align:center; padding:40px 20px; color:#999;">Aucun produit pour le moment.</p>';
     return;
+  }
+
+  if (enGrille) {
+    // Rangée horizontale des produits mis en avant (favoris + tendance),
+    // au-dessus de la grille verticale — mélange horizontal/vertical façon Tesco.
+    const misEnAvant = produits.filter(p => p.favori || p.id === produitTendanceId);
+    if (misEnAvant.length) {
+      const rangee = document.createElement('div');
+      rangee.style.cssText = 'padding:0 0 18px;';
+      rangee.innerHTML = `
+        <p style="padding:0 20px 10px; font-weight:700; font-size:14px;">✨ Sélection du moment</p>
+        <div style="display:flex; gap:14px; overflow-x:auto; padding:0 20px 6px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;">
+          ${misEnAvant.map(p => `<div style="flex:0 0 170px; scroll-snap-align:start;">${construireCarteProduitClient(p)}</div>`).join('')}
+        </div>
+      `;
+      produitsContainer.appendChild(rangee);
+    }
   }
 
   categories.forEach((cat, index) => {
@@ -387,76 +526,55 @@ function genererCards() {
     section.dataset.cat = cat;
     section.style.display = index === 0 ? 'block' : 'none';
 
-    section.innerHTML = `
-      <div class="splide" role="group">
-        <div class="splide__track">
-          <ul class="splide__list"></ul>
-        </div>
-      </div>
-    `;
-    produitsContainer.appendChild(section);
-
-    const liste = section.querySelector('.splide__list');
     const produitsCategorie = produits
       .filter(p => (p.categorie || 'general') === cat)
       .sort((a, b) => (b.favori === true) - (a.favori === true));
 
-    produitsCategorie.forEach(produit => {
-      const li = document.createElement('li');
-      li.classList.add('splide__slide');
-
-      const stockBas = produit.quantite_stock !== null && produit.quantite_stock !== undefined
-        && produit.quantite_stock > 0 && produit.quantite_stock <= 3;
-      const rupture = produit.quantite_stock === 0;
-
-      // Utilisation de la redirection dynamique allerVers()
-      const blocAction = rupture ? `
-            <a href="javascript:void(0)" onclick="allerVers('panier', '${produit.id}')">Voir</a>
-            <div class="attente-stock">
-                <input type="text" class="input-attente-stock" id="attente-numero-${produit.id}" placeholder="Votre numéro">
-                <button class="btn-attente-stock" onclick="demanderNotifStock('${produit.id}')">Me prévenir</button>
-                <p class="attente-message" id="attente-message-${produit.id}"></p>
-            </div>
-          ` : `
-            <a href="javascript:void(0)" onclick="allerVers('panier', '${produit.id}')">Voir</a>
-            <a href="javascript:void(0)" onclick="ajouterAuPanier('${produit.id}')">Ajouter au panier</a>
-          `;
-
-      li.innerHTML = `
-        <div class="product-card">
-            ${produit.favori ? '<span class="badge-favori">★ Populaire</span>' : ''}
-            ${rupture ? '<span class="badge-rupture">Rupture de stock</span>' : (stockBas ? `<span class="badge-stock-bas">Il en reste ${produit.quantite_stock} !</span>` : '')}
-            ${produit.video_url
-              ? `<video src="${produit.video_url}" muted loop playsinline autoplay onmouseover="this.play()" onclick="this.paused ? this.play() : this.pause()"></video>`
-              : `<img src="${produit.image_url}" alt="${produit.nom}">`}
-            <p class="produit">${produit.nom}</p>
-            <p class="prix">${produit.prix} FCFA</p>
-            ${blocAction}
+    if (enGrille) {
+      // Premium : grille statique, tout visible d'un coup, pas de swipe nécessaire
+      section.innerHTML = `<div class="grille-produits-premium">${produitsCategorie.map(construireCarteProduitClient).join('')}</div>`;
+    } else {
+      // Standard/Pro : carrousel horizontal Splide, comportement inchangé
+      section.innerHTML = `
+        <div class="splide" role="group">
+          <div class="splide__track">
+            <ul class="splide__list"></ul>
+          </div>
         </div>
       `;
-      liste.appendChild(li);
-    });
+      const liste = section.querySelector('.splide__list');
+      produitsCategorie.forEach(produit => {
+        const li = document.createElement('li');
+        li.classList.add('splide__slide');
+        li.innerHTML = construireCarteProduitClient(produit);
+        liste.appendChild(li);
+      });
+    }
+
+    produitsContainer.appendChild(section);
   });
 
-  document.querySelectorAll('.splide').forEach(slider => {
-    if (slider.splide) slider.splide.destroy(true);
-    const nbSlides = slider.querySelectorAll('.splide__slide').length;
-    const aPlusieursProduits = nbSlides > 1;
+  if (!enGrille) {
+    document.querySelectorAll('.splide').forEach(slider => {
+      if (slider.splide) slider.splide.destroy(true);
+      const nbSlides = slider.querySelectorAll('.splide__slide').length;
+      const aPlusieursProduits = nbSlides > 1;
 
-    const instance = new Splide(slider, {
-      perPage: 3,
-      gap: '16px',
-      arrows: false,
-      pagination: false,
-      padding: aPlusieursProduits ? { right: '8%' } : { right: 0 },
-      breakpoints: {
-        1024: { perPage: 2, padding: aPlusieursProduits ? { right: '10%' } : { right: 0 } },
-        600: { perPage: 1, padding: aPlusieursProduits ? { right: '18%' } : { right: 0 } }
-      }
+      const instance = new Splide(slider, {
+        perPage: 3,
+        gap: '16px',
+        arrows: false,
+        pagination: false,
+        padding: aPlusieursProduits ? { right: '8%' } : { right: 0 },
+        breakpoints: {
+          1024: { perPage: 2, padding: aPlusieursProduits ? { right: '10%' } : { right: 0 } },
+          600: { perPage: 1, padding: aPlusieursProduits ? { right: '18%' } : { right: 0 } }
+        }
+      });
+      instance.mount();
+      slider.splide = instance;
     });
-    instance.mount();
-    slider.splide = instance;
-  });
+  }
 }
 
 function formaterNomCategorie(cat) {
