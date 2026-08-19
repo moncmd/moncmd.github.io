@@ -470,8 +470,63 @@ function injecterStyleGrillePremium() {
   style.textContent = `
     .grille-produits-premium { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding: 0 20px; }
     @media (min-width: 600px) { .grille-produits-premium { grid-template-columns: repeat(3, 1fr); } }
+
+    /* Apparition douce des cartes au scroll */
+    .grille-produits-premium .product-card,
+    .selection-moment-premium .product-card {
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .grille-produits-premium .product-card.animer-apparition,
+    .selection-moment-premium .product-card.animer-apparition {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Feedback tactile au clic/survol des cartes et boutons */
+    .grille-produits-premium .product-card,
+    .selection-moment-premium .product-card {
+      transition: opacity 0.5s ease, transform 0.5s ease, box-shadow 0.2s ease;
+    }
+    .grille-produits-premium .product-card:hover,
+    .selection-moment-premium .product-card:hover {
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
+    .grille-produits-premium .product-card:active,
+    .selection-moment-premium .product-card:active {
+      transform: scale(0.97) !important;
+    }
+    .grille-produits-premium .product-card a,
+    .selection-moment-premium .product-card a {
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    .grille-produits-premium .product-card a:active,
+    .selection-moment-premium .product-card a:active {
+      transform: scale(0.95);
+    }
+
+    /* Changement de catégorie en fondu plutôt qu'instantané */
+    .categorie-section { transition: opacity 0.25s ease; }
+    .categorie-section.fondu-sortant { opacity: 0; }
   `;
   document.head.appendChild(style);
+}
+
+// Observe les cartes produit et les révèle en douceur dès qu'elles entrent
+// dans l'écran, avec un léger décalage entre chaque carte pour un effet
+// "cascade" plutôt qu'un bloc qui apparaît d'un coup.
+function activerAnimationsApparition(conteneur) {
+  const cartes = conteneur.querySelectorAll('.product-card');
+  const observateur = new IntersectionObserver((entrees) => {
+    entrees.forEach((entree, i) => {
+      if (entree.isIntersecting) {
+        setTimeout(() => entree.target.classList.add('animer-apparition'), i * 40);
+        observateur.unobserve(entree.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  cartes.forEach(carte => observateur.observe(carte));
 }
 
 function genererCards() {
@@ -505,18 +560,20 @@ function genererCards() {
       rangee.style.cssText = 'padding:0 0 18px;';
       rangee.innerHTML = `
         <p style="padding:0 20px 10px; font-weight:700; font-size:14px;">✨ Sélection du moment</p>
-        <div style="display:flex; gap:14px; overflow-x:auto; padding:0 20px 6px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;">
+        <div class="selection-moment-premium" style="display:flex; gap:14px; overflow-x:auto; padding:0 20px 6px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;">
           ${misEnAvant.map(p => `<div style="flex:0 0 170px; scroll-snap-align:start;">${construireCarteProduitClient(p)}</div>`).join('')}
         </div>
       `;
       produitsContainer.appendChild(rangee);
+      activerAnimationsApparition(rangee);
     }
   }
 
   categories.forEach((cat, index) => {
     const div = document.createElement('div');
     div.classList.add('selectt');
-    div.innerHTML = `<button class="menu-btn${index === 0 ? ' active' : ''}" data-cat="${cat}" onclick="afficherCategorie('${cat}', this)">${formaterNomCategorie(cat)}</button>`;
+    const prefixeIcone = enGrille ? iconePourCategorie(cat) + ' ' : '';
+    div.innerHTML = `<button class="menu-btn${index === 0 ? ' active' : ''}" data-cat="${cat}" onclick="afficherCategorie('${cat}', this)">${prefixeIcone}${formaterNomCategorie(cat)}</button>`;
     boutonsContainer.appendChild(div);
   });
 
@@ -552,6 +609,7 @@ function genererCards() {
     }
 
     produitsContainer.appendChild(section);
+    if (enGrille) activerAnimationsApparition(section);
   });
 
   if (!enGrille) {
@@ -581,12 +639,60 @@ function formaterNomCategorie(cat) {
   return cat.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
 }
 
+// Devine une icône pertinente à partir du nom de la catégorie (mots-clés
+// courants d'épicerie/marché). Aucune saisie requise du vendeur — repli sur
+// un icône générique si rien ne correspond.
+function iconePourCategorie(cat) {
+  const c = cat.toLowerCase();
+  const correspondances = [
+    [['fruit'], '🍎'],
+    [['legume', 'légume'], '🥦'],
+    [['viande', 'boucherie'], '🥩'],
+    [['poisson', 'mer'], '🐟'],
+    [['boisson', 'jus', 'soda'], '🥤'],
+    [['lait', 'fromage', 'laitier'], '🧀'],
+    [['pain', 'boulangerie', 'patisserie', 'pâtisserie'], '🍞'],
+    [['surgele', 'surgelé'], '🧊'],
+    [['hygiene', 'hygiène', 'beaute', 'beauté'], '🧴'],
+    [['bebe', 'bébé'], '🍼'],
+    [['entretien', 'menage', 'ménage', 'nettoyage'], '🧽'],
+    [['riz', 'pate', 'pâte', 'cereale', 'céréale'], '🍚'],
+    [['epice', 'épice', 'condiment'], '🌶️'],
+    [['snack', 'biscuit', 'confiserie'], '🍪']
+  ];
+  const trouve = correspondances.find(([mots]) => mots.some(m => c.includes(m)));
+  return trouve ? trouve[1] : '🛍️';
+}
+
 function afficherCategorie(cat, bouton) {
   document.querySelectorAll('.menu-btn').forEach(btn => btn.classList.remove('active'));
   bouton.classList.add('active');
 
+  const enGrilleActif = !!document.getElementById('style-grille-premium');
+
+  if (!enGrilleActif) {
+    document.querySelectorAll('.categorie-section').forEach(section => {
+      section.style.display = section.dataset.cat === cat ? 'block' : 'none';
+    });
+    return;
+  }
+
+  // Marché premium : petit fondu au changement d'onglet, plus doux qu'un
+  // basculement instantané. On force aussi l'apparition des cartes de la
+  // section ciblée (au cas où elles n'aient jamais été visibles à l'écran,
+  // l'observateur de scroll ne se déclenche pas de façon fiable sur du
+  // contenu resté en display:none depuis le chargement).
   document.querySelectorAll('.categorie-section').forEach(section => {
-    section.style.display = section.dataset.cat === cat ? 'block' : 'none';
+    if (section.dataset.cat === cat) {
+      section.style.display = 'block';
+      requestAnimationFrame(() => {
+        section.classList.remove('fondu-sortant');
+        section.querySelectorAll('.product-card').forEach(carte => carte.classList.add('animer-apparition'));
+      });
+    } else if (section.style.display !== 'none') {
+      section.classList.add('fondu-sortant');
+      setTimeout(() => { section.style.display = 'none'; }, 200);
+    }
   });
 }
 
