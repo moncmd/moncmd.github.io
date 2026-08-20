@@ -1,7 +1,7 @@
 // ============================================
 // CMD. — admin.js
 // Login vendeur + dashboard (onglets, stats, graphique, produits, commandes)
-// ============================================
+// =======
 
 let vendeurConnecte = null;
 let produitsCache = [];
