@@ -416,6 +416,9 @@ function appliquerLimitesFormule() {
 
   const blocCodesPromo = document.getElementById('bloc-codes-promo');
   if (blocCodesPromo) blocCodesPromo.classList.toggle('verrouille-premium', !estPremium);
+
+  const blocMessageAccueil = document.getElementById('bloc-message-accueil');
+  if (blocMessageAccueil) blocMessageAccueil.classList.toggle('verrouille-premium', !estPremium);
   if (estPremium) chargerCodesPromo();
 }
 
@@ -463,6 +466,7 @@ function remplirInfosVendeur() {
   document.getElementById('info-wave').value = vendeurConnecte.wave_numero || '';
   document.getElementById('info-om').value = vendeurConnecte.om_numero || '';
   document.getElementById('info-adresse').value = vendeurConnecte.adresse || '';
+  document.getElementById('info-message-accueil').value = vendeurConnecte.message_accueil || '';
   document.getElementById('info-instagram').value = vendeurConnecte.instagram || '';
   document.getElementById('info-tiktok').value = vendeurConnecte.tiktok || '';
   document.getElementById('info-facebook').value = vendeurConnecte.facebook || '';
@@ -538,6 +542,7 @@ async function enregistrerInfos() {
   const wave_numero = document.getElementById('info-wave').value.trim();
   const om_numero = document.getElementById('info-om').value.trim();
   const adresse = document.getElementById('info-adresse').value.trim();
+  const message_accueil = document.getElementById('info-message-accueil').value.trim();
   const instagram = document.getElementById('info-instagram').value.trim();
   const tiktok = document.getElementById('info-tiktok').value.trim();
   const facebook = document.getElementById('info-facebook').value.trim();
@@ -552,7 +557,7 @@ async function enregistrerInfos() {
 
   const { error } = await supabaseClient
     .from('vendeurs')
-    .update({ numero_whatsapp, wave_numero, om_numero, adresse, instagram, tiktok, facebook })
+    .update({ numero_whatsapp, wave_numero, om_numero, adresse, message_accueil, instagram, tiktok, facebook })
     .eq('id', vendeurConnecte.id);
 
   if (error) {
@@ -566,6 +571,7 @@ async function enregistrerInfos() {
   vendeurConnecte.wave_numero = wave_numero;
   vendeurConnecte.om_numero = om_numero;
   vendeurConnecte.adresse = adresse;
+  vendeurConnecte.message_accueil = message_accueil;
   vendeurConnecte.instagram = instagram;
   vendeurConnecte.tiktok = tiktok;
   vendeurConnecte.facebook = facebook;
