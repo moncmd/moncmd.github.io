@@ -194,12 +194,15 @@ function appliquerIdentiteVendeur(vendeur) {
 }
 
 // Affiche le petit message d'accueil du vendeur en haut de la page,
-// seulement si un conteneur #mot-vendeur existe dans le template et
-// que le vendeur a renseigné ce champ.
+// seulement si un conteneur #mot-vendeur existe dans le template, que le
+// vendeur a renseigné ce champ, ET qu'il est toujours Premium (le champ
+// admin est verrouillé pour les autres formules, mais on protège aussi
+// l'affichage — au cas où un vendeur premium redescende en standard/pro
+// après avoir rempli son mot d'accueil, il ne doit plus s'afficher).
 function afficherMotVendeur(vendeur) {
   const el = document.getElementById('mot-vendeur');
   if (!el) return;
-  if (!vendeur.message_accueil) { el.style.display = 'none'; return; }
+  if (!vendeur.message_accueil || vendeur.formule !== 'premium') { el.style.display = 'none'; return; }
   el.textContent = vendeur.message_accueil;
   el.style.display = 'block';
 }

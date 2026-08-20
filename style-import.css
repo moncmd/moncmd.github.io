@@ -16,6 +16,17 @@
 
 * { box-sizing: border-box; }
 
+#mot-vendeur {
+    margin: 14px 20px 0;
+    padding: 13px 16px;
+    background: var(--beige-carte);
+    border-radius: 14px;
+    border: 1px solid var(--or);
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--brun);
+}
+
 body {
     font-family: "Jost", "Poppins", sans-serif;
     background-color: var(--beige);

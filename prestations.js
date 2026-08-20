@@ -11,8 +11,8 @@ let personnelData = [];
 
 let booking = { staffId: '', staffNom: '', prestationId: '', prestationNom: '', prestationPrix: '', date: '', slot: '', lieu: 'boutique', services: [], modeRecap: false };
 
-// Convertit "HH:MM" en minutes depuis midnight, et inversement — utilisé partout
-// pour calculer les horaires séquentiels des serv multiples.
+// Convertit "HH:MM" en minutes depuis minuit, et inversement — utilisé partout
+// pour calculer les horaires séquentiels des services multiples.
 function versMinutesGlobal(h){ const [hh, mm] = (h || '00:00').slice(0,5).split(':').map(Number); return hh * 60 + mm; }
 function formatHM(m){ return `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`; }
 
