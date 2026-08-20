@@ -468,8 +468,19 @@ function injecterStyleGrillePremium() {
   const style = document.createElement('style');
   style.id = 'style-grille-premium';
   style.textContent = `
+    /* Sur desktop, le marché premium utilise toute la largeur disponible pour
+       la grille produits, au lieu de rester coincé dans la colonne mobile-first
+       de 560px — le titre/intro reste dans une largeur de lecture agréable. */
+    body.premium-marche-large main { max-width: 1200px; }
+    body.premium-marche-large .menu,
+    body.premium-marche-large #mot-vendeur {
+      max-width: 560px; margin-left: auto; margin-right: auto;
+    }
+
     .grille-produits-premium { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding: 0 20px; }
     @media (min-width: 600px) { .grille-produits-premium { grid-template-columns: repeat(3, 1fr); } }
+    @media (min-width: 900px) { .grille-produits-premium { grid-template-columns: repeat(4, 1fr); padding: 0 40px; } }
+    @media (min-width: 1200px) { .grille-produits-premium { grid-template-columns: repeat(5, 1fr); } }
 
     /* Apparition douce des cartes au scroll */
     .grille-produits-premium .product-card,
@@ -538,6 +549,7 @@ function genererCards() {
   produitsContainer.innerHTML = '';
 
   const enGrille = vendeurActuel && vendeurActuel.formule === 'premium' && getTemplateActif() === 'marche';
+  document.body.classList.toggle('premium-marche-large', enGrille);
   if (enGrille) injecterStyleGrillePremium();
 
   const categories = [];
