@@ -530,11 +530,30 @@ function buildSummary(){
   const numero = vendeurActuel ? vendeurActuel.numero_whatsapp : '221000000000';
   const btn = document.getElementById('confirm-btn');
 
-  btn.onclick = () => {
+  btn.onclick = async (e) => {
+    e.preventDefault();
+
     const nom = document.getElementById('rdv-nom').value.trim();
     const numeroClient = document.getElementById('rdv-numero').value.trim();
     const adresseClient = document.getElementById('rdv-adresse').value.trim();
     const lieuTexte = booking.lieu === 'domicile' ? `à domicile (${adresseClient || 'adresse à préciser'})` : 'en boutique';
+
+    btn.style.opacity = '0.6';
+    btn.style.pointerEvents = 'none';
+    const texteOriginal = btn.textContent;
+    btn.textContent = 'Vérification du créneau...';
+
+    const succes = await enregistrerRendezVous(nom, numeroClient, adresseClient);
+
+    btn.style.opacity = '';
+    btn.style.pointerEvents = '';
+    btn.textContent = texteOriginal;
+
+    if (!succes) {
+      alert("Ce créneau vient d'être pris par quelqu'un d'autre entre-temps. Merci de choisir un autre horaire.");
+      goStep(3); // retour au choix de la date/heure, pour reprendre un créneau réellement libre
+      return;
+    }
 
     const detailServices = lignesDetail
       .map(l => `${l.prestationNom} avec ${l.staffNom || "n'importe qui"} à ${l.heure}`)
@@ -547,13 +566,15 @@ function buildSummary(){
     const msg = encodeURIComponent(
       `Bonjour, je suis ${nom || ''}. Je voudrais réserver : ${detailServices}, le ${dateVal}, ${lieuTexte}.${messagePersonnalise}`
     );
-    btn.href = `https://wa.me/${numero}?text=${msg}`;
-    enregistrerRendezVous(nom, numeroClient, adresseClient);
+    window.location.href = `https://wa.me/${numero}?text=${msg}`;
   };
 }
 
+// Enregistre le(s) rendez-vous en base. Renvoie true si tout s'est bien
+// enregistré, false si la base a refusé (ex: créneau pris entre-temps par
+// quelqu'un d'autre — voir le trigger verifier_disponibilite_rdv côté SQL).
 async function enregistrerRendezVous(nom, numeroClient, adresseClient){
-  if (!vendeurActuel) return;
+  if (!vendeurActuel) return false;
 
   const dateISO = convertirDateISO(booking.date);
   const groupeId = crypto.randomUUID
@@ -585,7 +606,11 @@ async function enregistrerRendezVous(nom, numeroClient, adresseClient){
   });
 
   const { error } = await supabaseClient.from('rendez_vous').insert(lignes);
-  if (error) console.error('Erreur enregistrement rendez-vous :', error);
+  if (error) {
+    console.error('Erreur enregistrement rendez-vous :', error);
+    return false;
+  }
+  return true;
 }
 
 function convertirDateISO(dateStr){
