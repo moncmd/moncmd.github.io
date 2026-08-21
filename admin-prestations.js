@@ -171,6 +171,7 @@ function ouvrirEditionPrestation(id) {
   document.getElementById('nouveau-presta-nom').value = p.nom;
   document.getElementById('nouveau-presta-prix').value = p.prix;
   document.getElementById('nouveau-presta-duree').value = p.duree_minutes;
+  document.getElementById('nouveau-presta-capacite').value = p.capacite_simultanee || 1;
   document.getElementById('nouveau-presta-prix-variable').checked = !!p.prix_variable;
   document.getElementById('nouveau-presta-categorie').value = p.categorie || '';
   document.getElementById('nouveau-presta-fichier').value = '';
@@ -196,6 +197,7 @@ function annulerEditionPrestation() {
   document.getElementById('nouveau-presta-nom').value = '';
   document.getElementById('nouveau-presta-prix').value = '';
   document.getElementById('nouveau-presta-duree').value = 30;
+  document.getElementById('nouveau-presta-capacite').value = 1;
   document.getElementById('nouveau-presta-prix-variable').checked = false;
   document.getElementById('nouveau-presta-categorie').value = '';
   document.getElementById('nouveau-presta-fichier').value = '';
@@ -212,6 +214,7 @@ async function ajouterPrestation() {
   const nom = document.getElementById('nouveau-presta-nom').value.trim();
   const prix = parseInt(document.getElementById('nouveau-presta-prix').value);
   const duree_minutes = parseInt(document.getElementById('nouveau-presta-duree').value) || 30;
+  const capacite_simultanee = parseInt(document.getElementById('nouveau-presta-capacite').value) || 1;
   const categorie = document.getElementById('nouveau-presta-categorie').value.trim() || null;
   const prix_variable = document.getElementById('nouveau-presta-prix-variable').checked;
   const fichier = document.getElementById('nouveau-presta-fichier').files[0];
@@ -256,7 +259,7 @@ async function ajouterPrestation() {
     }
   }
 
-  const donnees = { nom, prix, duree_minutes, categorie, prix_variable };
+  const donnees = { nom, prix, duree_minutes, categorie, prix_variable, capacite_simultanee };
   if (image_url !== undefined) donnees.image_url = image_url;
 
   let prestationConcernee;
