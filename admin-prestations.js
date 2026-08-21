@@ -272,7 +272,12 @@ async function ajouterPrestation() {
       .select()
       .single();
 
-    if (error) { messageEl.textContent = "Erreur lors de la modification."; messageEl.style.color = 'red'; return; }
+    if (error) {
+      console.error('Erreur modification prestation :', error);
+      messageEl.textContent = `Erreur : ${error.message}`;
+      messageEl.style.color = 'red';
+      return;
+    }
     prestationConcernee = data;
 
     // Met à jour l'assignation personnel : on retire l'ancienne puis on remet la nouvelle
@@ -288,7 +293,12 @@ async function ajouterPrestation() {
       .select()
       .single();
 
-    if (error) { messageEl.textContent = "Erreur lors de l'ajout."; messageEl.style.color = 'red'; return; }
+    if (error) {
+      console.error('Erreur ajout prestation :', error);
+      messageEl.textContent = `Erreur : ${error.message}`;
+      messageEl.style.color = 'red';
+      return;
+    }
     prestationConcernee = data;
   }
 
