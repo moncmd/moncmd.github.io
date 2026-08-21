@@ -182,6 +182,8 @@
         <input type="text" id="nouveau-presta-nom" placeholder="Nom de la prestation">
         <input type="number" id="nouveau-presta-prix" placeholder="Prix (FCFA)">
         <input type="number" id="nouveau-presta-duree" placeholder="Durée (minutes)" value="30">
+        <label class="champ-label">Clientes en simultané sur ce service <span style="font-weight:400;">(1 = une seule à la fois)</span></label>
+        <input type="number" id="nouveau-presta-capacite" min="1" value="1">
         <label style="display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:10px;">
           <input type="checkbox" id="nouveau-presta-prix-variable" style="width:auto;">
           Le prix final dépend du modèle choisi
