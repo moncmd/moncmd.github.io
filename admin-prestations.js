@@ -8,6 +8,8 @@ let prestationsCache = [];
 let personnelCache = [];
 let personnelEnEdition = null; // id de la personne en cours de modification, null = mode "ajout"
 let prestationEnEdition = null; // id de la prestation en cours de modification, null = mode "ajout"
+let produitsCache = []; // ---- Boutique produits (vendeur hybride prestations + boutique) ----
+let produitEnEdition = null;
 
 const HIERARCHIE_FORMULES = ['standard', 'pro', 'premium'];
 function auMoins(niveauRequis) {
@@ -52,6 +54,7 @@ function changerOnglet(nom, boutonEl) {
   // afficher des chiffres/listes périmés (ex: une réservation vient d'arriver
   // pendant que la vendeuse était sur un autre onglet).
   if (nom === 'agenda') chargerAgenda();
+  if (nom === 'produits') chargerOngletProduits();
   if (nom === 'dashboard') { chargerStats(); chargerGraphique7Jours(); chargerDernieresDemandes(); }
 }
 
@@ -1192,4 +1195,552 @@ async function enregistrerRendezVousManuel() {
   await chargerAgenda();
   await chargerStats();
   await chargerGraphique7Jours();
+}
+// ============================================
+// BOUTIQUE PRODUITS (vendeur hybride prestations + boutique)
+// Fonctions portées directement depuis admin.js — mêmes conventions.
+// ============================================
+
+// Initialise l'onglet Boutique à l'ouverture : verrouille le champ stock et
+// la liste de réassort pour les non-Pro (même règle que la boutique classique),
+// puis charge catégories + produits.
+async function chargerOngletProduits() {
+  const estPro = auMoins('pro');
+  const champStock = document.getElementById('champ-stock-premium');
+  const carteListeAttente = document.getElementById('carte-liste-attente');
+
+  if (champStock) champStock.style.display = estPro ? 'block' : 'none';
+  if (carteListeAttente) carteListeAttente.style.display = estPro ? 'block' : 'none';
+  if (estPro) chargerListeAttenteStock();
+
+  await chargerCategoriesExistantes();
+  await chargerProduits();
+}
+
+async function chargerListeAttenteStock() {
+  const conteneur = document.getElementById('liste-attente-stock-admin');
+  if (!conteneur) return;
+
+  const { data: attente } = await supabaseClient
+    .from('liste_attente_stock')
+    .select('*, produits(nom)')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .eq('contacte', false)
+    .order('date_creation', { ascending: false });
+
+  if (!attente || attente.length === 0) {
+    conteneur.innerHTML = '<p class="empty-state">Personne en attente pour le moment.</p>';
+    return;
+  }
+
+  conteneur.innerHTML = attente.map(a => `
+    <div class="produit-row">
+      <div class="produit-infos">
+        <strong>${a.produits ? a.produits.nom : 'Produit'}</strong>
+        <span class="prix">${a.numero_client}</span>
+      </div>
+      <div class="produit-actions">
+        <a href="https://wa.me/${a.numero_client.replace(/\D/g,'')}?text=Bonjour, le produit que vous attendiez est de nouveau disponible !" target="_blank" class="icon-btn" title="Contacter sur WhatsApp">
+          <i class="fa-brands fa-whatsapp"></i>
+        </a>
+        <button class="icon-btn" title="Marquer comme contacté" onclick="marquerContacte('${a.id}')">
+          <i class="fa-solid fa-check"></i>
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function marquerContacte(id) {
+  await supabaseClient.from('liste_attente_stock').update({ contacte: true }).eq('id', id);
+  await chargerListeAttenteStock();
+}
+
+async function chargerProduits() {
+  const { data: produits } = await supabaseClient
+    .from('produits')
+    .select('*')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .eq('actif', true)
+    .order('ordre', { ascending: true });
+
+  produitsCache = produits || [];
+  const champRecherche = document.getElementById('recherche-produit-admin');
+  if (champRecherche) champRecherche.value = '';
+
+  renderListeProduits(produitsCache, true);
+}
+
+// Filtre localement (sans re-requêter Supabase) la liste déjà chargée, par nom.
+// Le réordonnancement (flèches ↑↓) est désactivé pendant une recherche, car les
+// index affichés ne correspondraient plus à l'ordre réel dans produitsCache.
+function filtrerProduitsAdmin() {
+  const requete = document.getElementById('recherche-produit-admin').value
+    .trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  if (!requete) { renderListeProduits(produitsCache, true); return; }
+
+  const resultats = produitsCache.filter(p =>
+    p.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(requete)
+  );
+  renderListeProduits(resultats, false);
+}
+
+function renderListeProduits(produits, avecReorder) {
+  const liste = document.getElementById('liste-produits-admin');
+  liste.innerHTML = '';
+
+  if (!produits || produits.length === 0) {
+    liste.innerHTML = '<p class="empty-state">Aucun produit ne correspond à votre recherche.</p>';
+    return;
+  }
+
+  if (!avecReorder) {
+    // Mode recherche : liste plate (les résultats traversent plusieurs catégories,
+    // regrouper n'aiderait pas à retrouver vite un produit précis).
+    liste.innerHTML = produits.map(p => construireLigneProduit(p, false)).join('');
+    return;
+  }
+
+  // Regroupement par catégorie, dans l'ordre d'apparition (cohérent avec le tri
+  // global déjà appliqué par "ordre" — la première catégorie rencontrée est celle
+  // du produit avec le plus petit ordre).
+  const categories = [];
+  produits.forEach(p => {
+    const cat = p.categorie || 'Sans catégorie';
+    if (!categories.includes(cat)) categories.push(cat);
+  });
+
+  liste.innerHTML = categories.map((cat, catIndex) => {
+    const produitsCategorie = produits.filter(p => (p.categorie || 'Sans catégorie') === cat);
+    return `
+      <div class="categorie-titre-admin" style="font-size:11.5px; font-weight:700; color:#999; text-transform:uppercase; letter-spacing:0.05em; margin:${catIndex === 0 ? '4px' : '20px'} 0 4px; padding-top:${catIndex === 0 ? '0' : '14px'}; ${catIndex === 0 ? '' : 'border-top:1px solid #f0f0f0;'}">${cat}</div>
+      ${produitsCategorie.map((p, index) => construireLigneProduit(p, true, index, produitsCategorie.length)).join('')}
+    `;
+  }).join('');
+}
+
+function construireLigneProduit(p, avecReorder, index, totalCategorie) {
+  const imgSrc = p.image_url || '';
+  const estPro = auMoins('pro');
+  const infoStock = estPro
+    ? `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie} · Stock : ${p.quantite_stock === null || p.quantite_stock === undefined ? 'illimité' : p.quantite_stock}</span>`
+    : `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie}</span>`;
+
+  const boutonsReorder = avecReorder ? `
+        <button class="icon-btn" ${index === 0 ? 'disabled style="opacity:0.3;"' : ''} title="Monter dans cette catégorie" onclick="deplacerProduit('${p.id}', -1)">
+          <i class="fa-solid fa-arrow-up"></i>
+        </button>
+        <button class="icon-btn" ${index === totalCategorie - 1 ? 'disabled style="opacity:0.3;"' : ''} title="Descendre dans cette catégorie" onclick="deplacerProduit('${p.id}', 1)">
+          <i class="fa-solid fa-arrow-down"></i>
+        </button>` : '';
+
+  return `
+    <div class="produit-row">
+      ${imgSrc
+        ? `<img src="${imgSrc}" class="produit-thumb" alt="${p.nom}">`
+        : `<div class="produit-thumb" style="display:flex;align-items:center;justify-content:center;color:#ccc;"><i class="fa-solid fa-image"></i></div>`}
+      <div class="produit-infos">
+        <strong>${p.nom}</strong>
+        ${infoStock}
+      </div>
+      <div class="produit-actions">
+        ${boutonsReorder}
+        <button class="icon-btn" title="Modifier ce produit" onclick="chargerProduitPourEdition('${p.id}')">
+          <i class="fa-solid fa-pen"></i>
+        </button>
+        ${estPro ? `
+        <button class="icon-btn" title="Modifier le stock" onclick="modifierStock('${p.id}', ${p.quantite_stock === null || p.quantite_stock === undefined ? 'null' : p.quantite_stock})">
+          <i class="fa-solid fa-boxes-stacked"></i>
+        </button>` : ''}
+        <button class="icon-btn ${p.favori ? 'favori-actif' : ''}" title="${p.favori ? 'Retirer de la une' : 'Mettre en avant'}" onclick="basculerFavori('${p.id}', ${p.favori})">
+          <i class="fa-solid fa-star"></i>
+        </button>
+        <button class="icon-btn danger" title="Retirer du site" onclick="supprimerProduit('${p.id}')">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+        <button class="icon-btn" title="Créer un visuel pour Statut WhatsApp" onclick="genererStatutProduit('${p.id}')">
+          <i class="fa-solid fa-camera-retro"></i>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+// Génère un visuel prêt pour le Statut WhatsApp (format portrait 1080x1920)
+// à partir d'un produit : photo + nom + prix + logo/nom de la boutique.
+// Tout se fait localement dans le navigateur via Canvas, aucun envoi serveur.
+async function genererStatutProduit(id) {
+  const p = produitsCache.find(x => x.id === id);
+  if (!p) return;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 1080;
+  canvas.height = 1920;
+  const ctx = canvas.getContext('2d');
+
+  const couleurAccent = (vendeurConnecte && vendeurConnecte.couleur_accent) || '#e56400';
+
+  // Fond en dégradé, teinté par la couleur de la boutique
+  const degrade = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  degrade.addColorStop(0, couleurAccent);
+  degrade.addColorStop(1, '#1a1a1a');
+  ctx.fillStyle = degrade;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Nom de la boutique en haut
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '700 46px Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(vendeurConnecte.nom_boutique || 'Ma boutique', canvas.width / 2, 130);
+
+  // Carte blanche centrale avec la photo du produit
+  const carteX = 90, carteY = 300, carteW = canvas.width - 180, carteH = 1100;
+  ctx.fillStyle = '#ffffff';
+  arrondi(ctx, carteX, carteY, carteW, carteH, 32);
+  ctx.fill();
+
+  async function chargerImage(src) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = src;
+    });
+  }
+
+  if (p.image_url) {
+    const img = await chargerImage(p.image_url);
+    if (img) {
+      // Recadrage "cover" pour remplir la carte sans déformer l'image
+      const pad = 30;
+      const zoneW = carteW - pad * 2, zoneH = carteH - pad * 2 - 40;
+      const ratioZone = zoneW / zoneH;
+      const ratioImg = img.width / img.height;
+      let sx, sy, sw, sh;
+      if (ratioImg > ratioZone) { sh = img.height; sw = sh * ratioZone; sx = (img.width - sw) / 2; sy = 0; }
+      else { sw = img.width; sh = sw / ratioZone; sx = 0; sy = (img.height - sh) / 2; }
+
+      ctx.save();
+      arrondi(ctx, carteX + pad, carteY + pad, zoneW, zoneH, 20);
+      ctx.clip();
+      ctx.drawImage(img, sx, sy, sw, sh, carteX + pad, carteY + pad, zoneW, zoneH);
+      ctx.restore();
+    }
+  }
+
+  // Nom du produit
+  ctx.fillStyle = '#1a1a1a';
+  ctx.font = '700 52px Arial, sans-serif';
+  enveloppeTexte(ctx, p.nom, canvas.width / 2, carteY + carteH - 90, carteW - 80, 58);
+
+  // Prix, en bas de la carte
+  ctx.fillStyle = couleurAccent;
+  ctx.font = '800 64px Arial, sans-serif';
+  ctx.fillText(`${p.prix.toLocaleString('fr-FR')} FCFA`, canvas.width / 2, carteY + carteH + 90);
+
+  // Appel à l'action en bas de l'écran
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '600 40px Arial, sans-serif';
+  ctx.fillText('📲 Commande sur WhatsApp', canvas.width / 2, canvas.height - 120);
+
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `statut-${p.nom.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, 'image/png');
+}
+
+// Dessine un rectangle aux coins arrondis (utilisé par le générateur de statut)
+function arrondi(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Écrit un texte centré sur plusieurs lignes si besoin, jamais coupé au milieu d'un mot
+function enveloppeTexte(ctx, texte, cx, y, largeurMax, interligne) {
+  const mots = texte.split(' ');
+  const lignes = [];
+  let ligneActuelle = '';
+  mots.forEach(mot => {
+    const test = ligneActuelle ? ligneActuelle + ' ' + mot : mot;
+    if (ctx.measureText(test).width > largeurMax && ligneActuelle) {
+      lignes.push(ligneActuelle);
+      ligneActuelle = mot;
+    } else {
+      ligneActuelle = test;
+    }
+  });
+  if (ligneActuelle) lignes.push(ligneActuelle);
+
+  const yDepart = y - (lignes.length - 1) * interligne / 2;
+  lignes.forEach((ligne, i) => ctx.fillText(ligne, cx, yDepart + i * interligne));
+}
+
+// Échange l'ordre du produit avec son voisin immédiat DANS LA MÊME CATÉGORIE
+// (direction : -1 = monter, 1 = descendre). On ne mélange jamais deux catégories entre elles.
+async function deplacerProduit(id, direction) {
+  const produit = produitsCache.find(p => p.id === id);
+  if (!produit) return;
+
+  const memeCategorie = produitsCache.filter(p => (p.categorie || 'Sans catégorie') === (produit.categorie || 'Sans catégorie'));
+  const index = memeCategorie.findIndex(p => p.id === id);
+  const indexVoisin = index + direction;
+  if (indexVoisin < 0 || indexVoisin >= memeCategorie.length) return;
+
+  const voisin = memeCategorie[indexVoisin];
+
+  await supabaseClient.from('produits').update({ ordre: voisin.ordre }).eq('id', produit.id);
+  await supabaseClient.from('produits').update({ ordre: produit.ordre }).eq('id', voisin.id);
+
+  await chargerProduits();
+}
+
+async function modifierStock(id, stockActuel) {
+  const saisie = prompt("Nouvelle quantité en stock (laisser vide pour illimité) :", stockActuel === null ? '' : stockActuel);
+  if (saisie === null) return; // annulé
+
+  const valeur = saisie.trim() === '' ? null : parseInt(saisie);
+  await supabaseClient.from('produits').update({ quantite_stock: valeur }).eq('id', id);
+  await chargerProduits();
+}
+
+async function ajouterProduit() {
+  const nom = document.getElementById('nouveau-nom').value;
+  const prix = parseInt(document.getElementById('nouveau-prix').value);
+  const fichier = document.getElementById('nouveau-image-fichier').files[0];
+  const fichierVideo = document.getElementById('nouveau-video-fichier').files[0];
+  const selectCategorie = document.getElementById('nouveau-categorie-select').value;
+  const texteCategorie = document.getElementById('nouveau-categorie').value.trim();
+  const categorie = (selectCategorie === '__nouvelle__' ? texteCategorie : selectCategorie) || 'general';
+  const description = document.getElementById('nouveau-description').value.trim();
+  const favori = document.getElementById('nouveau-favori').checked;
+  const stockInput = document.getElementById('nouveau-stock');
+  const messageEl = document.getElementById('produit-message');
+  const enEdition = !!produitEnEdition;
+
+  if (!nom || !prix) {
+    messageEl.textContent = "Nom et prix sont obligatoires.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  // ---- Limites de la formule Standard (uniquement à l'ajout, pas à la modification) ----
+  if (!enEdition && !auMoins('pro')) {
+    const { data: produitsExistants } = await supabaseClient
+      .from('produits')
+      .select('categorie')
+      .eq('vendeur_id', vendeurConnecte.id)
+      .eq('actif', true);
+
+    const nbProduits = produitsExistants ? produitsExistants.length : 0;
+    const categoriesExistantes = new Set((produitsExistants || []).map(p => p.categorie || 'general'));
+
+    if (nbProduits >= 20) {
+      messageEl.textContent = "Limite de 20 produits atteinte avec la formule Standard. Passez en Pro pour continuer.";
+      messageEl.style.color = 'red';
+      return;
+    }
+
+    if (!categoriesExistantes.has(categorie) && categoriesExistantes.size >= 5) {
+      messageEl.textContent = "Limite de 5 catégories atteinte avec la formule Standard. Passez en Pro pour en ajouter davantage.";
+      messageEl.style.color = 'red';
+      return;
+    }
+  }
+
+  let image_url = enEdition ? undefined : ''; // en édition, undefined = on ne touche pas au champ si pas de nouvelle photo
+
+  if (fichier) {
+    messageEl.textContent = "Envoi de la photo en cours...";
+    messageEl.style.color = '#777';
+
+    const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
+
+    const { error: erreurUpload } = await supabaseClient
+      .storage
+      .from('produits-images')
+      .upload(nomFichier, fichier);
+
+    if (erreurUpload) {
+      messageEl.textContent = "Erreur lors de l'envoi de la photo.";
+      messageEl.style.color = 'red';
+      return;
+    }
+
+    const { data: urlData } = supabaseClient
+      .storage
+      .from('produits-images')
+      .getPublicUrl(nomFichier);
+
+    image_url = urlData.publicUrl;
+  }
+
+  let video_url = enEdition ? undefined : ''; // même logique que la photo : en édition, on ne touche pas au champ si pas de nouveau fichier
+
+  if (fichierVideo) {
+    messageEl.textContent = "Envoi de la vidéo en cours...";
+    messageEl.style.color = '#777';
+
+    const nomFichierVideo = `${vendeurConnecte.id}/${Date.now()}-${fichierVideo.name}`;
+
+    const { error: erreurUploadVideo } = await supabaseClient
+      .storage
+      .from('produits-videos')
+      .upload(nomFichierVideo, fichierVideo);
+
+    if (erreurUploadVideo) {
+      messageEl.textContent = "Erreur lors de l'envoi de la vidéo.";
+      messageEl.style.color = 'red';
+      return;
+    }
+
+    const { data: urlDataVideo } = supabaseClient
+      .storage
+      .from('produits-videos')
+      .getPublicUrl(nomFichierVideo);
+
+    video_url = urlDataVideo.publicUrl;
+  }
+
+  const donneesProduit = { nom, prix, categorie, favori, description };
+  if (image_url !== undefined) donneesProduit.image_url = image_url;
+  if (video_url !== undefined) donneesProduit.video_url = video_url;
+  if (!enEdition) {
+    donneesProduit.vendeur_id = vendeurConnecte.id;
+    donneesProduit.ordre = produitsCache.length
+      ? Math.max(...produitsCache.map(p => p.ordre || 0)) + 1
+      : 0;
+  }
+
+  if (auMoins('pro') && stockInput && stockInput.value !== '') {
+    donneesProduit.quantite_stock = parseInt(stockInput.value);
+  }
+
+  const requete = enEdition
+    ? supabaseClient.from('produits').update(donneesProduit).eq('id', produitEnEdition)
+    : supabaseClient.from('produits').insert(donneesProduit);
+
+  const { error } = await requete;
+
+  if (error) {
+    messageEl.textContent = enEdition ? "Erreur lors de la modification." : "Erreur lors de l'ajout.";
+    messageEl.style.color = 'red';
+    return;
+  }
+
+  messageEl.textContent = enEdition ? "Produit modifié ✓" : "Produit ajouté ✓";
+  messageEl.style.color = 'green';
+
+  annulerEditionProduit(); // remet le formulaire à zéro et sort du mode édition
+
+  await chargerCategoriesExistantes();
+  await chargerProduits();
+  await chargerStats();
+}
+
+// ---- Édition d'un produit existant ----
+function chargerProduitPourEdition(id) {
+  const produit = produitsCache.find(p => p.id === id);
+  if (!produit) return;
+
+  produitEnEdition = id;
+
+  document.getElementById('nouveau-nom').value = produit.nom;
+  document.getElementById('nouveau-prix').value = produit.prix;
+  document.getElementById('nouveau-description').value = produit.description || '';
+  document.getElementById('nouveau-image-fichier').value = '';
+  document.getElementById('nouveau-video-fichier').value = '';
+  document.getElementById('nouveau-favori').checked = !!produit.favori;
+
+  const select = document.getElementById('nouveau-categorie-select');
+  const options = Array.from(select.options).map(o => o.value);
+  if (options.includes(produit.categorie)) {
+    select.value = produit.categorie;
+    document.getElementById('nouveau-categorie').style.display = 'none';
+  } else {
+    select.value = '__nouvelle__';
+    document.getElementById('nouveau-categorie').value = produit.categorie;
+    document.getElementById('nouveau-categorie').style.display = 'block';
+  }
+
+  const stockInput = document.getElementById('nouveau-stock');
+  if (stockInput) stockInput.value = (produit.quantite_stock === null || produit.quantite_stock === undefined) ? '' : produit.quantite_stock;
+
+  document.getElementById('titre-formulaire-produit').innerHTML = '<i class="fa-solid fa-pen"></i> Modifier ce produit';
+  document.getElementById('btn-soumettre-produit').textContent = 'Enregistrer les modifications';
+  document.getElementById('annuler-edition-lien').style.display = 'block';
+  document.getElementById('photo-optionnelle-edition').style.display = 'inline';
+  document.getElementById('produit-message').textContent = '';
+
+  document.getElementById('nouveau-nom').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function annulerEditionProduit() {
+  produitEnEdition = null;
+
+  document.getElementById('nouveau-nom').value = '';
+  document.getElementById('nouveau-prix').value = '';
+  document.getElementById('nouveau-description').value = '';
+  document.getElementById('nouveau-image-fichier').value = '';
+  document.getElementById('nouveau-video-fichier').value = '';
+  document.getElementById('nouveau-categorie').value = '';
+  document.getElementById('nouveau-categorie').style.display = 'none';
+  document.getElementById('nouveau-categorie-select').value = '';
+  document.getElementById('nouveau-favori').checked = false;
+  const stockInput = document.getElementById('nouveau-stock');
+  if (stockInput) stockInput.value = '';
+
+  document.getElementById('titre-formulaire-produit').innerHTML = '<i class="fa-solid fa-plus"></i> Ajouter un produit';
+  document.getElementById('btn-soumettre-produit').textContent = 'Ajouter le produit';
+  document.getElementById('annuler-edition-lien').style.display = 'none';
+  document.getElementById('photo-optionnelle-edition').style.display = 'none';
+}
+
+// ---- Catégories existantes du vendeur (évite les doublons de saisie libre) ----
+async function chargerCategoriesExistantes() {
+  const select = document.getElementById('nouveau-categorie-select');
+  if (!select) return;
+
+  const { data: produitsExistants } = await supabaseClient
+    .from('produits')
+    .select('categorie')
+    .eq('vendeur_id', vendeurConnecte.id)
+    .eq('actif', true);
+
+  const categories = [...new Set((produitsExistants || []).map(p => p.categorie || 'general'))].sort();
+
+  const valeurActuelle = select.value;
+  select.innerHTML = '<option value="">Catégorie…</option>' +
+    categories.map(c => `<option value="${c}">${c}</option>`).join('') +
+    '<option value="__nouvelle__">+ Nouvelle catégorie</option>';
+
+  if (categories.includes(valeurActuelle)) select.value = valeurActuelle;
+}
+
+function toggleNouvelleCategorie() {
+  const select = document.getElementById('nouveau-categorie-select');
+  const champTexte = document.getElementById('nouveau-categorie');
+  champTexte.style.display = select.value === '__nouvelle__' ? 'block' : 'none';
+  if (select.value === '__nouvelle__') champTexte.focus();
+}
+
+async function basculerFavori(id, etatActuel) {
+  await supabaseClient.from('produits').update({ favori: !etatActuel }).eq('id', id);
+  await chargerProduits();
+}
+
+async function supprimerProduit(id) {
+  await supabaseClient.from('produits').update({ actif: false }).eq('id', id);
+  await chargerProduits();
+  await chargerStats();
 }
