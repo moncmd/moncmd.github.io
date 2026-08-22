@@ -322,6 +322,49 @@
   </div>
 
   <!-- RÉGLAGES -->
+  <!-- BOUTIQUE / PRODUITS (vendeur hybride prestations + boutique) -->
+  <div id="onglet-produits" class="onglet-panel">
+    <div class="admin-card">
+      <h3 id="titre-formulaire-produit"><i class="fa-solid fa-plus"></i> Ajouter un produit</h3>
+      <div class="admin-form">
+        <input type="text" id="nouveau-nom" placeholder="Nom du produit">
+        <input type="number" id="nouveau-prix" placeholder="Prix (FCFA)">
+        <textarea id="nouveau-description" placeholder="Description du produit (optionnel)" rows="3" style="width:100%; padding:12px; margin-bottom:12px; border-radius:10px; border:1px solid #e5e5e5; font-family:inherit; font-size:14px; box-sizing:border-box; resize:vertical;"></textarea>
+        <label class="champ-label">Photo du produit <span id="photo-optionnelle-edition" style="display:none; font-weight:400;">(laisser vide pour garder l'actuelle)</span></label>
+        <input type="file" id="nouveau-image-fichier" accept="image/*">
+        <label class="champ-label">Vidéo du produit <span style="font-weight:400;">(optionnel, laisser vide pour aucune / garder l'actuelle)</span></label>
+        <input type="file" id="nouveau-video-fichier" accept="video/*">
+        <select id="nouveau-categorie-select" onchange="toggleNouvelleCategorie()">
+          <option value="">Catégorie…</option>
+          <option value="__nouvelle__">+ Nouvelle catégorie</option>
+        </select>
+        <input type="text" id="nouveau-categorie" placeholder="Nom de la nouvelle catégorie" style="display:none;">
+        <div id="champ-stock-premium" style="display:none;">
+          <label class="champ-label">Quantité en stock (laisser vide si illimité)</label>
+          <input type="number" id="nouveau-stock" placeholder="Ex: 12">
+        </div>
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:14px; font-size:14px; color:#555;">
+          <input type="checkbox" id="nouveau-favori" style="width:auto; margin:0;">
+          Mettre en avant sur le catalogue (produit populaire)
+        </label>
+        <button class="admin-btn" id="btn-soumettre-produit" onclick="ajouterProduit()">Ajouter le produit</button>
+        <p id="annuler-edition-lien" style="display:none; text-align:center; margin-top:10px; font-size:13px; color:#888; cursor:pointer;" onclick="annulerEditionProduit()">Annuler la modification</p>
+        <p id="produit-message" style="margin-top:10px; font-size:13px;"></p>
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <h3><i class="fa-solid fa-list"></i> Mes produits</h3>
+      <input type="text" id="recherche-produit-admin" placeholder="🔍 Rechercher un produit..." oninput="filtrerProduitsAdmin()" style="width:100%; padding:11px; margin-bottom:14px; border-radius:10px; border:1px solid #e5e5e5; font-family:inherit; font-size:14px; box-sizing:border-box;">
+      <div id="liste-produits-admin"></div>
+    </div>
+
+    <div class="admin-card" id="carte-liste-attente" style="display:none;">
+      <h3><i class="fa-solid fa-bell"></i> Clients à prévenir (réassort)</h3>
+      <div id="liste-attente-stock-admin"></div>
+    </div>
+  </div>
+
   <div id="onglet-reglages" class="onglet-panel">
     <div class="admin-card" style="text-align:center;">
       <h3 style="justify-content:center;"><i class="fa-solid fa-qrcode"></i> QR code de ma boutique</h3>
@@ -369,6 +412,7 @@
 <nav class="admin-tabs" id="vue-dashboard-tabs" style="display:none;">
   <button class="admin-tab actif" onclick="changerOnglet('dashboard', this)"><i class="fa-solid fa-chart-line"></i>Dashboard</button>
   <button class="admin-tab" onclick="changerOnglet('prestations', this)"><i class="fa-solid fa-scissors"></i>Prestations</button>
+  <button class="admin-tab" onclick="changerOnglet('produits', this)"><i class="fa-solid fa-box-open"></i>Boutique</button>
   <button class="admin-tab" onclick="changerOnglet('agenda', this)"><i class="fa-solid fa-calendar-days"></i>Agenda</button>
   <button class="admin-tab" onclick="changerOnglet('equipe', this)"><i class="fa-solid fa-user-group"></i>Équipe</button>
   <button class="admin-tab" onclick="changerOnglet('galerie', this)"><i class="fa-solid fa-images"></i>Galerie</button>
