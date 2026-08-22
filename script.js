@@ -654,29 +654,30 @@ function formaterNomCategorie(cat) {
   return cat.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
 }
 
-// Devine une icône pertinente à partir du nom de la catégorie (mots-clés
-// courants d'épicerie/marché). Aucune saisie requise du vendeur — repli sur
-// un icône générique si rien ne correspond.
+// Devine une icône Font Awesome pertinente à partir du nom de la catégorie
+// (déjà chargé sur le site, rendu identique sur tous les appareils —
+// contrairement aux emoji qui varient selon iPhone/Android). Aucune saisie
+// requise du vendeur — repli sur une icône générique si rien ne correspond.
 function iconePourCategorie(cat) {
   const c = cat.toLowerCase();
   const correspondances = [
-    [['fruit'], '🍎'],
-    [['legume', 'légume'], '🥦'],
-    [['viande', 'boucherie'], '🥩'],
-    [['poisson', 'mer'], '🐟'],
-    [['boisson', 'jus', 'soda'], '🥤'],
-    [['lait', 'fromage', 'laitier'], '🧀'],
-    [['pain', 'boulangerie', 'patisserie', 'pâtisserie'], '🍞'],
-    [['surgele', 'surgelé'], '🧊'],
-    [['hygiene', 'hygiène', 'beaute', 'beauté'], '🧴'],
-    [['bebe', 'bébé'], '🍼'],
-    [['entretien', 'menage', 'ménage', 'nettoyage'], '🧽'],
-    [['riz', 'pate', 'pâte', 'cereale', 'céréale'], '🍚'],
-    [['epice', 'épice', 'condiment'], '🌶️'],
-    [['snack', 'biscuit', 'confiserie'], '🍪']
+    [['fruit'], 'fa-apple-whole'],
+    [['legume', 'légume'], 'fa-carrot'],
+    [['viande', 'boucherie'], 'fa-drumstick-bite'],
+    [['poisson', 'mer'], 'fa-fish'],
+    [['boisson', 'jus', 'soda'], 'fa-bottle-water'],
+    [['lait', 'fromage', 'laitier'], 'fa-cheese'],
+    [['pain', 'boulangerie', 'patisserie', 'pâtisserie'], 'fa-bread-slice'],
+    [['surgele', 'surgelé'], 'fa-snowflake'],
+    [['hygiene', 'hygiène', 'beaute', 'beauté'], 'fa-pump-soap'],
+    [['bebe', 'bébé'], 'fa-baby'],
+    [['entretien', 'menage', 'ménage', 'nettoyage'], 'fa-broom'],
+    [['riz', 'pate', 'pâte', 'cereale', 'céréale'], 'fa-bowl-rice'],
+    [['epice', 'épice', 'condiment'], 'fa-pepper-hot'],
+    [['snack', 'biscuit', 'confiserie'], 'fa-cookie']
   ];
   const trouve = correspondances.find(([mots]) => mots.some(m => c.includes(m)));
-  return trouve ? trouve[1] : '🛍️';
+  return `<i class="fa-solid ${trouve ? trouve[1] : 'fa-basket-shopping'}" style="margin-right:5px;"></i>`;
 }
 
 function afficherCategorie(cat, bouton) {
