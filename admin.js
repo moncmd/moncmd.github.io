@@ -502,7 +502,7 @@ async function uploaderLogo() {
   messageEl.textContent = "Envoi en cours...";
   messageEl.style.color = '#777';
 
-  const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
+  const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${nettoyerNomFichier(fichier.name)}`;
 
   const { error: erreurUpload } = await supabaseClient
     .storage
@@ -987,7 +987,7 @@ async function ajouterProduit() {
     messageEl.textContent = "Envoi de la photo en cours...";
     messageEl.style.color = '#777';
 
-    const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
+    const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${nettoyerNomFichier(fichier.name)}`;
 
     const { error: erreurUpload } = await supabaseClient
       .storage
@@ -1014,7 +1014,7 @@ async function ajouterProduit() {
     messageEl.textContent = "Envoi de la vidéo en cours...";
     messageEl.style.color = '#777';
 
-    const nomFichierVideo = `${vendeurConnecte.id}/${Date.now()}-${fichierVideo.name}`;
+    const nomFichierVideo = `${vendeurConnecte.id}/${Date.now()}-${nettoyerNomFichier(fichierVideo.name)}`;
 
     const { error: erreurUploadVideo } = await supabaseClient
       .storage

@@ -254,7 +254,7 @@ async function ajouterPrestation() {
   // sinon on garde l'URL déjà enregistrée (undefined = champ non touché par le .update()).
   let image_url = modeEdition ? undefined : '';
   if (fichier) {
-    const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
+    const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${nettoyerNomFichier(fichier.name)}`;
     const { error: erreurUpload } = await supabaseClient.storage.from('prestations-images').upload(nomFichier, fichier);
     if (!erreurUpload) {
       const { data: pub } = supabaseClient.storage.from('prestations-images').getPublicUrl(nomFichier);
@@ -459,7 +459,7 @@ async function ajouterPersonnel() {
   // sinon on garde l'URL déjà enregistrée (undefined = champ non touché par le .update()).
   let photo_url = modeEdition ? undefined : '';
   if (fichier) {
-    const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
+    const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${nettoyerNomFichier(fichier.name)}`;
     const { error: erreurUpload } = await supabaseClient.storage.from('personnel-images').upload(nomFichier, fichier);
     if (!erreurUpload) {
       const { data: pub } = supabaseClient.storage.from('personnel-images').getPublicUrl(nomFichier);
@@ -656,7 +656,7 @@ async function chargerGalerie() {
 async function ajouterPhotoGalerie(fichier) {
   if (!fichier) return;
   const messageEl = document.getElementById('galerie-message');
-  const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
+  const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${nettoyerNomFichier(fichier.name)}`;
 
   const { error: erreurUpload } = await supabaseClient.storage.from('galerie').upload(nomFichier, fichier);
   if (erreurUpload) { messageEl.textContent = "Erreur lors de l'envoi."; messageEl.style.color = 'red'; return; }
@@ -1564,7 +1564,7 @@ async function ajouterProduit() {
     messageEl.textContent = "Envoi de la photo en cours...";
     messageEl.style.color = '#777';
 
-    const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${fichier.name}`;
+    const nomFichier = `${vendeurConnecte.id}/${Date.now()}-${nettoyerNomFichier(fichier.name)}`;
 
     const { error: erreurUpload } = await supabaseClient
       .storage
@@ -1591,7 +1591,7 @@ async function ajouterProduit() {
     messageEl.textContent = "Envoi de la vidéo en cours...";
     messageEl.style.color = '#777';
 
-    const nomFichierVideo = `${vendeurConnecte.id}/${Date.now()}-${fichierVideo.name}`;
+    const nomFichierVideo = `${vendeurConnecte.id}/${Date.now()}-${nettoyerNomFichier(fichierVideo.name)}`;
 
     const { error: erreurUploadVideo } = await supabaseClient
       .storage
