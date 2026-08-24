@@ -5,7 +5,8 @@
 //   <script src="prestations.js"></script>
 // ============================================
 
-let vendeurActuel = null;
+// vendeurActuel est déjà déclaré par script.js (chargé avant ce fichier sur
+// la page hybride) — on réutilise la même variable partagée, pas de "let" ici.
 let prestationsData = [];
 let personnelData = [];
 
@@ -53,7 +54,7 @@ async function chargerBoutiquePrestations() {
     chargerPrestations(vendeur.id),
     chargerPersonnel(vendeur.id),
     chargerGalerie(vendeur.id),
-    chargerFAQ(vendeur.id),
+    chargerFAQPrestations(vendeur.id),
     chargerAvisPrestations(vendeur.id, vendeur.formule)
   ]);
 
@@ -61,20 +62,8 @@ async function chargerBoutiquePrestations() {
   afficherAdresse(vendeur);
 }
 
-// Icônes réseaux sociaux dans le footer (#reseaux-sociaux), seulement ceux renseignés
-function afficherReseauxSociaux(vendeur) {
-  const conteneur = document.getElementById('reseaux-sociaux');
-  if (!conteneur) return;
-  const reseaux = [
-    { url: vendeur.instagram, icone: 'fa-instagram' },
-    { url: vendeur.tiktok, icone: 'fa-tiktok' },
-    { url: vendeur.facebook, icone: 'fa-facebook' }
-  ].filter(r => r.url);
-  if (!reseaux.length) { conteneur.style.display = 'none'; return; }
-  conteneur.innerHTML = reseaux.map(r =>
-    `<a href="${r.url}" target="_blank" rel="noopener"><i class="fa-brands ${r.icone}"></i></a>`
-  ).join('');
-}
+// afficherReseauxSociaux : identique à celle de script.js (déjà chargée sur
+// la page hybride), pas besoin de la redéfinir ici.
 
 // Carte Google Maps intégrée (#carte-adresse), affichée seulement si une adresse est renseignée
 function afficherAdresse(vendeur) {
@@ -247,7 +236,7 @@ async function chargerGalerie(vendeurId) {
   });
 }
 
-async function chargerFAQ(vendeurId) {
+async function chargerFAQPrestations(vendeurId) {
   const { data: faqs } = await supabaseClient
     .from('faq')
     .select('*')
@@ -304,57 +293,10 @@ async function chargerAvisPrestations(vendeurId, formule) {
   track.innerHTML = avis.map(carte).join('') + avis.map(carte).join('');
 }
 
-let noteSelectionnee = 0;
-
-function toggleFormulaireAvis() {
-  const form = document.getElementById('formulaire-avis');
-  if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
-}
-
-document.addEventListener('click', (e) => {
-  if (e.target.closest('#etoiles-input') && e.target.dataset.valeur) {
-    noteSelectionnee = parseInt(e.target.dataset.valeur);
-    document.querySelectorAll('#etoiles-input span').forEach(etoile => {
-      etoile.classList.toggle('active', parseInt(etoile.dataset.valeur) <= noteSelectionnee);
-    });
-  }
-});
-
-async function envoyerAvis() {
-  const nom = document.getElementById('avis-nom').value.trim();
-  const numero = document.getElementById('avis-numero').value.trim();
-  const commentaire = document.getElementById('avis-commentaire').value.trim();
-  const messageEl = document.getElementById('avis-message');
-
-  if (!nom || !numero || !noteSelectionnee) {
-    messageEl.textContent = "Nom, numéro et note sont obligatoires.";
-    messageEl.style.color = 'red';
-    return;
-  }
-  if (!vendeurActuel) return;
-
-  const { error } = await supabaseClient.from('avis').insert({
-    vendeur_id: vendeurActuel.id,
-    nom_client: nom,
-    numero_client: numero,
-    note: noteSelectionnee,
-    commentaire: commentaire
-  });
-
-  if (error) {
-    messageEl.textContent = "Erreur lors de l'envoi.";
-    messageEl.style.color = 'red';
-    return;
-  }
-
-  messageEl.textContent = "Merci ! Votre avis sera publié après vérification.";
-  messageEl.style.color = 'green';
-  document.getElementById('avis-nom').value = '';
-  document.getElementById('avis-numero').value = '';
-  document.getElementById('avis-commentaire').value = '';
-  document.querySelectorAll('#etoiles-input span').forEach(e => e.classList.remove('active'));
-  noteSelectionnee = 0;
-}
+// toggleFormulaireAvis, envoyerAvis, le listener d'étoiles et noteSelectionnee
+// sont identiques à ceux de script.js (déjà chargée sur la page hybride),
+// pas besoin de les redéfinir ici — évite la redéclaration de variable et
+// l'exécution en double du même code au clic.
 
 // ============================================
 // FLUX DE RÉSERVATION

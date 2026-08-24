@@ -26,7 +26,7 @@ body {
 /* ---------- Mot du vendeur ---------- */
 #mot-vendeur {
     margin: 0 20px 0; 
-    padding: 13px 16px;
+    padding: 18px 20px;
     background: var(--card);
     border-radius: 14px;
     border: 2px solid var(--jaune);
