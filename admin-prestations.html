@@ -64,6 +64,18 @@
   .row-actions{display:flex;gap:7px;flex-shrink:0;}
   .icon-btn{width:30px;height:30px;border-radius:8px;border:none;background:#f5f5f5;color:#777;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;}
   .icon-btn.danger:hover{background:#ffe5e5;color:#e00;}
+  .icon-btn.favori-actif{background:var(--couleur-accent,#e56400);color:#fff;}
+
+  /* Section Boutique/Produits (vendeur hybride) — mêmes noms de classes que
+     admin.js (construireLigneProduit), jamais stylées ici jusqu'à présent :
+     les images s'affichaient donc à leur taille native au lieu de 50x50px. */
+  .produit-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0f0;flex-wrap:wrap;}
+  .produit-row:last-child{border-bottom:none;}
+  .produit-thumb{width:50px;height:50px;border-radius:10px;object-fit:cover;background:#f1f1f1;flex-shrink:0;}
+  .produit-infos{flex:1;min-width:0;}
+  .produit-infos strong{display:block;font-size:14px;}
+  .produit-infos span.prix{color:#999;font-size:13px;}
+  .produit-actions{display:flex;gap:8px;flex-basis:100%;justify-content:flex-end;margin-top:4px;}
   .badge{background:#f1f1f1;padding:3px 9px;border-radius:20px;font-size:10.5px;color:#666;}
   .empty-state{color:#aaa;font-size:13px;text-align:center;padding:16px 0;}
   .verrouille{opacity:0.5;pointer-events:none;position:relative;}

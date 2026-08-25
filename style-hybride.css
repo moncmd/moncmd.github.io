@@ -55,15 +55,33 @@ nav { display: flex; align-items: center; justify-content: space-between; paddin
 @media (max-width: 560px) { .nav-onglets button { padding: 8px 12px; font-size: 0.74rem; } }
 
 .nav-actions { display: flex; align-items: center; gap: 12px; }
-.icon-link {
+
+.icon-link, .panier-count a, .btn-mode-sombre {
     width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--ligne);
     display: flex; align-items: center; justify-content: center; position: relative; color: var(--ink);
+    background: none; cursor: pointer;
 }
-.icon-link:hover { border-color: var(--couleur-accent); color: var(--couleur-accent); }
+.icon-link:hover, .panier-count a:hover, .btn-mode-sombre:hover { border-color: var(--couleur-accent); color: var(--couleur-accent); }
 .panier-count-badge {
     position: absolute; top: -4px; right: -4px; background: var(--couleur-accent); color: #fff;
     font-size: 10px; font-weight: 700; border-radius: 50%; width: 17px; height: 17px;
     display: flex; align-items: center; justify-content: center;
+}
+
+/* Header mobile : trop d'éléments pour tenir sur une seule ligne
+   (logo + 2 onglets + 4 icônes) — on passe sur 2 lignes propres :
+   logo + icônes en haut, onglets Réserver/Boutique centrés en dessous.
+   Placé APRÈS la règle de base ci-dessus pour bien la surcharger en cascade. */
+@media (max-width: 640px) {
+    nav { flex-wrap: wrap; row-gap: 10px; }
+    .logo { order: 1; }
+    .nav-actions { order: 2; margin-left: auto; gap: 8px; }
+    .nav-onglets { order: 3; width: 100%; justify-content: center; }
+    .icon-link, .panier-count a, .btn-mode-sombre { width: 32px; height: 32px; }
+}
+@media (max-width: 380px) {
+    .nav-actions { gap: 6px; }
+    .icon-link, .panier-count a, .btn-mode-sombre { width: 30px; height: 30px; }
 }
 
 /* ---------- Hero ---------- */
@@ -275,13 +293,6 @@ footer a { color: var(--couleur-accent); text-decoration: none; font-weight: 600
 /* ---------- Compteur panier + mode sombre (header) ---------- */
 .panier-count { display: flex; align-items: center; gap: 6px; }
 .panier-count span#compteur { font-size: 0.78rem; font-weight: 700; min-width: 14px; text-align: center; }
-.panier-count a, .btn-mode-sombre {
-    width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--ligne);
-    display: flex; align-items: center; justify-content: center; color: var(--ink);
-    background: none; cursor: pointer;
-}
-.panier-count a:hover, .btn-mode-sombre:hover { border-color: var(--couleur-accent); color: var(--couleur-accent); }
-.nav-actions { flex-wrap: wrap; }
 
 /* ---------- Page produit détail (panier-hybride.html) ---------- */
 .produit-detail { display: flex; gap: 40px; padding: 48px 0 60px; align-items: flex-start; }
