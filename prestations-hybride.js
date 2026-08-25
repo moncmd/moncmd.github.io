@@ -46,8 +46,9 @@ async function chargerBoutiquePrestations() {
   if (footerNom) footerNom.textContent = `2026 — ${vendeur.nom_boutique}`;
   document.title = vendeur.nom_boutique;
 
-  // Lien WhatsApp du header
-  const waHeader = document.querySelector('.icon-link');
+  // Lien WhatsApp du header (ciblage précis par href, pas par classe générique
+  // ".icon-link" qui matche aussi le bouton "Espace vendeur" sur le template hybride)
+  const waHeader = document.querySelector('a[href*="wa.me"]');
   if (waHeader) waHeader.href = `https://wa.me/${vendeur.numero_whatsapp}`;
 
   await Promise.all([
