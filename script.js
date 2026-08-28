@@ -130,6 +130,7 @@ async function chargerBoutique() {
   appliquerIdentiteVendeur(vendeur);
   afficherMotVendeur(vendeur);
   activerFonctionnalitesPremiumMarche(vendeur);
+  activerRechercheProduit(vendeur);
 
   const { data: produitsData, error: errProduits } = await supabaseClient
     .from('produits')
@@ -389,8 +390,20 @@ function activerFonctionnalitesPremiumMarche(vendeur) {
     `;
     categoriesBoutons.insertAdjacentElement('beforebegin', carteMap);
   }
+}
 
-  // Barre de recherche produit
+// Barre de recherche produit — indépendante du bundle Premium/Marché ci-dessus.
+// Activable vendeur par vendeur via vendeurs.recherche_debloquee (même principe
+// que logo_debloque), en plus des vendeurs Premium+Marché qui l'ont toujours eue.
+function activerRechercheProduit(vendeur) {
+  const debloqueeManuellement = vendeur.recherche_debloquee === true;
+  const debloqueeParFormule = vendeur.formule === 'premium' && getTemplateActif() === 'marche';
+  if (!(debloqueeManuellement || debloqueeParFormule)) return;
+
+  const categoriesBoutons = document.getElementById('categories-boutons');
+  if (!categoriesBoutons) return;
+  if (document.getElementById('recherche-produit-client')) return; // déjà ajoutée
+
   const barreRecherche = document.createElement('div');
   barreRecherche.style.cssText = 'padding:0 20px 14px;';
   barreRecherche.innerHTML = `

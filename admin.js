@@ -684,7 +684,6 @@ async function chargerProduits() {
     .from('produits')
     .select('*')
     .eq('vendeur_id', vendeurConnecte.id)
-    .eq('actif', true)
     .order('ordre', { ascending: true });
 
   produitsCache = produits || [];
@@ -759,12 +758,12 @@ function construireLigneProduit(p, avecReorder, index, totalCategorie) {
         </button>` : '';
 
   return `
-    <div class="produit-row">
+    <div class="produit-row" style="${p.actif === false ? 'opacity:0.45;' : ''}">
       ${imgSrc
         ? `<img src="${imgSrc}" class="produit-thumb" alt="${p.nom}">`
         : `<div class="produit-thumb" style="display:flex;align-items:center;justify-content:center;color:#ccc;"><i class="fa-solid fa-image"></i></div>`}
       <div class="produit-infos">
-        <strong>${p.nom}</strong>
+        <strong>${p.nom}${p.actif === false ? ' <span style="font-size:10px;font-weight:700;color:var(--couleur-accent,#e56400);border:1px solid currentColor;border-radius:6px;padding:1px 6px;vertical-align:middle;">MASQUÉ</span>' : ''}</strong>
         ${infoStock}
       </div>
       <div class="produit-actions">
@@ -779,8 +778,8 @@ function construireLigneProduit(p, avecReorder, index, totalCategorie) {
         <button class="icon-btn ${p.favori ? 'favori-actif' : ''}" title="${p.favori ? 'Retirer de la une' : 'Mettre en avant'}" onclick="basculerFavori('${p.id}', ${p.favori})">
           <i class="fa-solid fa-star"></i>
         </button>
-        <button class="icon-btn danger" title="Retirer du site" onclick="supprimerProduit('${p.id}')">
-          <i class="fa-solid fa-trash"></i>
+        <button class="icon-btn ${p.actif === false ? 'favori-actif' : ''}" title="${p.actif === false ? 'Réafficher sur le site' : 'Masquer du site'}" onclick="basculerVisibiliteProduit('${p.id}', ${p.actif !== false})">
+          <i class="fa-solid ${p.actif === false ? 'fa-eye' : 'fa-eye-slash'}"></i>
         </button>
         <button class="icon-btn" title="Créer un visuel pour Statut WhatsApp" onclick="genererStatutProduit('${p.id}')">
           <i class="fa-solid fa-camera-retro"></i>
@@ -1162,8 +1161,8 @@ async function basculerFavori(id, etatActuel) {
   await chargerProduits();
 }
 
-async function supprimerProduit(id) {
-  await supabaseClient.from('produits').update({ actif: false }).eq('id', id);
+async function basculerVisibiliteProduit(id, etatActuel) {
+  await supabaseClient.from('produits').update({ actif: !etatActuel }).eq('id', id);
   await chargerProduits();
   await chargerStats();
 }
