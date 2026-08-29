@@ -1,0 +1,544 @@
+/* ============================================
+   CMD. — Template SPORT
+   Réutilise les mêmes classes/IDs que script.js attend
+   (aucune modification de script.js nécessaire)
+   Inspiré du design "No Limit Fitness" (thème sombre, panneaux clairs)
+   ============================================ */
+
+   :root {
+    --ink: #111;
+    --bg: #000;
+    --panel: #d8d6d2;
+    --acc-rouge: #ff3d1f;
+    --acc-bleu: #3d8bff;
+    --acc-jaune: #ffd400;
+    --couleur-accent: #e56400; /* re-défini en JS selon le vendeur (prix, CTA) */
+}
+
+* { box-sizing: border-box; }
+
+#mot-vendeur {
+    margin: 14px 20px 0;
+    padding: 18px 20px;
+    background: var(--panel);
+    border-radius: 14px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--ink);
+}
+
+body {
+    font-family: "Montserrat", sans-serif;
+    background-color: var(--bg);
+    color: #fff;
+    margin: 0;
+    padding: 0;
+}
+
+/* ---------- Header ---------- */
+header {
+    background-color: var(--panel);
+    padding: 14px 20px;
+    border-radius: 0 0 16px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    top: 0; right: 0; left: 0;
+    z-index: 999;
+}
+
+.logo img {
+    border-radius: 8px;
+    height: 40px;
+    width: 40px;
+    object-fit: cover;
+}
+
+.logo h5 {
+    margin: 0;
+    font-family: "Oswald", sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--ink);
+    text-transform: uppercase;
+}
+
+nav {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+nav a {
+    text-decoration: none;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+}
+
+nav svg path { fill: var(--ink); }
+
+.panier-count {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.panier-count span#compteur {
+    background-color: var(--acc-rouge) !important;
+    padding: 4px 8px !important;
+    border-radius: 20% !important;
+    color: #fff !important;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.btn-mode-sombre { display: none; } /* le thème est déjà sombre par défaut sur cette template */
+
+/* ---------- Contenu principal ---------- */
+main {
+    padding: 110px 0 40px;
+    max-width: 560px;
+    margin: 0 auto;
+}
+
+.menu {
+    padding: 10px 20px 24px;
+    text-align: center;
+}
+
+.menu p {
+    background: var(--acc-jaune);
+    color: var(--ink);
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 14px 0;
+}
+
+.menu h1 {
+    font-family: "Oswald", sans-serif;
+    font-weight: 700;
+    font-size: 2.4rem;
+    line-height: 1;
+    text-transform: uppercase;
+    color: #fff;
+    margin: 0;
+}
+
+/* ---------- Catégories ---------- */
+.select {
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin-bottom: 0;
+    scrollbar-width: thin;
+}
+
+.selectt { flex-shrink: 0; }
+
+.selectt button {
+    padding: 9px 18px;
+    background-color: transparent;
+    color: #fff;
+    border: 1px solid #444;
+    border-radius: 30px;
+    width: auto;
+    height: auto;
+    white-space: nowrap;
+    font-family: "Montserrat", sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.selectt button:hover {
+    background-color: #222;
+    border-color: #666;
+}
+
+.selectt button.active {
+    background-color: var(--couleur-accent, var(--acc-rouge));
+    border-color: var(--couleur-accent, var(--acc-rouge));
+    color: #fff;
+}
+
+/* ---------- Sections produits (Splide) ---------- */
+.categorie-section {
+    padding: 18px 0;
+}
+
+.categorie-section .splide__track {
+    padding: 0 20px;
+}
+
+.product-card {
+    background-color: #141414;
+    border: 1px solid #262626;
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    margin: 1px;
+}
+
+.product-card img, .product-card video {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    border-radius: 10px;
+    background-color: #1e1e1e;
+    margin-bottom: 0;
+}
+
+.product-card .produit {
+    font-weight: 700;
+    font-size: 13px;
+    text-transform: uppercase;
+    color: #fff;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.product-card .prix {
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--acc-bleu);
+    margin: 0;
+}
+
+.product-card a {
+    text-decoration: none;
+    padding: 10px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: 30px;
+    transition: all 0.15s ease;
+}
+
+.product-card a:first-of-type {
+    background-color: transparent;
+    color: #fff;
+    border: 1px solid #444;
+}
+
+.product-card a:first-of-type:hover {
+    background-color: #222;
+    border-color: #666;
+}
+
+.product-card a:last-of-type {
+    background-color: var(--couleur-accent, var(--acc-rouge));
+    color: #fff;
+    border: 1px solid var(--couleur-accent, var(--acc-rouge));
+}
+
+.product-card a:last-of-type:hover {
+    opacity: 0.85;
+}
+
+.splide__list { gap: 12px; }
+
+.badge-favori {
+    position: absolute;
+    top: 8px; left: 8px;
+    background: var(--acc-rouge);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    z-index: 2;
+}
+
+.badge-stock-bas, .badge-rupture {
+    position: absolute;
+    top: 8px; right: 8px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    z-index: 2;
+}
+
+.badge-stock-bas { background: var(--acc-jaune); color: var(--ink); }
+.badge-rupture { background: #333; color: #ccc; }
+
+.attente-stock { display: flex; flex-direction: column; gap: 8px; }
+.attente-stock .input-attente-stock {
+    padding: 9px; border: 1px solid #444; border-radius: 8px; background: #1a1a1a; color: #fff;
+    font-family: "Montserrat", sans-serif; font-size: 12px;
+}
+.attente-stock .btn-attente-stock {
+    background: transparent; color: #fff; border: 1px solid #444; border-radius: 30px;
+    padding: 9px; font-weight: 700; font-size: 11px; text-transform: uppercase; cursor: pointer;
+}
+.attente-stock .btn-attente-stock:hover { background: #222; }
+.attente-message { font-size: 11px; margin: 0; color: #aaa; }
+
+/* ---------- Panier latéral (drawer) ---------- */
+#panier {
+    position: fixed; top: 0; right: -400px;
+    width: 340px; max-width: 90vw; height: 100vh;
+    background-color: #0a0a0a;
+    border-left: 1px solid #262626;
+    padding: 24px;
+    overflow-y: auto;
+    transition: right 0.3s ease;
+    z-index: 1000;
+}
+#panier.ouvert { right: 0; }
+
+.toggle {
+    margin-bottom: 14px;
+    background-color: #fff;
+    color: var(--ink);
+    border: none;
+    border-radius: 30px;
+    padding: 8px 14px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.pan {
+    display: flex; flex-direction: column; gap: 10px;
+    background-color: #141414;
+    border: 1px solid #262626;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 14px;
+}
+.pan .top { display: flex; gap: 12px; align-items: center; }
+.pan .top .image img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; }
+.pan .top .details h4 { margin: 0 0 4px; font-size: 13px; font-weight: 700; text-transform: uppercase; color: #fff; }
+.pan .top .details p { margin: 0; font-size: 12px; color: var(--acc-bleu); font-weight: 700; }
+.pan .bottom { display: flex; align-items: center; gap: 10px; }
+.pan .bottom .countt { font-weight: 700; font-size: 14px; min-width: 20px; text-align: center; color: #fff; }
+.pan .bottom button {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid #444; background: transparent; color: #fff;
+    font-weight: 700; cursor: pointer;
+}
+.pan .bottom button:hover { background: #222; }
+
+.gg {
+    text-decoration: none;
+    color: #fff;
+    background-color: var(--couleur-accent, var(--acc-rouge));
+    padding: 14px;
+    margin-top: 30px;
+    border-radius: 30px;
+    font-weight: 700;
+    text-transform: uppercase;
+    display: block;
+    text-align: center;
+}
+
+/* ---------- Avis clients (loop automatique, inchangé) ---------- */
+.avis-section {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 22px 20px 6px;
+}
+.avis-titre {
+    font-family: "Oswald", sans-serif;
+    font-weight: 700;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    margin: 0 0 14px;
+    color: #fff;
+}
+.btn-laisser-avis {
+    background: none;
+    border: 1px solid #444;
+    color: #fff;
+    border-radius: 30px;
+    padding: 9px 18px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    margin-bottom: 16px;
+}
+.formulaire-avis { background: #141414; border: 1px solid #262626; border-radius: 14px; padding: 16px; margin-bottom: 18px; }
+.formulaire-avis input, .formulaire-avis textarea {
+    width: 100%; padding: 10px; margin-bottom: 10px;
+    border: 1px solid #444; border-radius: 8px; background: #1a1a1a; color: #fff;
+    font-family: inherit; font-size: 13px; box-sizing: border-box; resize: vertical;
+}
+.etoiles-input { font-size: 22px; color: #444; margin-bottom: 10px; cursor: pointer; }
+.etoiles-input span.active { color: var(--acc-jaune); }
+.btn-envoyer-avis {
+    background: #fff; color: var(--ink); border: none; border-radius: 30px; padding: 10px 18px;
+    font-weight: 700; text-transform: uppercase; font-size: 12px; cursor: pointer;
+}
+
+.avis-marquee-wrapper {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+    mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+}
+.avis-marquee-track {
+    display: flex; gap: 10px; width: max-content;
+    animation: defiler-avis 26s linear infinite;
+    padding-bottom: 6px;
+}
+.avis-marquee-wrapper:hover .avis-marquee-track { animation-play-state: paused; }
+@keyframes defiler-avis {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+.avis-item {
+    flex: 0 0 190px;
+    background: #141414;
+    border: 1px solid #262626;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 12px;
+}
+.avis-item .avis-haut { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.avis-item .avis-nom { font-weight: 700; text-transform: uppercase; font-size: 12px; color: #fff; }
+.avis-item .avis-etoiles { color: var(--acc-jaune); font-size: 11px; }
+.avis-item .avis-texte { color: #aaa; line-height: 1.4; font-size: 12px; }
+
+/* ---------- FAQ ---------- */
+.faq-section {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 22px 20px 30px;
+}
+.faq-titre {
+    font-family: "Oswald", sans-serif;
+    font-weight: 700;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    margin: 0 0 8px;
+    color: #fff;
+}
+.faq-item { border-bottom: 1px solid #262626; }
+.faq-question {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 13px 0; font-size: 13px; font-weight: 700; text-transform: uppercase; cursor: pointer; color: #fff;
+}
+.faq-question .icone { color: var(--couleur-accent, var(--acc-rouge)); transition: transform 0.2s ease; }
+.faq-item.ouvert .icone { transform: rotate(45deg); }
+.faq-reponse {
+    max-height: 0; overflow: hidden; transition: max-height 0.3s ease;
+    font-size: 12.5px; color: #aaa; line-height: 1.5;
+}
+.faq-item.ouvert .faq-reponse { max-height: 260px; padding-bottom: 14px; }
+
+/* ---------- Footer ---------- */
+footer {
+    margin-top: 20px;
+    padding: 20px;
+    background: var(--panel);
+    color: var(--ink);
+    border-radius: 16px 16px 0 0;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: center;
+}
+footer a { color: var(--ink); text-decoration: none; font-weight: 700; }
+
+/* ---------- Page produit (panier.html) ---------- */
+.produit-detail {
+    display: flex;
+    gap: 40px;
+    padding: 130px 20px 40px;
+    max-width: 900px;
+    margin: 0 auto;
+    align-items: flex-start;
+}
+.left { flex: 1; }
+.left img, .left video {
+    width: 100%;
+    border-radius: 14px;
+    object-fit: contain;
+    background-color: #141414;
+}
+.right { flex: 1; display: flex; flex-direction: column; gap: 16px; }
+.right .nom { font-family: "Oswald", sans-serif; font-weight: 700; font-size: 1.5rem; text-transform: uppercase; color: #fff; margin: 0; }
+.right .prix { font-size: 1.2rem; font-weight: 700; color: var(--acc-bleu); margin: 0; }
+.right .description { line-height: 1.6; color: #aaa; }
+.right textarea {
+    padding: 12px; border: 1px solid #333; border-radius: 10px;
+    font-family: "Montserrat", sans-serif; font-size: 14px; resize: none; height: 90px;
+    background-color: #141414; color: #fff; width: 100%; box-sizing: border-box;
+}
+.right a {
+    background-color: var(--couleur-accent, var(--acc-rouge));
+    color: #fff; text-align: center; padding: 14px; border-radius: 30px;
+    text-decoration: none; font-weight: 700; text-transform: uppercase; font-size: 13px;
+    width: 100%; box-sizing: border-box; display: block;
+}
+@media (max-width: 768px) {
+    .produit-detail { flex-direction: column; }
+}
+
+/* ---------- Commande (commande.html) ---------- */
+.commande-layout {
+    display: flex; gap: 40px; padding: 130px 20px 40px;
+    max-width: 900px; margin: 0 auto; align-items: flex-start;
+}
+.lefft { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+.rightt { flex: 1; background-color: #141414; border: 1px solid #262626; border-radius: 14px; padding: 22px; }
+.rightt h3 { font-family: "Oswald", sans-serif; font-weight: 700; font-size: 1rem; text-transform: uppercase; color: #fff; margin: 0 0 16px; }
+.resume-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #262626; font-size: 13px; font-weight: 600; color: #fff; }
+.resume-item p { margin: 0; }
+.resume-item .commentaire { font-size: 11px; color: #888; font-weight: 400; margin-top: 3px; }
+.total { font-size: 15px; font-weight: 700; color: var(--acc-bleu); text-align: right; margin-top: 16px; }
+.paiement { display: flex; gap: 30px; justify-content: center; background-color: #141414; border: 1px solid #262626; border-radius: 14px; padding: 22px; text-align: center; }
+.paiement h4 { font-size: 13px; font-weight: 700; margin: 10px 0 6px; color: #fff; }
+.paiement img { height: 50px; border-radius: 8px; }
+.paiement p { font-size: 12px; color: var(--acc-bleu); font-weight: 700; margin: 0; }
+.form { display: flex; flex-direction: column; gap: 12px; }
+.form label { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #aaa; }
+.form input {
+    padding: 12px; border-radius: 10px; border: 1px solid #333;
+    font-family: "Montserrat", sans-serif; font-size: 14px; background-color: #141414; color: #fff; outline: none;
+}
+.form input:focus { border-color: var(--couleur-accent, var(--acc-rouge)); }
+.btn-envoyer {
+    background-color: var(--couleur-accent, var(--acc-rouge));
+    color: #fff; text-align: center; padding: 14px; border-radius: 30px;
+    text-decoration: none; font-weight: 700; text-transform: uppercase; font-size: 13px; display: block; margin-top: 6px;
+    border: none; cursor: pointer;
+}
+.menu-btn {
+    padding: 10px 18px; background: #141414; border: 1px solid #333; border-radius: 30px; color: #fff;
+    font-family: "Montserrat", sans-serif; font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.menu-btn.active { background: var(--couleur-accent, var(--acc-rouge)); border-color: var(--couleur-accent, var(--acc-rouge)); color: #fff; }
+
+@media (max-width: 768px) {
+    .commande-layout { flex-direction: column; }
+}
+
+.toast {
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+    background-color: #fff; color: var(--ink);
+    padding: 12px 22px; border-radius: 30px; font-weight: 700; font-size: 13px; z-index: 9999;
+}
+
+/* ---------- Icônes header (admin / whatsapp), cohérent avec les autres templates ---------- */
+.icon-link {
+    width: 36px; height: 36px; border-radius: 50%; border: 1px solid #999;
+    display: flex; align-items: center; justify-content: center; color: var(--ink);
+}
+.icon-link:hover { background: rgba(0,0,0,0.06); }

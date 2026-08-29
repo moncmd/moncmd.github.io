@@ -14,7 +14,7 @@ function getTemplateActif() {
   return (vendeurActuel && vendeurActuel.template) ? vendeurActuel.template.toLowerCase() : '';
 }
 
-const TEMPLATES_CONNUS = ['urbain', 'marche', 'doux', 'restaurant', 'import', 'hybride'];
+const TEMPLATES_CONNUS = ['urbain', 'marche', 'doux', 'restaurant', 'import', 'hybride', 'sport'];
 
 // Déduit le type de page (index/panier/commande) et la template actuelle
 // à partir du nom du fichier ouvert (ex: "panier-doux" -> page:"panier", template:"doux")
@@ -438,6 +438,7 @@ function filtrerProduitsClient() {
   }
 
   if (boutonsContainer) boutonsContainer.style.display = 'none';
+  injecterStyleGrillePremium(); // la recherche utilise toujours la grille, même hors Premium+Marché
 
   const resultats = produits.filter(p =>
     p.nom.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(requete)
@@ -571,8 +572,14 @@ function genererCards() {
   produitsContainer.innerHTML = '';
 
   const enGrille = vendeurActuel && vendeurActuel.formule === 'premium' && getTemplateActif() === 'marche';
+  // Desktop "vrai" uniquement (pas tablette) : les produits passent en grille qui
+  // retourne à la ligne au lieu du carrousel qui glisse — même mode que
+  // Premium+Marché, mais étendu à tous les templates/formules, desktop seulement.
+  // Le mobile/tablette garde le carrousel horizontal inchangé.
+  const modeGrilleDesktop = window.innerWidth >= 1200;
+  const afficherEnGrille = enGrille || modeGrilleDesktop;
   document.body.classList.toggle('premium-marche-large', enGrille);
-  if (enGrille) injecterStyleGrillePremium();
+  if (afficherEnGrille) injecterStyleGrillePremium();
 
   const categories = [];
   produits.forEach(p => {
@@ -621,11 +628,11 @@ function genererCards() {
       .filter(p => (p.categorie || 'general') === cat)
       .sort((a, b) => (b.favori === true) - (a.favori === true));
 
-    if (enGrille) {
-      // Premium : grille statique, tout visible d'un coup, pas de swipe nécessaire
+    if (afficherEnGrille) {
+      // Grille statique qui retourne à la ligne, tout visible d'un coup, pas de swipe nécessaire
       section.innerHTML = `<div class="grille-produits-premium">${produitsCategorie.map(construireCarteProduitClient).join('')}</div>`;
     } else {
-      // Standard/Pro : carrousel horizontal Splide, comportement inchangé
+      // Mobile/tablette : carrousel horizontal Splide, comportement inchangé
       section.innerHTML = `
         <div class="splide" role="group">
           <div class="splide__track">
@@ -643,10 +650,10 @@ function genererCards() {
     }
 
     produitsContainer.appendChild(section);
-    if (enGrille) activerAnimationsApparition(section);
+    if (afficherEnGrille) activerAnimationsApparition(section);
   });
 
-  if (!enGrille) {
+  if (!afficherEnGrille) {
     document.querySelectorAll('.splide').forEach(slider => {
       if (slider.splide) slider.splide.destroy(true);
       const nbSlides = slider.querySelectorAll('.splide__slide').length;
