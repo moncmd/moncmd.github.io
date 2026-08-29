@@ -141,6 +141,7 @@ async function chargerBoutique() {
 
   if (errProduits) {
     console.error('Erreur chargement produits :', errProduits);
+    cacherEcranChargement(debutChargement);
     return;
   }
 
@@ -156,10 +157,15 @@ async function chargerBoutique() {
   remplirPaiement();
   chargerFAQ();
   chargerAvis();
-  cacherEcranChargement(debutChargement);
 
-  if (typeof afficherProduitDetail === 'function') afficherProduitDetail();
+  // Ces deux fonctions (définies dans panier.js / commande.js selon la page)
+  // doivent être terminées AVANT de cacher l'écran de chargement, sinon on
+  // voit passer une fraction de seconde l'état "par défaut" (champ commentaire,
+  // couleur non appliquée...) avant le bon rendu final.
+  if (typeof afficherProduitDetail === 'function') await afficherProduitDetail();
   if (typeof afficherResume === 'function') afficherResume();
+
+  cacherEcranChargement(debutChargement);
 }
 
 // Fait disparaître l'écran de chargement en fondu

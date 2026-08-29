@@ -1,6 +1,6 @@
 // Affiche le détail d'un produit (page panier.html?id=...)
 // Appelée automatiquement une fois que chargerBoutique() a fini de charger les produits
-function afficherProduitDetail() {
+async function afficherProduitDetail() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get('id'); // UUID Supabase, pas un nombre — pas de parseInt ici
 
@@ -26,8 +26,11 @@ function afficherProduitDetail() {
   // Masquer le champ commentaire et afficher les avis clients à la place —
   // activable vendeur par vendeur via vendeurs.masquer_commentaire_produit
   // (demande spécifique de Global Finds, ne touche pas aux autres vendeurs import).
+  // "await" ici est important : script.js attend la fin de cette fonction avant
+  // de cacher l'écran de chargement, pour ne jamais laisser voir le commentaire
+  // par défaut une fraction de seconde avant qu'il soit remplacé par les avis.
   if (vendeurActuel && vendeurActuel.masquer_commentaire_produit === true) {
-    afficherAvisAuLieuDuCommentaire();
+    await afficherAvisAuLieuDuCommentaire();
   }
 }
 
