@@ -1,4 +1,4 @@
-// ============================================
+ù// ============================================
 // CMD. — script.js (version Supabase multi-vendeur)
 // ============================================
 
@@ -491,12 +491,13 @@ function injecterStyleGrillePremium() {
   const style = document.createElement('style');
   style.id = 'style-grille-premium';
   style.textContent = `
-    /* Sur desktop, le marché premium utilise toute la largeur disponible pour
+    /* Sur desktop, le mode grille (Premium+Marché, ou tout vendeur en mode
+       grille desktop générique) utilise toute la largeur disponible pour
        la grille produits, au lieu de rester coincé dans la colonne mobile-first
        de 560px — le titre/intro reste dans une largeur de lecture agréable. */
-    body.premium-marche-large main { max-width: 1200px; }
-    body.premium-marche-large .menu,
-    body.premium-marche-large #mot-vendeur {
+    body.grille-large main { max-width: 1200px; }
+    body.grille-large .menu,
+    body.grille-large #mot-vendeur {
       max-width: 560px; margin-left: auto; margin-right: auto;
     }
 
@@ -579,6 +580,7 @@ function genererCards() {
   const modeGrilleDesktop = window.innerWidth >= 1200;
   const afficherEnGrille = enGrille || modeGrilleDesktop;
   document.body.classList.toggle('premium-marche-large', enGrille);
+  document.body.classList.toggle('grille-large', afficherEnGrille);
   if (afficherEnGrille) injecterStyleGrillePremium();
 
   const categories = [];
