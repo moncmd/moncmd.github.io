@@ -6,7 +6,7 @@
    :root {
     --ink: #1a1a1a;
     --bg: #fff;
-    --acc: #00a86b;
+    --acc: #001f42;
     --acc2: #ffb100;
     --line: #eee;
     --couleur-accent: #e56400; /* re-défini en JS selon le vendeur (prix, CTA) */
