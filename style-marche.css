@@ -125,8 +125,13 @@ main {
     overflow-x: visible;
 }
 #categories-boutons.rayons .selectt { flex-shrink: initial; }
-.tuile-rayon {
+/* Scopé sous #categories-boutons.rayons (spécificité ID + 2 classes) pour
+   passer devant ".selectt button" (classe + élément) qui, sinon, réimpose
+   son white-space:nowrap / border-radius:999px / width:auto par-dessus —
+   c'est exactement ce qui faisait déborder et se chevaucher les tuiles. */
+#categories-boutons.rayons .tuile-rayon {
     width: 100%;
+    height: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -135,6 +140,7 @@ main {
     background-color: #f6f6f6;
     border: none;
     border-radius: 16px;
+    white-space: normal;
     font-family: "Inter", sans-serif;
     font-weight: 600;
     font-size: 11.5px;
@@ -144,8 +150,8 @@ main {
     cursor: pointer;
     transition: all 0.15s ease;
 }
-.tuile-rayon:hover { background-color: #eee; }
-.tuile-rayon .tuile-rayon-icone {
+#categories-boutons.rayons .tuile-rayon:hover { background-color: #eee; }
+#categories-boutons.rayons .tuile-rayon .tuile-rayon-icone {
     width: 42px; height: 42px;
     display: flex; align-items: center; justify-content: center;
     border-radius: 50%;
@@ -153,8 +159,9 @@ main {
     font-size: 17px;
     color: var(--acc);
 }
-.tuile-rayon.active { background-color: var(--ink); color: #fff; }
-.tuile-rayon.active .tuile-rayon-icone { background-color: var(--acc); color: #fff; }
+#categories-boutons.rayons .tuile-rayon.active { background-color: var(--ink); color: #fff; }
+#categories-boutons.rayons .tuile-rayon.active .tuile-rayon-icone { background-color: var(--acc); color: #fff; }
+
 
 /* ---------- Sections produits (Splide) ---------- */
 .categorie-section { padding: 6px 0 20px; }
