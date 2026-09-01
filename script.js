@@ -572,6 +572,13 @@ function genererCards() {
   boutonsContainer.innerHTML = '';
   produitsContainer.innerHTML = '';
 
+  // Template marché : la rangée de catégories devient une grille de tuiles
+  // (icône + nom), sur tous les vendeurs marché quelle que soit la formule —
+  // à ne pas confondre avec "enGrille" plus bas, qui ne concerne que les
+  // produits et reste exclusif Premium.
+  const rayonsEnTuiles = getTemplateActif() === 'marche';
+  boutonsContainer.classList.toggle('rayons', rayonsEnTuiles);
+
   const enGrille = vendeurActuel && vendeurActuel.formule === 'premium' && getTemplateActif() === 'marche';
   // Desktop "vrai" uniquement (pas tablette) : les produits passent en grille qui
   // retourne à la ligne au lieu du carrousel qui glisse — même mode que
@@ -615,8 +622,17 @@ function genererCards() {
   categories.forEach((cat, index) => {
     const div = document.createElement('div');
     div.classList.add('selectt');
-    const prefixeIcone = enGrille ? iconePourCategorie(cat) + ' ' : '';
-    div.innerHTML = `<button class="menu-btn${index === 0 ? ' active' : ''}" data-cat="${cat}" onclick="afficherCategorie('${cat}', this)">${prefixeIcone}${formaterNomCategorie(cat)}</button>`;
+    if (rayonsEnTuiles) {
+      // Template marché : grille de tuiles (icône + nom empilés), inspirée
+      // de dialy.sn, au lieu des boutons-pilules classiques.
+      div.innerHTML = `<button class="menu-btn tuile-rayon${index === 0 ? ' active' : ''}" data-cat="${cat}" onclick="afficherCategorie('${cat}', this)">
+        <span class="tuile-rayon-icone">${iconePourCategorie(cat)}</span>
+        ${formaterNomCategorie(cat)}
+      </button>`;
+    } else {
+      const prefixeIcone = enGrille ? iconePourCategorie(cat) + ' ' : '';
+      div.innerHTML = `<button class="menu-btn${index === 0 ? ' active' : ''}" data-cat="${cat}" onclick="afficherCategorie('${cat}', this)">${prefixeIcone}${formaterNomCategorie(cat)}</button>`;
+    }
     boutonsContainer.appendChild(div);
   });
 

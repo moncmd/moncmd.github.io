@@ -117,6 +117,45 @@ main {
 .selectt button:hover { background-color: #e9e9e9; }
 .selectt button.active { background-color: var(--ink); color: #fff; }
 
+/* ---------- Rayons en tuiles (grille de catégories, inspiré de dialy.sn) ---------- */
+#categories-boutons.rayons {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: 14px;
+    overflow-x: visible;
+}
+#categories-boutons.rayons .selectt { flex-shrink: initial; }
+.tuile-rayon {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 6px 10px;
+    background-color: #f6f6f6;
+    border: none;
+    border-radius: 16px;
+    font-family: "Inter", sans-serif;
+    font-weight: 600;
+    font-size: 11.5px;
+    line-height: 1.25;
+    text-align: center;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.tuile-rayon:hover { background-color: #eee; }
+.tuile-rayon .tuile-rayon-icone {
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background-color: #fff;
+    font-size: 17px;
+    color: var(--acc);
+}
+.tuile-rayon.active { background-color: var(--ink); color: #fff; }
+.tuile-rayon.active .tuile-rayon-icone { background-color: var(--acc); color: #fff; }
+
 /* ---------- Sections produits (Splide) ---------- */
 .categorie-section { padding: 6px 0 20px; }
 .categorie-section .splide__track { padding: 0 20px; }
