@@ -495,10 +495,17 @@ function injecterStyleGrillePremium() {
        grille desktop générique) utilise toute la largeur disponible pour
        la grille produits, au lieu de rester coincé dans la colonne mobile-first
        de 560px — le titre/intro reste dans une largeur de lecture agréable. */
-    body.grille-large main { max-width: 1200px; }
-    body.grille-large .menu,
-    body.grille-large #mot-vendeur {
-      max-width: 560px; margin-left: auto; margin-right: auto;
+    /* Limité à un vrai desktop (min-width) : sur mobile/tablette, l'élément
+       occupe déjà toute la largeur disponible, donc margin:auto n'a plus rien
+       à centrer et retombe à 0 — ce qui annule visuellement la marge de 20px
+       du CSS de base. Concernait tout vendeur Premium+Marché, pas seulement
+       le nouveau mode grille desktop générique. */
+    @media (min-width: 600px) {
+      body.grille-large main { max-width: 1200px; }
+      body.grille-large .menu,
+      body.grille-large #mot-vendeur {
+        max-width: 560px; margin-left: auto; margin-right: auto;
+      }
     }
 
     .grille-produits-premium { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; padding: 0 20px; }
