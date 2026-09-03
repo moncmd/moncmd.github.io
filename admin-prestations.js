@@ -130,7 +130,7 @@ async function chargerPrestations() {
   liste.innerHTML = prestationsCache.map((p, index) => `
     <div class="row">
       <img class="row-thumb" src="${p.image_url || ''}">
-      <div class="row-infos"><strong>${p.nom}</strong><span class="sub">${p.categorie ? p.categorie + ' · ' : ''}${p.prix.toLocaleString('fr-FR')} FCFA · ${p.duree_minutes} min</span></div>
+      <div class="row-infos"><strong>${echapperHTML(p.nom)}</strong><span class="sub">${p.categorie ? echapperHTML(p.categorie) + ' · ' : ''}${p.prix.toLocaleString('fr-FR')} FCFA · ${p.duree_minutes} min</span></div>
       <div class="row-actions">
         <button class="icon-btn" ${index === 0 ? 'disabled style="opacity:0.3;"' : ''} onclick="deplacerPrestation('${p.id}', -1)"><i class="fa-solid fa-arrow-up"></i></button>
         <button class="icon-btn" ${index === prestationsCache.length - 1 ? 'disabled style="opacity:0.3;"' : ''} onclick="deplacerPrestation('${p.id}', 1)"><i class="fa-solid fa-arrow-down"></i></button>
@@ -149,7 +149,7 @@ async function chargerPrestations() {
   const selectRdvPrestation = document.getElementById('manuel-rdv-prestation');
   if (selectRdvPrestation) {
     selectRdvPrestation.innerHTML = '<option value="">Choisir une prestation</option>' +
-      prestationsCache.map(p => `<option value="${p.id}">${p.nom} (${p.duree_minutes} min)</option>`).join('');
+      prestationsCache.map(p => `<option value="${p.id}">${echapperHTML(p.nom)} (${p.duree_minutes} min)</option>`).join('');
   }
 }
 
@@ -344,20 +344,20 @@ async function chargerPersonnel() {
   const conteneurPersonnel = document.getElementById('nouveau-presta-personnel');
   if (conteneurPersonnel) {
     conteneurPersonnel.innerHTML = personnelCache.length
-      ? personnelCache.map(p => `<span class="staff-pill" data-id="${p.id}" onclick="this.classList.toggle('actif')">${p.nom}</span>`).join('')
+      ? personnelCache.map(p => `<span class="staff-pill" data-id="${p.id}" onclick="this.classList.toggle('actif')">${echapperHTML(p.nom)}</span>`).join('')
       : '<p class="empty-state" style="padding:2px 0;">Ajoutez d\'abord des membres dans l\'onglet Équipe.</p>';
   }
 
   const selectBlocage = document.getElementById('blocage-personnel');
   if (selectBlocage) {
     selectBlocage.innerHTML = '<option value="">Toute l\'équipe</option>' +
-      personnelCache.map(p => `<option value="${p.id}">${p.nom}</option>`).join('');
+      personnelCache.map(p => `<option value="${p.id}">${echapperHTML(p.nom)}</option>`).join('');
   }
 
   const selectRdvPersonnel = document.getElementById('manuel-rdv-personnel');
   if (selectRdvPersonnel) {
     selectRdvPersonnel.innerHTML = '<option value="">Toute l\'équipe / peu importe</option>' +
-      personnelCache.map(p => `<option value="${p.id}">${p.nom}</option>`).join('');
+      personnelCache.map(p => `<option value="${p.id}">${echapperHTML(p.nom)}</option>`).join('');
   }
 
   if (!personnelCache.length) {
@@ -368,7 +368,7 @@ async function chargerPersonnel() {
   liste.innerHTML = personnelCache.map(p => `
     <div class="row">
       <img class="row-thumb" style="border-radius:50%;" src="${p.photo_url || ''}">
-      <div class="row-infos"><strong>${p.nom}</strong><span class="sub">Membre de l'équipe</span></div>
+      <div class="row-infos"><strong>${echapperHTML(p.nom)}</strong><span class="sub">Membre de l'équipe</span></div>
       <div class="row-actions">
         <button class="icon-btn" onclick="ouvrirEditionPersonnel('${p.id}')"><i class="fa-solid fa-pen"></i></button>
         <button class="icon-btn danger" onclick="supprimerPersonnel('${p.id}')"><i class="fa-solid fa-trash"></i></button>
@@ -596,7 +596,7 @@ async function chargerBlocagesHoraires() {
     <div class="row">
       <div class="row-infos">
         <strong>${b.date} · ${b.heure_debut.slice(0,5)} - ${b.heure_fin.slice(0,5)}</strong>
-        <span class="sub">${b.personnel ? b.personnel.nom : "Toute l'équipe"}</span>
+        <span class="sub">${b.personnel ? echapperHTML(b.personnel.nom) : "Toute l'équipe"}</span>
       </div>
       <div class="row-actions"><button class="icon-btn danger" onclick="supprimerBlocageHoraire('${b.id}')"><i class="fa-solid fa-trash"></i></button></div>
     </div>`).join('');
@@ -701,8 +701,8 @@ async function chargerAvisAModerer() {
     ? '<p class="empty-state">Aucun avis en attente.</p>'
     : enAttente.map(a => `
         <div class="row" style="flex-direction:column;align-items:flex-start;">
-          <strong>${a.nom_client}</strong> — ${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}
-          <small style="color:#999;">${a.commentaire || ''}</small>
+          <strong>${echapperHTML(a.nom_client)}</strong> — ${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}
+          <small style="color:#999;">${echapperHTML(a.commentaire)}</small>
           <div style="margin-top:8px;display:flex;gap:8px;">
             <button class="admin-btn" style="width:auto;padding:8px 14px;" onclick="modererAvis('${a.id}','approuve')">Approuver</button>
             <button class="admin-btn secondaire" style="width:auto;padding:8px 14px;" onclick="modererAvis('${a.id}','rejete')">Rejeter</button>
@@ -713,8 +713,8 @@ async function chargerAvisAModerer() {
     ? '<p class="empty-state">Aucun avis publié pour le moment.</p>'
     : approuves.map(a => `
         <div class="row" style="flex-direction:column;align-items:flex-start;">
-          <strong>${a.nom_client}</strong> — ${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}
-          <small style="color:#999;">${a.commentaire || ''}</small>
+          <strong>${echapperHTML(a.nom_client)}</strong> — ${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}
+          <small style="color:#999;">${echapperHTML(a.commentaire)}</small>
         </div>`).join('');
 }
 
@@ -737,7 +737,7 @@ async function chargerFAQAdmin() {
 
   liste.innerHTML = faqs.map(f => `
     <div class="row">
-      <div class="row-infos"><strong>${f.question}</strong><span class="sub">${f.reponse}</span></div>
+      <div class="row-infos"><strong>${echapperHTML(f.question)}</strong><span class="sub">${echapperHTML(f.reponse)}</span></div>
       <div class="row-actions"><button class="icon-btn danger" onclick="supprimerFAQ('${f.id}')"><i class="fa-solid fa-trash"></i></button></div>
     </div>`).join('');
 }
@@ -904,8 +904,8 @@ async function chargerDernieresDemandes() {
   container.innerHTML = data.map(r => `
     <div class="row">
       <div class="row-infos">
-        <strong>${r.nom_client || 'Client'}</strong>
-        <span class="sub">${r.prestations ? r.prestations.nom : ''} — ${r.personnel ? r.personnel.nom : "N'importe qui"}</span>
+        <strong>${echapperHTML(r.nom_client) || 'Client'}</strong>
+        <span class="sub">${r.prestations ? echapperHTML(r.prestations.nom) : ''} — ${r.personnel ? echapperHTML(r.personnel.nom) : "N'importe qui"}</span>
       </div>
       <span class="badge">${r.date}</span>
     </div>`).join('');
@@ -924,7 +924,7 @@ async function chargerAgenda() {
 
   if (error) {
     console.error('Erreur chargement agenda :', error);
-    conteneur.innerHTML = `<p class="empty-state" style="color:#e00;">Erreur de chargement (${error.message}). Ouvre la console (F12) pour le détail.</p>`;
+    conteneur.innerHTML = `<p class="empty-state" style="color:#e00;">Erreur de chargement (${echapperHTML(error.message)}). Ouvre la console (F12) pour le détail.</p>`;
     return;
   }
 
@@ -1014,11 +1014,11 @@ function ouvrirModalEditionRdv(event) {
   document.getElementById('edition-rdv-client').textContent = p.nomClient + (p.numero ? ' · ' + p.numero : '');
 
   const selectPresta = document.getElementById('edition-rdv-prestation');
-  selectPresta.innerHTML = prestationsCache.map(pr => `<option value="${pr.id}">${pr.nom}</option>`).join('');
+  selectPresta.innerHTML = prestationsCache.map(pr => `<option value="${pr.id}">${echapperHTML(pr.nom)}</option>`).join('');
   selectPresta.value = p.prestationId;
 
   const selectPerso = document.getElementById('edition-rdv-personnel');
-  selectPerso.innerHTML = '<option value="">N\'importe qui</option>' + personnelCache.map(pe => `<option value="${pe.id}">${pe.nom}</option>`).join('');
+  selectPerso.innerHTML = '<option value="">N\'importe qui</option>' + personnelCache.map(pe => `<option value="${pe.id}">${echapperHTML(pe.nom)}</option>`).join('');
   selectPerso.value = p.personnelId || '';
 
   document.getElementById('edition-rdv-date').value = p.date;
@@ -1241,8 +1241,8 @@ async function chargerListeAttenteStock() {
   conteneur.innerHTML = attente.map(a => `
     <div class="produit-row">
       <div class="produit-infos">
-        <strong>${a.produits ? a.produits.nom : 'Produit'}</strong>
-        <span class="prix">${a.numero_client}</span>
+        <strong>${a.produits ? echapperHTML(a.produits.nom) : 'Produit'}</strong>
+        <span class="prix">${echapperHTML(a.numero_client)}</span>
       </div>
       <div class="produit-actions">
         <a href="https://wa.me/${a.numero_client.replace(/\D/g,'')}?text=Bonjour, le produit que vous attendiez est de nouveau disponible !" target="_blank" class="icon-btn" title="Contacter sur WhatsApp">
@@ -1328,8 +1328,8 @@ function construireLigneProduit(p, avecReorder, index, totalCategorie) {
   const imgSrc = p.image_url || '';
   const estPro = auMoins('pro');
   const infoStock = estPro
-    ? `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie} · Stock : ${p.quantite_stock === null || p.quantite_stock === undefined ? 'illimité' : p.quantite_stock}</span>`
-    : `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie}</span>`;
+    ? `<span class="prix">${p.prix.toLocaleString()} FCFA · ${echapperHTML(p.categorie)} · Stock : ${p.quantite_stock === null || p.quantite_stock === undefined ? 'illimité' : p.quantite_stock}</span>`
+    : `<span class="prix">${p.prix.toLocaleString()} FCFA · ${echapperHTML(p.categorie)}</span>`;
 
   const boutonsReorder = avecReorder ? `
         <button class="icon-btn" ${index === 0 ? 'disabled style="opacity:0.3;"' : ''} title="Monter dans cette catégorie" onclick="deplacerProduit('${p.id}', -1)">
@@ -1342,10 +1342,10 @@ function construireLigneProduit(p, avecReorder, index, totalCategorie) {
   return `
     <div class="produit-row" style="${p.actif === false ? 'opacity:0.45;' : ''}">
       ${imgSrc
-        ? `<img src="${imgSrc}" class="produit-thumb" alt="${p.nom}">`
+        ? `<img src="${imgSrc}" class="produit-thumb" alt="${echapperHTML(p.nom)}">`
         : `<div class="produit-thumb" style="display:flex;align-items:center;justify-content:center;color:#ccc;"><i class="fa-solid fa-image"></i></div>`}
       <div class="produit-infos">
-        <strong>${p.nom}${p.actif === false ? ' <span style="font-size:10px;font-weight:700;color:var(--couleur-accent,#e56400);border:1px solid currentColor;border-radius:6px;padding:1px 6px;vertical-align:middle;">MASQUÉ</span>' : ''}</strong>
+        <strong>${echapperHTML(p.nom)}${p.actif === false ? ' <span style="font-size:10px;font-weight:700;color:var(--couleur-accent,#e56400);border:1px solid currentColor;border-radius:6px;padding:1px 6px;vertical-align:middle;">MASQUÉ</span>' : ''}</strong>
         ${infoStock}
       </div>
       <div class="produit-actions">

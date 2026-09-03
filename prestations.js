@@ -109,8 +109,8 @@ async function chargerPrestations(vendeurId) {
     el.className = 'presta';
     el.dataset.categorie = p.categorie || '';
     el.innerHTML = `
-      ${p.image_url ? `<div class="ph"><img src="${p.image_url}" alt="${p.nom}" style="width:100%;height:100%;object-fit:cover;"></div>` : ''}
-      <div class="name">${p.nom}</div>
+      ${p.image_url ? `<div class="ph"><img src="${p.image_url}" alt="${echapperHTML(p.nom)}" style="width:100%;height:100%;object-fit:cover;"></div>` : ''}
+      <div class="name">${echapperHTML(p.nom)}</div>
       <div class="price">${p.prix.toLocaleString('fr-FR')} FCFA</div>
       <span class="mini-book">Réserver →</span>
     `;
@@ -211,7 +211,7 @@ function creerStaffItem(id, nom, sousTitre, photoUrl) {
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:12px;">
       <div class="staff-avatar"${styleAvatar}></div>
-      <div><div class="n">${nom}</div><div class="r">${sousTitre}</div></div>
+      <div><div class="n">${echapperHTML(nom)}</div><div class="r">${echapperHTML(sousTitre)}</div></div>
     </div>
   `;
   el.addEventListener('click', () => chooseStaff(id, nom));
@@ -264,8 +264,8 @@ async function chargerFAQ(vendeurId) {
 
   conteneur.innerHTML = faqs.map((f, i) => `
     <details${i === 0 ? ' open' : ''}>
-      <summary><span>${f.question}</span></summary>
-      <p>${f.reponse}</p>
+      <summary><span>${echapperHTML(f.question)}</span></summary>
+      <p>${echapperHTML(f.reponse)}</p>
     </details>
   `).join('');
 }
@@ -296,8 +296,8 @@ async function chargerAvisPrestations(vendeurId, formule) {
   const carte = (a) => `
     <div class="rev">
       <div class="stars">${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}</div>
-      <p>${a.commentaire || ''}</p>
-      <div class="who">${a.nom_client || 'Client'}</div>
+      <p>${echapperHTML(a.commentaire)}</p>
+      <div class="who">${echapperHTML(a.nom_client) || 'Client'}</div>
     </div>
   `;
   // Doublé pour un défilement infini fluide
@@ -427,7 +427,7 @@ function remplirServiceList(){
   prestationsDisponibles.forEach(p => {
     const el = document.createElement('div');
     el.className = 'service-row';
-    el.innerHTML = `<span>${p.nom}${p.prix_variable ? ' <span style="opacity:0.5;font-size:0.75em;">(± modèle)</span>' : ''}</span><span class="p">${p.prix.toLocaleString('fr-FR')} FCFA</span>`;
+    el.innerHTML = `<span>${echapperHTML(p.nom)}${p.prix_variable ? ' <span style="opacity:0.5;font-size:0.75em;">(± modèle)</span>' : ''}</span><span class="p">${p.prix.toLocaleString('fr-FR')} FCFA</span>`;
     el.addEventListener('click', () => {
       ajouterServiceEtAfficherRecap(p, booking.staffId, booking.staffNom);
       goStep(2);

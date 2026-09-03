@@ -267,10 +267,10 @@ async function chargerFAQ() {
   conteneur.innerHTML = faqs.map((f, i) => `
     <div class="faq-item" id="faq-item-${i}">
       <div class="faq-question" onclick="toggleFAQ(${i})">
-        <span>${f.question}</span>
+        <span>${echapperHTML(f.question)}</span>
         <span class="icone">+</span>
       </div>
-      <div class="faq-reponse">${f.reponse}</div>
+      <div class="faq-reponse">${echapperHTML(f.reponse)}</div>
     </div>
   `).join('');
 }
@@ -363,10 +363,10 @@ async function chargerAvis() {
   const html = avis.map(a => `
     <div class="avis-item">
       <div class="avis-haut">
-        <span class="avis-nom">${a.nom_client}</span>
+        <span class="avis-nom">${echapperHTML(a.nom_client)}</span>
         <span class="avis-etoiles">${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}</span>
       </div>
-      <p class="avis-texte">${a.commentaire || ''}</p>
+      <p class="avis-texte">${echapperHTML(a.commentaire)}</p>
     </div>
   `).join('');
 
@@ -392,7 +392,7 @@ function activerFonctionnalitesPremiumMarche(vendeur) {
         loading="lazy"
         referrerpolicy="no-referrer-when-downgrade">
       </iframe>
-      <p style="font-size:12px; color:#999; margin-top:6px;">📍 ${vendeur.adresse}</p>
+      <p style="font-size:12px; color:#999; margin-top:6px;">📍 ${echapperHTML(vendeur.adresse)}</p>
     `;
     categoriesBoutons.insertAdjacentElement('beforebegin', carteMap);
   }
@@ -475,8 +475,8 @@ function construireCarteProduitClient(produit) {
         ${rupture ? '<span class="badge-rupture">Rupture de stock</span>' : (stockBas ? `<span class="badge-stock-bas">Il en reste ${produit.quantite_stock} !</span>` : '')}
         ${produit.video_url
           ? `<video src="${produit.video_url}" muted loop playsinline autoplay onmouseover="this.play()" onclick="this.paused ? this.play() : this.pause()"></video>`
-          : `<img src="${produit.image_url}" alt="${produit.nom}">`}
-        <p class="produit">${produit.nom}</p>
+          : `<img src="${produit.image_url}" alt="${echapperHTML(produit.nom)}">`}
+        <p class="produit">${echapperHTML(produit.nom)}</p>
         <p class="prix">${produit.prix} FCFA</p>
         ${blocAction}
     </div>

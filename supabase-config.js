@@ -49,3 +49,19 @@ function nettoyerNomFichier(nom) {
 
   return extensionNettoyee ? `${baseNettoyee}.${extensionNettoyee}` : baseNettoyee;
 }
+
+// Échappe le HTML avant d'insérer du texte saisi par un client ou un vendeur
+// (nom, commentaire, adresse, avis...) dans du innerHTML. Sans ça, n'importe
+// qui peut soumettre un avis ou une commande avec un nom du type
+// "<img src=x onerror=...>" qui s'exécute ensuite dans le navigateur de tous
+// les visiteurs ET dans l'admin du vendeur (XSS stocké). TOUJOURS utiliser
+// cette fonction pour toute donnée venant de la base et affichée en innerHTML.
+function echapperHTML(texte) {
+  if (texte === null || texte === undefined) return '';
+  return String(texte)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}

@@ -80,8 +80,8 @@ async function chargerFAQAdmin() {
     liste.innerHTML += `
       <div class="produit-row">
         <div class="produit-infos">
-          <strong>${f.question}</strong>
-          <span class="prix">${f.reponse}</span>
+          <strong>${echapperHTML(f.question)}</strong>
+          <span class="prix">${echapperHTML(f.reponse)}</span>
         </div>
         <div class="produit-actions">
           <button class="icon-btn danger" onclick="supprimerFAQ('${f.id}')">
@@ -117,8 +117,8 @@ async function chargerAvisAModerer() {
     ? '<p class="empty-state">Aucun avis en attente.</p>'
     : enAttente.map(a => `
         <div class="commande-row">
-          <strong>${a.nom_client}</strong> — ${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}
-          <br><small style="color:#999;">${a.commentaire || ''}</small>
+          <strong>${echapperHTML(a.nom_client)}</strong> — ${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}
+          <br><small style="color:#999;">${echapperHTML(a.commentaire)}</small>
           <div style="margin-top:8px; display:flex; gap:8px;">
             <button class="admin-btn" style="width:auto; padding:8px 14px;" onclick="modererAvis('${a.id}', 'approuve')">Approuver</button>
             <button class="admin-btn secondaire" style="width:auto; padding:8px 14px;" onclick="modererAvis('${a.id}', 'rejete')">Rejeter</button>
@@ -130,8 +130,8 @@ async function chargerAvisAModerer() {
       ? '<p class="empty-state">Aucun avis publié pour le moment.</p>'
       : approuves.map(a => `
           <div class="commande-row">
-            <strong>${a.nom_client}</strong> — ${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}
-            <br><small style="color:#999;">${a.commentaire || ''}</small>
+            <strong>${echapperHTML(a.nom_client)}</strong> — ${'★'.repeat(a.note)}${'☆'.repeat(5 - a.note)}
+            <br><small style="color:#999;">${echapperHTML(a.commentaire)}</small>
             <div style="margin-top:8px;">
               <button class="admin-btn secondaire" style="width:auto; padding:6px 12px; font-size:12px;" onclick="modererAvis('${a.id}', 'rejete')">Dépublier</button>
             </div>
@@ -286,7 +286,7 @@ async function chargerClientsAdmin() {
 
   if (error) {
     console.error('Erreur chargement clients :', error);
-    conteneur.innerHTML = `<p class="empty-state" style="color:#e00;">Erreur de chargement (${error.message}).</p>`;
+    conteneur.innerHTML = `<p class="empty-state" style="color:#e00;">Erreur de chargement (${echapperHTML(error.message)}).</p>`;
     return;
   }
 
@@ -342,11 +342,11 @@ function renderListeClients(clients) {
     return `
       <div class="row">
         <div class="row-infos">
-          <strong>${c.nom}${fidele ? ' ⭐' : ''}</strong>
+          <strong>${echapperHTML(c.nom)}${fidele ? ' ⭐' : ''}</strong>
           <span class="sub">${c.nbCommandes} commande${c.nbCommandes > 1 ? 's' : ''} · ${c.total.toLocaleString('fr-FR')} FCFA · dernière ${texteDerniere}</span>
-          ${c.numero ? `<span class="sub" style="display:block;">${c.numero}</span>` : ''}
+          ${c.numero ? `<span class="sub" style="display:block;">${echapperHTML(c.numero)}</span>` : ''}
         </div>
-        ${c.numero ? `<a href="https://wa.me/${c.numero}" target="_blank" class="icon-btn"><i class="fa-brands fa-whatsapp"></i></a>` : ''}
+        ${c.numero ? `<a href="https://wa.me/${echapperHTML(c.numero)}" target="_blank" class="icon-btn"><i class="fa-brands fa-whatsapp"></i></a>` : ''}
       </div>
     `;
   }).join('');
@@ -441,8 +441,8 @@ async function chargerListeAttenteStock() {
   conteneur.innerHTML = attente.map(a => `
     <div class="produit-row">
       <div class="produit-infos">
-        <strong>${a.produits ? a.produits.nom : 'Produit'}</strong>
-        <span class="prix">${a.numero_client}</span>
+        <strong>${a.produits ? echapperHTML(a.produits.nom) : 'Produit'}</strong>
+        <span class="prix">${echapperHTML(a.numero_client)}</span>
       </div>
       <div class="produit-actions">
         <a href="https://wa.me/${a.numero_client.replace(/\D/g,'')}?text=Bonjour, le produit que vous attendiez est de nouveau disponible !" target="_blank" class="icon-btn" title="Contacter sur WhatsApp">
@@ -746,8 +746,8 @@ function construireLigneProduit(p, avecReorder, index, totalCategorie) {
   const imgSrc = p.image_url || '';
   const estPro = auMoins('pro');
   const infoStock = estPro
-    ? `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie} · Stock : ${p.quantite_stock === null || p.quantite_stock === undefined ? 'illimité' : p.quantite_stock}</span>`
-    : `<span class="prix">${p.prix.toLocaleString()} FCFA · ${p.categorie}</span>`;
+    ? `<span class="prix">${p.prix.toLocaleString()} FCFA · ${echapperHTML(p.categorie)} · Stock : ${p.quantite_stock === null || p.quantite_stock === undefined ? 'illimité' : p.quantite_stock}</span>`
+    : `<span class="prix">${p.prix.toLocaleString()} FCFA · ${echapperHTML(p.categorie)}</span>`;
 
   const boutonsReorder = avecReorder ? `
         <button class="icon-btn" ${index === 0 ? 'disabled style="opacity:0.3;"' : ''} title="Monter dans cette catégorie" onclick="deplacerProduit('${p.id}', -1)">
@@ -760,10 +760,10 @@ function construireLigneProduit(p, avecReorder, index, totalCategorie) {
   return `
     <div class="produit-row" style="${p.actif === false ? 'opacity:0.45;' : ''}">
       ${imgSrc
-        ? `<img src="${imgSrc}" class="produit-thumb" alt="${p.nom}">`
+        ? `<img src="${imgSrc}" class="produit-thumb" alt="${echapperHTML(p.nom)}">`
         : `<div class="produit-thumb" style="display:flex;align-items:center;justify-content:center;color:#ccc;"><i class="fa-solid fa-image"></i></div>`}
       <div class="produit-infos">
-        <strong>${p.nom}${p.actif === false ? ' <span style="font-size:10px;font-weight:700;color:var(--couleur-accent,#e56400);border:1px solid currentColor;border-radius:6px;padding:1px 6px;vertical-align:middle;">MASQUÉ</span>' : ''}</strong>
+        <strong>${echapperHTML(p.nom)}${p.actif === false ? ' <span style="font-size:10px;font-weight:700;color:var(--couleur-accent,#e56400);border:1px solid currentColor;border-radius:6px;padding:1px 6px;vertical-align:middle;">MASQUÉ</span>' : ''}</strong>
         ${infoStock}
       </div>
       <div class="produit-actions">
@@ -1212,9 +1212,9 @@ function afficherListeCommandes(commandes, idConteneur) {
     liste.innerHTML += `
       <div class="commande-row">
         ${checkbox}<span class="total">${c.total.toLocaleString()} FCFA</span>
-        <strong>${c.nom_client} ${c.prenom_client}</strong>
+        <strong>${echapperHTML(c.nom_client)} ${echapperHTML(c.prenom_client)}</strong>
         <span class="badge-statut" style="${estConfirmee ? '' : 'background:#fff3cd;color:#8a6d00;'}">${estConfirmee ? 'Confirmée' : 'En attente'}</span>
-        <br><small style="color:#999;">${date} · ${c.numero_client}</small>
+        <br><small style="color:#999;">${date} · ${echapperHTML(c.numero_client)}</small>
         ${!estConfirmee ? `<br><button class="admin-btn" style="width:auto;padding:6px 14px;font-size:12px;margin-top:6px;" onclick="confirmerCommande('${c.id}')">✓ Marquer comme confirmée</button>` : ''}
         ${c.recu_url ? `<br><a href="${c.recu_url}" target="_blank" style="font-size:12px; color:var(--couleur-accent, #e56400); font-weight:600;"><i class="fa-solid fa-file-pdf"></i> Voir le reçu</a>` : ''}
       </div>

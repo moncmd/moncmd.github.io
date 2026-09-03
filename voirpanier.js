@@ -37,7 +37,7 @@ function afficherContenuPanier() {
                     <img src="${produit.image_url}">
                 </div>
                 <div class="details">
-                    <h4>${produit.nom}</h4>
+                    <h4>${echapperHTML(produit.nom)}</h4>
                <p>${produit.prix * item.quantite} FCFA</p>
 
                 </div>

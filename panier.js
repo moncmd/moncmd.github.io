@@ -12,7 +12,7 @@ async function afficherProduitDetail() {
   const conteneurGauche = document.querySelector('.left');
   conteneurGauche.innerHTML = produit.video_url
     ? `<video src="${produit.video_url}" muted loop playsinline autoplay controls></video>`
-    : `<img src="${produit.image_url}" alt="${produit.nom}">`;
+    : `<img src="${produit.image_url}" alt="${echapperHTML(produit.nom)}">`;
 
   document.querySelector('.right .nom').textContent = produit.nom;
   document.querySelector('.right .description').textContent = produit.description || '';
@@ -62,8 +62,8 @@ async function afficherAvisAuLieuDuCommentaire() {
     ${avis.map(a => `
       <div style="padding:10px 0; border-top:1px solid #eee;">
         <div style="color:#e8b923; font-size:12px;">${'★'.repeat(a.note || 5)}</div>
-        <p style="font-size:13px; margin:4px 0;">${a.commentaire || ''}</p>
-        <p style="font-size:11px; color:#999;">${a.nom_client || 'Client'}</p>
+        <p style="font-size:13px; margin:4px 0;">${echapperHTML(a.commentaire)}</p>
+        <p style="font-size:11px; color:#999;">${echapperHTML(a.nom_client) || 'Client'}</p>
       </div>
     `).join('')}
   `;

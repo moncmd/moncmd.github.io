@@ -32,10 +32,10 @@ function afficherResume() {
 
         resume.innerHTML += `
             <div class="resume-item" style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
-                <img src="${produit.image_url}" alt="${produit.nom}" style="width:50px; height:50px; object-fit:cover; border-radius:8px; flex-shrink:0;">
+                <img src="${produit.image_url}" alt="${echapperHTML(produit.nom)}" style="width:50px; height:50px; object-fit:cover; border-radius:8px; flex-shrink:0;">
                 <div>
-                    <p>${produit.nom} x${item.quantite}</p>
-                    ${item.commentaire ? `<p class="commentaire">💬 ${item.commentaire}</p>` : ''}
+                    <p>${echapperHTML(produit.nom)} x${item.quantite}</p>
+                    ${item.commentaire ? `<p class="commentaire">💬 ${echapperHTML(item.commentaire)}</p>` : ''}
                     <p>${sousTotal} FCFA</p>
                 </div>
             </div>
