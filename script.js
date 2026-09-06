@@ -56,7 +56,7 @@ function verifierTemplateCorrect() {
   // Sinon, window.location.search est vide et la page suivante retombe sur 'demo'.
   const params = new URLSearchParams(window.location.search);
   params.set('v', getVendeurSlug());
-  window.location.replace(`${nomFichier}.html?${params.toString()}`);
+  window.location.replace(`/${nomFichier}.html?${params.toString()}`);
   return true;
 }
 
@@ -835,7 +835,7 @@ function allerVers(destination, id = null) {
   const template = getTemplateActif();
   const nomFichier = template ? `${destination}-${template}` : destination;
 
-  let url = `${nomFichier}.html`;
+  let url = `/${nomFichier}.html`;
   const params = [];
   if (slug) params.push(`v=${slug}`);
   if (id) params.push(`id=${id}`);

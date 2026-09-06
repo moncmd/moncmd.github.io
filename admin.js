@@ -23,7 +23,7 @@ function allerVers(destination, id = null) {
   const template = (vendeurConnecte && vendeurConnecte.template) ? vendeurConnecte.template.toLowerCase() : '';
   const nomFichier = template ? `${destination}-${template}` : destination;
 
-  let url = `${nomFichier}.html`;
+  let url = `/${nomFichier}.html`;
   const params = [];
   if (slug) params.push(`v=${slug}`);
   if (id) params.push(`id=${id}`);
