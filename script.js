@@ -240,6 +240,12 @@ function remplirPaiement() {
   const omEl = document.getElementById('om-numero');
   if (waveEl) waveEl.textContent = vendeurActuel.wave_numero || '—';
   if (omEl) omEl.textContent = vendeurActuel.om_numero || '—';
+
+  // Moyens de paiement activés par le vendeur (par défaut : tous les deux)
+  const waveActif = vendeurActuel.accepte_wave !== false;
+  const omActif = vendeurActuel.accepte_om !== false;
+  if (waveEl && waveEl.parentElement) waveEl.parentElement.style.display = waveActif ? '' : 'none';
+  if (omEl && omEl.parentElement) omEl.parentElement.style.display = omActif ? '' : 'none';
 }
 
 // ============================================

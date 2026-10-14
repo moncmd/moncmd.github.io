@@ -1,3 +1,12 @@
+// Date de livraison : impossible de choisir une date passée
+(function () {
+    const champDate = document.getElementById('date-livraison');
+    if (!champDate) return;
+    const auj = new Date();
+    auj.setMinutes(auj.getMinutes() - auj.getTimezoneOffset());
+    champDate.min = auj.toISOString().split('T')[0];
+})();
+
 // Mode paiement
 let modePaiementActuel = 'surplace';
 let codePromoApplique = null; // { code, reduction_pourcent } — exclusivité premium
@@ -114,10 +123,16 @@ async function envoyerCommande() {
     const prenom = document.getElementById('prenom').value;
     const numero = document.getElementById('numero').value;
     const adresse = document.getElementById('adresse').value;
+    const dateLivraison = document.getElementById('date-livraison').value;
     const heure = document.getElementById('heure').value;
 
     if (!nom || !prenom || !numero) {
         alert('Veuillez remplir tous les champs !');
+        return;
+    }
+
+    if (!dateLivraison || !heure) {
+        alert('Veuillez choisir la date et l\'heure de livraison.');
         return;
     }
 
@@ -161,7 +176,8 @@ async function envoyerCommande() {
     message += `\n\nNom : ${nom} ${prenom}`;
     message += `\nNuméro : ${numero}`;
     if (adresse) message += `\nAdresse : ${adresse}`;
-    message += `\nHeure de récupération : ${heure}`;
+    message += `\nDate de livraison : ${dateLivraison.split('-').reverse().join('/')}`;
+    message += `\nHeure de livraison : ${heure}`;
 
     // Enregistrement dans Supabase avant l'ouverture de WhatsApp
     const { data: commandeCreee, error } = await supabaseClient.from('commandes').insert({
@@ -170,6 +186,7 @@ async function envoyerCommande() {
         prenom_client: prenom,
         numero_client: numero,
         adresse: adresse,
+        date_livraison: dateLivraison,
         heure_recuperation: heure,
         mode_paiement: modePaiementActuel,
         code_promo: codePromoApplique ? codePromoApplique.code : null,

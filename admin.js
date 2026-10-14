@@ -465,6 +465,8 @@ function remplirInfosVendeur() {
   document.getElementById('info-whatsapp').value = vendeurConnecte.numero_whatsapp || '';
   document.getElementById('info-wave').value = vendeurConnecte.wave_numero || '';
   document.getElementById('info-om').value = vendeurConnecte.om_numero || '';
+  document.getElementById('info-accepte-wave').checked = vendeurConnecte.accepte_wave !== false;
+  document.getElementById('info-accepte-om').checked = vendeurConnecte.accepte_om !== false;
   document.getElementById('info-adresse').value = vendeurConnecte.adresse || '';
   document.getElementById('info-message-accueil').value = vendeurConnecte.message_accueil || '';
   document.getElementById('info-instagram').value = vendeurConnecte.instagram || '';
@@ -541,6 +543,8 @@ async function enregistrerInfos() {
   const numero_whatsapp = document.getElementById('info-whatsapp').value.trim();
   const wave_numero = document.getElementById('info-wave').value.trim();
   const om_numero = document.getElementById('info-om').value.trim();
+  const accepte_wave = document.getElementById('info-accepte-wave').checked;
+  const accepte_om = document.getElementById('info-accepte-om').checked;
   const adresse = document.getElementById('info-adresse').value.trim();
   const message_accueil = document.getElementById('info-message-accueil').value.trim();
   const instagram = document.getElementById('info-instagram').value.trim();
@@ -555,9 +559,15 @@ async function enregistrerInfos() {
     return;
   }
 
+  if (!accepte_wave && !accepte_om) {
+    messageEl.textContent = "Garde au moins un moyen de paiement (Wave ou Orange Money).";
+    messageEl.style.color = 'red';
+    return;
+  }
+
   const { error } = await supabaseClient
     .from('vendeurs')
-    .update({ numero_whatsapp, wave_numero, om_numero, adresse, message_accueil, instagram, tiktok, facebook })
+    .update({ numero_whatsapp, wave_numero, om_numero, accepte_wave, accepte_om, adresse, message_accueil, instagram, tiktok, facebook })
     .eq('id', vendeurConnecte.id);
 
   if (error) {
@@ -570,6 +580,8 @@ async function enregistrerInfos() {
   vendeurConnecte.numero_whatsapp = numero_whatsapp;
   vendeurConnecte.wave_numero = wave_numero;
   vendeurConnecte.om_numero = om_numero;
+  vendeurConnecte.accepte_wave = accepte_wave;
+  vendeurConnecte.accepte_om = accepte_om;
   vendeurConnecte.adresse = adresse;
   vendeurConnecte.message_accueil = message_accueil;
   vendeurConnecte.instagram = instagram;
@@ -1215,6 +1227,7 @@ function afficherListeCommandes(commandes, idConteneur) {
         <strong>${echapperHTML(c.nom_client)} ${echapperHTML(c.prenom_client)}</strong>
         <span class="badge-statut" style="${estConfirmee ? '' : 'background:#fff3cd;color:#8a6d00;'}">${estConfirmee ? 'Confirmée' : 'En attente'}</span>
         <br><small style="color:#999;">${date} · ${echapperHTML(c.numero_client)}</small>
+        ${c.date_livraison ? `<br><small style="color:#555;">🚚 Livraison : ${c.date_livraison.split('-').reverse().join('/')}${c.heure_recuperation ? ' à ' + echapperHTML(c.heure_recuperation).slice(0,5) : ''}</small>` : ''}
         ${!estConfirmee ? `<br><button class="admin-btn" style="width:auto;padding:6px 14px;font-size:12px;margin-top:6px;" onclick="confirmerCommande('${c.id}')">✓ Marquer comme confirmée</button>` : ''}
         ${c.recu_url ? `<br><a href="${c.recu_url}" target="_blank" style="font-size:12px; color:var(--couleur-accent, #e56400); font-weight:600;"><i class="fa-solid fa-file-pdf"></i> Voir le reçu</a>` : ''}
       </div>
