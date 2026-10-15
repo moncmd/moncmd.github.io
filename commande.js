@@ -150,13 +150,14 @@ async function envoyerCommande() {
         if (!produit) return;
         const sousTotal = produit.prix * item.quantite;
         total += sousTotal;
-        message += `- ${produit.nom} x${item.quantite} → ${sousTotal} FCFA`;
+        message += `- ${produit.nom}${produit.reference ? ` (réf. ${produit.reference})` : ''} x${item.quantite} → ${sousTotal} FCFA`;
         if (item.commentaire) message += ` (${item.commentaire})`;
         message += `\n`;
 
         contenu.push({
             produit_id: produit.id,
             produit: produit.nom,
+            reference: produit.reference || null,
             quantite: item.quantite,
             prix: produit.prix,
             commentaire: item.commentaire || ""

@@ -775,7 +775,7 @@ function construireLigneProduit(p, avecReorder, index, totalCategorie) {
         ? `<img src="${imgSrc}" class="produit-thumb" alt="${echapperHTML(p.nom)}">`
         : `<div class="produit-thumb" style="display:flex;align-items:center;justify-content:center;color:#ccc;"><i class="fa-solid fa-image"></i></div>`}
       <div class="produit-infos">
-        <strong>${echapperHTML(p.nom)}${p.actif === false ? ' <span style="font-size:10px;font-weight:700;color:var(--couleur-accent,#e56400);border:1px solid currentColor;border-radius:6px;padding:1px 6px;vertical-align:middle;">MASQUÉ</span>' : ''}</strong>
+        <strong>${p.reference ? `<span style="color:#bbb; font-weight:600; font-size:12px; margin-right:6px;">#${p.reference}</span>` : ''}${echapperHTML(p.nom)}${p.actif === false ? ' <span style="font-size:10px;font-weight:700;color:var(--couleur-accent,#e56400);border:1px solid currentColor;border-radius:6px;padding:1px 6px;vertical-align:middle;">MASQUÉ</span>' : ''}</strong>
         ${infoStock}
       </div>
       <div class="produit-actions">
@@ -795,6 +795,9 @@ function construireLigneProduit(p, avecReorder, index, totalCategorie) {
         </button>
         <button class="icon-btn" title="Créer un visuel pour Statut WhatsApp" onclick="genererStatutProduit('${p.id}')">
           <i class="fa-solid fa-camera-retro"></i>
+        </button>
+        <button class="icon-btn danger btn-supprimer-desktop" title="Supprimer définitivement" onclick="supprimerProduit('${p.id}')">
+          <i class="fa-solid fa-trash"></i>
         </button>
       </div>
     </div>
@@ -1175,6 +1178,21 @@ async function basculerFavori(id, etatActuel) {
 
 async function basculerVisibiliteProduit(id, etatActuel) {
   await supabaseClient.from('produits').update({ actif: !etatActuel }).eq('id', id);
+  await chargerProduits();
+  await chargerStats();
+}
+
+async function supprimerProduit(id) {
+  const p = produitsCache.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Supprimer définitivement « ${p.nom} » ?\n\nLes anciennes commandes gardent leur historique. Pour le retirer du site seulement, utilise plutôt « Masquer ».`)) return;
+
+  const { error } = await supabaseClient.from('produits').delete().eq('id', id);
+  if (error) {
+    console.error('Erreur suppression produit :', error);
+    alert("Erreur lors de la suppression du produit.");
+    return;
+  }
   await chargerProduits();
   await chargerStats();
 }
