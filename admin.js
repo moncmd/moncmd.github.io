@@ -1246,6 +1246,7 @@ function afficherListeCommandes(commandes, idConteneur) {
         <span class="badge-statut" style="${estConfirmee ? '' : 'background:#fff3cd;color:#8a6d00;'}">${estConfirmee ? 'Confirmée' : 'En attente'}</span>
         <br><small style="color:#999;">${date} · ${echapperHTML(c.numero_client)}</small>
         ${c.date_livraison ? `<br><small style="color:#555;">🚚 Livraison : ${c.date_livraison.split('-').reverse().join('/')}${c.heure_recuperation ? ' à ' + echapperHTML(c.heure_recuperation).slice(0,5) : ''}</small>` : ''}
+        ${c.adresse ? `<br><small style="color:#555;">📍 ${echapperHTML(c.adresse)}</small>` : ''}
         ${!estConfirmee ? `<br><button class="admin-btn" style="width:auto;padding:6px 14px;font-size:12px;margin-top:6px;" onclick="confirmerCommande('${c.id}')">✓ Marquer comme confirmée</button>` : ''}
         ${c.recu_url ? `<br><a href="${c.recu_url}" target="_blank" style="font-size:12px; color:var(--couleur-accent, #e56400); font-weight:600;"><i class="fa-solid fa-file-pdf"></i> Voir le reçu</a>` : ''}
       </div>
