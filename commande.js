@@ -181,7 +181,7 @@ async function envoyerCommande() {
     message += `\nHeure de livraison : ${heure}`;
 
     // Enregistrement dans Supabase avant l'ouverture de WhatsApp
-    const { data: commandeCreee, error } = await supabaseClient.from('commandes').insert({
+    const { error } = await supabaseClient.from('commandes').insert({
         vendeur_id: vendeurActuel.id,
         nom_client: nom,
         prenom_client: prenom,
@@ -194,7 +194,10 @@ async function envoyerCommande() {
         reduction: reductionAppliquee,
         contenu: contenu,
         total: totalFinal
-    }).select().single();
+    });
+    // Pas de .select() ici : le client n'est pas connecté, et Supabase refuse
+    // de renvoyer la ligne créée (aucune règle de lecture pour lui) — ce qui
+    // faisait échouer tout l'enregistrement.
 
     if (error) {
         console.error('Erreur enregistrement commande :', error);
@@ -206,7 +209,7 @@ async function envoyerCommande() {
 
     // Reçu PDF (réservé aux vendeurs Premium)
     if (vendeurActuel.formule === 'premium') {
-        genererRecuPDF(contenu, totalFinal, nom, prenom, commandeCreee ? commandeCreee.id : null);
+        genererRecuPDF(contenu, totalFinal, nom, prenom, null);
     }
 
     const url = `https://wa.me/${vendeurActuel.numero_whatsapp}?text=${encodeURIComponent(message)}`;
