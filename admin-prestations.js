@@ -90,7 +90,7 @@ async function chargerDashboard(authUserId) {
   // Verrouillage visuel des blocs selon la formule
   document.getElementById('carte-depenses').classList.toggle('verrouille', !auMoins('pro'));
   document.getElementById('carte-benefice-net').classList.toggle('verrouille', !auMoins('premium'));
-  document.getElementById('carte-equipe').classList.toggle('verrouille', !auMoins('premium'));
+  document.getElementById('carte-equipe').classList.toggle('verrouille', !auMoins('pro'));
 
   remplirInfosVendeur();
   genererQRCode();
