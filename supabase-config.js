@@ -5,6 +5,20 @@
 const SUPABASE_URL = "https://tzzjsorxpmfmoklmvgre.supabase.co";
 const SUPABASE_KEY = "sb_publishable_d0OOxgtzghAfkJXpPE6URw_BduJourm";
 
+// Retour d'un lien reçu par email (confirmation d'inscription, mot de passe
+// oublié…) arrivé sur une page boutique : on l'envoie vers l'espace vendeur
+// AVANT que la page ne charge la boutique de démo.
+(function redirigerRetourEmail() {
+  const h = window.location.hash || '';
+  const q = window.location.search || '';
+  const retourEmail = /access_token=|refresh_token=|error_description=|type=(signup|recovery|magiclink|invite|email_change)/.test(h)
+    || /[?&](code|token_hash)=/.test(q);
+  const pagesCompte = ['/admin.html', '/admin-prestations.html', '/inscription.html', '/super-admin.html', '/apparence.html', '/abonnement.html'];
+  if (retourEmail && !pagesCompte.includes(window.location.pathname)) {
+    window.location.replace('/admin.html' + q + h);
+  }
+})();
+
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Récupère le "slug" du vendeur depuis l'URL

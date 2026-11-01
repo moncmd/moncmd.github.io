@@ -134,6 +134,21 @@ const CMD_THEME = (function () {
       body.cmd-sans-faq #faq-section, body.cmd-sans-faq #faq { display: none !important; }
       body.mode-sombre .cmd-banniere:not(.avec-image) { background: color-mix(in srgb, var(--couleur-accent, #e56400) 18%, #111); }
       body.mode-sombre .cmd-info { border-color: rgba(255,255,255,.15); }
+      .cmd-banniere:not(.avec-image) { color: #1d1b19; }
+      .cmd-banniere h2 { color: inherit; }
+      .cmd-banniere h2, .cmd-banniere p { text-align: center !important; }
+
+      /* Ordinateur : une seule colonne alignée (titre, catégories, produits,
+         avis, FAQ, sections) au lieu de blocs aux marges différentes. */
+      @media (min-width: 1200px) {
+        body.grille-large main { max-width: 1200px !important; margin-left: auto !important; margin-right: auto !important; padding-left: 40px !important; padding-right: 40px !important; box-sizing: border-box; }
+        body.grille-large main > .menu, body.grille-large main > #mot-vendeur, body.grille-large main > #categories-boutons,
+        body.grille-large main > #categories-produits, body.grille-large main > section, body.grille-large main > .cmd-annonce {
+          max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; padding-left: 0 !important; padding-right: 0 !important; }
+        body.grille-large main > .cmd-bloc { max-width: none; margin-left: 0; margin-right: 0; padding: 0; }
+        body.grille-large .grille-produits-premium { padding-left: 0 !important; padding-right: 0 !important; }
+        body.grille-large main > .cmd-banniere { border-radius: 24px; }
+      }
     `;
 
     // Lien « Espace vendeur » : retiré de l'en-tête (les clients n'en ont
@@ -278,6 +293,13 @@ const CMD_THEME = (function () {
       });
       if (couleurValide(v.couleur_accent)) document.documentElement.style.setProperty('--couleur-accent', v.couleur_accent);
       appliquer(v, e.data.theme || {});
+      // Disposition des produits : on reconstruit la liste seulement si elle change
+      const disposition = (e.data.theme || {}).disposition || 'carrousel';
+      if (typeof genererCards === 'function' && typeof vendeurActuel !== 'undefined' && vendeurActuel
+          && disposition !== ((vendeurActuel.theme || {}).disposition || 'carrousel')) {
+        vendeurActuel.theme = Object.assign({}, vendeurActuel.theme || {}, { disposition });
+        genererCards();
+      }
     });
   }
 

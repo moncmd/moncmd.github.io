@@ -108,6 +108,15 @@
       <p class="aide" id="msg-modele" style="margin:10px 0 0"></p>
     </section>
 
+    <section class="carte" data-acces="standard" data-seulement="produit">
+      <h2>Disposition des produits</h2>
+      <p class="aide">Comment tes produits s'affichent sur téléphone, dans chaque catégorie.</p>
+      <div class="contenu grille-modeles" id="dispositions">
+        <button type="button" class="modele" data-disposition="carrousel"><strong>Carrousel</strong><span>Un produit à la fois, on fait glisser</span></button>
+        <button type="button" class="modele" data-disposition="grille"><strong>Grille</strong><span>2 par ligne, tout visible en défilant</span></button>
+      </div>
+    </section>
+
     <section class="carte" data-acces="standard">
       <h2>Couleur principale</h2>
       <p class="aide">Boutons, prix, liens et bandeau d'annonce.</p>
@@ -317,6 +326,17 @@
         `<button type="button" class="modele" data-modele="${v}" aria-pressed="${actuel === v}"><strong>${n}</strong><span>${d}</span></button>`).join('');
       $('modeles').querySelectorAll('.modele').forEach((b) => b.addEventListener('click', () => changerModele(b.dataset.modele)));
     }
+
+    // Disposition des produits
+    const dispositionActuelle = theme.disposition === 'grille' ? 'grille' : 'carrousel';
+    document.querySelectorAll('[data-disposition]').forEach((b) => {
+      b.setAttribute('aria-pressed', String(b.dataset.disposition === dispositionActuelle));
+      b.addEventListener('click', () => {
+        theme.disposition = b.dataset.disposition;
+        document.querySelectorAll('[data-disposition]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+        marquerModifie();
+      });
+    });
 
     // Couleurs
     $('couleurs').innerHTML = COULEURS.map((c) =>

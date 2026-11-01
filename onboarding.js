@@ -162,6 +162,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.head.appendChild(style);
 
   const erreurEl = document.getElementById('login-erreur');
+  const retour = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+  if (erreurEl && retour.get('error_description')) {
+    erreurEl.textContent = /expired|invalid/i.test(retour.get('error_description'))
+      ? 'Ce lien a expiré ou a déjà été utilisé. Connecte-toi simplement avec ton email et ton mot de passe.'
+      : 'Le lien n’a pas fonctionné. Connecte-toi avec ton email et ton mot de passe.';
+    history.replaceState(null, '', window.location.pathname);
+  }
   if (erreurEl && !document.querySelector('.cmd-liens-login')) {
     const liens = document.createElement('div');
     liens.className = 'cmd-liens-login';

@@ -608,7 +608,9 @@ function genererCards() {
   // Premium+Marché, mais étendu à tous les templates/formules, desktop seulement.
   // Le mobile/tablette garde le carrousel horizontal inchangé.
   const modeGrilleDesktop = window.innerWidth >= 1200;
-  const afficherEnGrille = enGrille || modeGrilleDesktop;
+  // Choix du vendeur (page Apparence) : produits en grille aussi sur téléphone
+  const grilleChoisie = !!(vendeurActuel && vendeurActuel.theme && vendeurActuel.theme.disposition === 'grille');
+  const afficherEnGrille = enGrille || modeGrilleDesktop || grilleChoisie;
   document.body.classList.toggle('premium-marche-large', enGrille);
   document.body.classList.toggle('grille-large', afficherEnGrille);
   if (afficherEnGrille) injecterStyleGrillePremium();
