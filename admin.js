@@ -346,7 +346,7 @@ function renderListeClients(clients) {
           <span class="sub">${c.nbCommandes} commande${c.nbCommandes > 1 ? 's' : ''} · ${c.total.toLocaleString('fr-FR')} FCFA · dernière ${texteDerniere}</span>
           ${c.numero ? `<span class="sub" style="display:block;">${echapperHTML(c.numero)}</span>` : ''}
         </div>
-        ${c.numero ? `<a href="https://wa.me/${echapperHTML(c.numero)}" target="_blank" class="icon-btn"><i class="fa-brands fa-whatsapp"></i></a>` : ''}
+        ${c.numero ? `<a href="https://wa.me/${numeroWhatsAppClient(c.numero, vendeurConnecte.numero_whatsapp)}" target="_blank" class="icon-btn"><i class="fa-brands fa-whatsapp"></i></a>` : ''}
       </div>
     `;
   }).join('');
@@ -450,7 +450,7 @@ async function chargerListeAttenteStock() {
         <span class="prix">${echapperHTML(a.numero_client)}</span>
       </div>
       <div class="produit-actions">
-        <a href="https://wa.me/${a.numero_client.replace(/\D/g,'')}?text=Bonjour, le produit que vous attendiez est de nouveau disponible !" target="_blank" class="icon-btn" title="Contacter sur WhatsApp">
+        <a href="https://wa.me/${numeroWhatsAppClient(a.numero_client, vendeurConnecte.numero_whatsapp)}?text=Bonjour, le produit que vous attendiez est de nouveau disponible !" target="_blank" class="icon-btn" title="Contacter sur WhatsApp">
           <i class="fa-brands fa-whatsapp"></i>
         </a>
         <button class="icon-btn" title="Marquer comme contacté" onclick="marquerContacte('${a.id}')">
@@ -1055,6 +1055,12 @@ async function ajouterProduit() {
   }
 
   const donneesProduit = { nom, prix, categorie, favori, description };
+  if (typeof lireOptionsProduit === 'function') {
+    // N'envoie la colonne que si elle existe déjà en base (phase 8B lancée)
+    const opts = lireOptionsProduit();
+    const colonneExiste = (produitsCache || []).some(p => Object.prototype.hasOwnProperty.call(p, 'options'));
+    if (opts || colonneExiste) donneesProduit.options = opts;
+  }
   if (image_url !== undefined) donneesProduit.image_url = image_url;
   if (video_url !== undefined) donneesProduit.video_url = video_url;
   if (!enEdition) {
@@ -1103,6 +1109,7 @@ function chargerProduitPourEdition(id) {
   document.getElementById('nouveau-image-fichier').value = '';
   document.getElementById('nouveau-video-fichier').value = '';
   document.getElementById('nouveau-favori').checked = !!produit.favori;
+  if (typeof remplirOptionsProduit === 'function') remplirOptionsProduit(produit.options);
 
   const select = document.getElementById('nouveau-categorie-select');
   const options = Array.from(select.options).map(o => o.value);
@@ -1129,6 +1136,7 @@ function chargerProduitPourEdition(id) {
 
 function annulerEditionProduit() {
   produitEnEdition = null;
+  if (typeof reinitialiserOptionsProduit === 'function') reinitialiserOptionsProduit();
 
   document.getElementById('nouveau-nom').value = '';
   document.getElementById('nouveau-prix').value = '';
@@ -1247,11 +1255,13 @@ function afficherListeCommandes(commandes, idConteneur) {
     liste.innerHTML += `
       <div class="commande-row">
         ${checkbox}<span class="total">${c.total.toLocaleString()} FCFA</span>
-        <strong>${echapperHTML(c.nom_client)} ${echapperHTML(c.prenom_client)}</strong>
+        <strong>${c.numero ? `n°${c.numero} · ` : ''}${echapperHTML(c.nom_client)} ${echapperHTML(c.prenom_client)}</strong>
         <span class="badge-statut" style="${estConfirmee ? '' : 'background:#fff3cd;color:#8a6d00;'}">${estConfirmee ? 'Confirmée' : 'En attente'}</span>
         <br><small style="color:#999;">${date} · ${echapperHTML(c.numero_client)}</small>
         ${c.date_livraison ? `<br><small style="color:#555;">🚚 Livraison : ${c.date_livraison.split('-').reverse().join('/')}${c.heure_recuperation ? ' à ' + echapperHTML(c.heure_recuperation).slice(0,5) : ''}</small>` : ''}
         ${c.adresse ? `<br><small style="color:#555;">📍 ${echapperHTML(c.adresse)}</small>` : ''}
+        ${Array.isArray(c.contenu) && c.contenu.length ? `<br><small style="color:#555;">🛍 ${c.contenu.map(l => `${echapperHTML(l.quantite)} × ${echapperHTML(l.produit)}${Array.isArray(l.options) && l.options.length ? ' [' + echapperHTML(l.options.map(o => o.choix).join(', ')) + ']' : ''}${l.commentaire ? ' (' + echapperHTML(l.commentaire) + ')' : ''}`).join(', ')}</small>` : ''}
+        ${c.preuve_chemin ? `<br><button type="button" class="admin-btn secondaire" style="width:auto;padding:5px 12px;font-size:12px;margin-top:6px;" onclick="voirPreuvePaiement('${encodeURIComponent(c.preuve_chemin)}')">🧾 Voir la preuve de paiement</button>` : (c.mode_paiement === 'online' && !estConfirmee ? `<br><small style="color:#8a6d00;">Paiement en ligne annoncé, pas encore de preuve</small>` : '')}
         ${!estConfirmee ? `<br><button class="admin-btn" style="width:auto;padding:6px 14px;font-size:12px;margin-top:6px;" onclick="confirmerCommande('${c.id}')">✓ Marquer comme confirmée</button>` : ''}
         ${c.recu_url ? `<br><a href="${c.recu_url}" target="_blank" style="font-size:12px; color:var(--couleur-accent, #e56400); font-weight:600;"><i class="fa-solid fa-file-pdf"></i> Voir le reçu</a>` : ''}
       </div>
@@ -1259,6 +1269,13 @@ function afficherListeCommandes(commandes, idConteneur) {
   });
 
   if (avecSelection) majBoutonConfirmerSelection();
+}
+
+// Preuve de paiement envoyée par le client (bucket privé, lien valable 10 min)
+async function voirPreuvePaiement(cheminEncode) {
+  const { data, error } = await supabaseClient.storage.from('paiements').createSignedUrl(decodeURIComponent(cheminEncode), 600);
+  if (error || !data) { alert('Preuve introuvable.'); return; }
+  window.open(data.signedUrl, '_blank', 'noopener');
 }
 
 // Affiche/masque le bouton "Confirmer la sélection" selon le nombre de

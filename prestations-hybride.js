@@ -488,13 +488,13 @@ function buildSummary(){
     const texteOriginal = btn.textContent;
     btn.textContent = 'Vérification du créneau...';
 
-    const succes = await enregistrerRendezVous(nom, numeroClient, adresseClient);
+    const groupeId = await enregistrerRendezVous(nom, numeroClient, adresseClient);
 
     btn.style.opacity = '';
     btn.style.pointerEvents = '';
     btn.textContent = texteOriginal;
 
-    if (!succes) {
+    if (!groupeId) {
       alert("Ce créneau vient d'être pris par quelqu'un d'autre entre-temps. Merci de choisir un autre horaire.");
       goStep(3); // retour au choix de la date/heure, pour reprendre un créneau réellement libre
       return;
@@ -504,12 +504,14 @@ function buildSummary(){
       .map(l => `${l.prestationNom} avec ${l.staffNom || "n'importe qui"} à ${l.heure}`)
       .join(', puis ');
 
-    const messagePersonnalise = (vendeurActuel && vendeurActuel.slug === 'Lees')
-      ? " Veuillez m'envoyer le lien de validation wave pour réserver le créneau."
+    // Message d'acompte : réglé par le prestataire (Réglages), plus codé en dur
+    const messagePersonnalise = (vendeurActuel && vendeurActuel.acompte_actif && vendeurActuel.acompte_message)
+      ? ' ' + String(vendeurActuel.acompte_message).slice(0, 300)
       : '';
+    const lienRdv = `${window.location.origin}/rdv.html?r=${groupeId}`;
 
     const msg = encodeURIComponent(
-      `Bonjour, je suis ${nom || ''}. Je voudrais réserver : ${detailServices}, le ${dateVal}, ${lieuTexte}.${messagePersonnalise}`
+      `Bonjour, je suis ${nom || ''}. Je voudrais réserver : ${detailServices}, le ${dateVal}, ${lieuTexte}.${messagePersonnalise}\n\nMon rendez-vous (voir, ajouter à l'agenda, annuler) : ${lienRdv}`
     );
     window.location.href = `https://wa.me/${numero}?text=${msg}`;
   };
@@ -519,15 +521,17 @@ function buildSummary(){
 // enregistré, false si la base a refusé (ex: créneau pris entre-temps par
 // quelqu'un d'autre — voir le trigger verifier_disponibilite_rdv côté SQL).
 async function enregistrerRendezVous(nom, numeroClient, adresseClient){
-  if (!vendeurActuel) return false;
+  if (!vendeurActuel) return null;
 
   const dateISO = convertirDateISO(booking.date);
-  const groupeId = crypto.randomUUID
-    ? crypto.randomUUID()
-    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-        const r = Math.random() * 16 | 0;
-        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-      });
+  // L'identifiant de groupe sert aussi de lien secret « Mon rendez-vous » :
+  // il doit être vraiment aléatoire (jamais Math.random).
+  const groupeId = (crypto.randomUUID && crypto.randomUUID()) || (() => {
+    const o = crypto.getRandomValues(new Uint8Array(16));
+    o[6] = (o[6] & 0x0f) | 0x40; o[8] = (o[8] & 0x3f) | 0x80;
+    const h = Array.from(o, (x) => x.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  })();
 
   let curseur = versMinutesGlobal(booking.slot || '00:00');
 
@@ -553,9 +557,9 @@ async function enregistrerRendezVous(nom, numeroClient, adresseClient){
   const { error } = await supabaseClient.from('rendez_vous').insert(lignes);
   if (error) {
     console.error('Erreur enregistrement rendez-vous :', error);
-    return false;
+    return null;
   }
-  return true;
+  return groupeId;
 }
 
 function convertirDateISO(dateStr){
@@ -622,7 +626,7 @@ async function genererCreneaux(dateStr){
 
   const [{ data: blocages }, { data: rdvExistants }] = await Promise.all([
     supabaseClient.from('blocages_horaires').select('*').eq('vendeur_id', vendeurActuel.id).eq('date', dateISO),
-    supabaseClient.from('rendez_vous').select('heure, personnel_id, duree_minutes').eq('vendeur_id', vendeurActuel.id).eq('date', dateISO)
+    supabaseClient.rpc('creneaux_occupes', { p_vendeur_id: vendeurActuel.id, p_date: dateISO })
   ]);
 
   const versMinutes = versMinutesGlobal;

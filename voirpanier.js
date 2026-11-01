@@ -38,7 +38,8 @@ function afficherContenuPanier() {
                 </div>
                 <div class="details">
                     <h4>${echapperHTML(produit.nom)}</h4>
-               <p>${produit.prix * item.quantite} FCFA</p>
+                    ${libelleOptions(item) ? `<p class="cmd-panier-options">${echapperHTML(libelleOptions(item))}</p>` : ''}
+               <p>${prixUnitaire(produit, item) * item.quantite} FCFA</p>
 
                 </div>
             </div>
@@ -53,7 +54,7 @@ function afficherContenuPanier() {
     let total = 0;
     panierData.forEach(item => {
         let produit = produits.find(p => p.id === item.id);
-        if (produit) total += produit.prix * item.quantite;
+        if (produit) total += prixUnitaire(produit, item) * item.quantite;
     });
 
     panier.innerHTML += `<p class="total">Total : ${total} FCFA</p>`;

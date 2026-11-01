@@ -352,3 +352,139 @@ async function afficherStatsVisites() {
     document.head.appendChild(style);
   }
 }
+
+// ---- Numéro WhatsApp d'un client, au format international ----
+// Les clients tapent souvent leur numéro local (77…, 06…). On ajoute
+// l'indicatif du pays du vendeur, sinon le lien WhatsApp ne marche pas.
+const CMD_INDICATIFS = ['221', '223', '225', '224', '226', '227', '228', '229', '222', '220', '245', '237', '241', '242', '243', '212', '216', '33', '32', '41', '39', '34', '44', '1'];
+function indicatifDuNumero(numero) {
+  const d = String(numero || '').replace(/\D/g, '');
+  return CMD_INDICATIFS.filter((i) => d.startsWith(i)).sort((a, b) => b.length - a.length)[0] || '';
+}
+function numeroWhatsAppClient(numero, numeroVendeur) {
+  let d = String(numero || '').replace(/\D/g, '').replace(/^00/, '');
+  if (!d || d.length >= 11) return d;
+  const ind = indicatifDuNumero(numeroVendeur);
+  if (!ind || (d.startsWith(ind) && d.length > ind.length + 6)) return d;
+  if (['33', '32', '41', '44', '212'].includes(ind)) d = d.replace(/^0+/, '');
+  return ind + d;
+}
+
+// ---- Prestataires : rendez-vous de demain + rappel WhatsApp en un clic ----
+// Même principe que la relance réassort : pas besoin de l'API WhatsApp.
+async function afficherRdvDemain(vendeur) {
+  const conteneur = document.getElementById('onglet-dashboard');
+  if (!conteneur || !vendeur || conteneur.querySelector('.cmd-demain')) return;
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  const demain = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const { data, error } = await supabaseClient.from('rendez_vous')
+    .select('id, nom_client, numero_client, heure, statut, groupe_reservation, rappel_envoye, prestations(nom)')
+    .eq('vendeur_id', vendeur.id).eq('date', demain).neq('statut', 'annule').order('heure');
+  if (error) return;
+
+  const groupes = [];
+  (data || []).forEach((r) => {
+    const cle = r.groupe_reservation || r.id;
+    let g = groupes.find((x) => x.cle === cle);
+    if (!g) { g = { cle, groupe: r.groupe_reservation, ids: [], nom: r.nom_client, numero: r.numero_client, heure: r.heure, services: [], rappel: true }; groupes.push(g); }
+    g.ids.push(r.id);
+    g.services.push(r.prestations ? r.prestations.nom : 'Prestation');
+    g.rappel = g.rappel && r.rappel_envoye;
+  });
+
+  const carte = document.createElement('div');
+  carte.className = 'cmd-demain';
+  const dateFr = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  carte.innerHTML = `<p class="cmd-demain-titre">Rendez-vous de demain <span>${echapperHTML(dateFr)}</span></p>` + (groupes.length
+    ? groupes.map((g, i) => `
+      <div class="cmd-demain-ligne">
+        <div><b>${echapperHTML(String(g.heure || '').slice(0, 5).replace(':', 'h'))} · ${echapperHTML(g.nom || 'Client')}</b>
+          <span>${echapperHTML(g.services.join(', '))}</span></div>
+        ${g.numero ? `<button type="button" class="cmd-demain-btn${g.rappel ? ' envoye' : ''}" data-index="${i}">${g.rappel ? 'Rappel envoyé' : 'Envoyer le rappel'}</button>` : '<span class="cmd-demain-sans">Pas de numéro</span>'}
+      </div>`).join('')
+    : '<p class="cmd-demain-vide">Aucun rendez-vous demain.</p>');
+
+  carte.querySelectorAll('.cmd-demain-btn').forEach((btn) => btn.addEventListener('click', async () => {
+    const g = groupes[Number(btn.dataset.index)];
+    const lien = g.groupe ? `\n\nVoir, ajouter à l'agenda ou annuler : ${window.location.origin}/rdv.html?r=${g.groupe}` : '';
+    const texte = `Bonjour ${g.nom || ''}, petit rappel de votre rendez-vous demain à ${String(g.heure || '').slice(0, 5).replace(':', 'h')} chez ${vendeur.nom_boutique} (${g.services.join(', ')}). À demain !${lien}`;
+    window.open(`https://wa.me/${numeroWhatsAppClient(g.numero, vendeur.numero_whatsapp)}?text=${encodeURIComponent(texte)}`, '_blank', 'noopener');
+    await supabaseClient.from('rendez_vous').update({ rappel_envoye: true }).in('id', g.ids);
+    btn.classList.add('envoye');
+    btn.textContent = 'Rappel envoyé';
+  }));
+
+  const ancre = conteneur.querySelector('.cmd-visites') || conteneur.querySelector('.cmd-premiers-pas');
+  if (ancre) ancre.insertAdjacentElement('afterend', carte); else conteneur.prepend(carte);
+
+  if (!document.getElementById('cmd-style-demain')) {
+    const style = document.createElement('style');
+    style.id = 'cmd-style-demain';
+    style.textContent = `
+      .cmd-demain { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+      .cmd-demain-titre { font-weight: 700; font-size: 15px; margin: 0 0 10px; }
+      .cmd-demain-titre span { font-weight: 500; color: #888; font-size: 13px; margin-left: 6px; }
+      .cmd-demain-ligne { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid #f0f0f0; }
+      .cmd-demain-ligne b { display: block; font-size: 14px; }
+      .cmd-demain-ligne span { font-size: 12.5px; color: #888; }
+      .cmd-demain-btn { border: none; border-radius: 10px; padding: 9px 12px; background: #25d366; color: #fff; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+      .cmd-demain-btn.envoye { background: #eef7f1; color: #1f7a3a; }
+      .cmd-demain-sans { font-size: 12px; color: #aaa; }
+      .cmd-demain-vide { margin: 0; color: #888; font-size: 13.5px; }
+    `;
+    document.head.appendChild(style);
+  }
+}
+
+// ---- Prestataires : réglages de réservation (onglet Réglages) ----
+function afficherReglagesReservation(vendeur) {
+  const reglages = document.getElementById('onglet-reglages');
+  if (!reglages || !vendeur || reglages.querySelector('.cmd-reglages-rdv')) return;
+  const bloc = document.createElement('div');
+  bloc.className = 'cmd-reglages-rdv';
+  bloc.innerHTML = `
+    <strong class="cmd-rr-titre">Réservations en ligne</strong>
+    <label class="cmd-rr-ligne"><span><b>Confirmer automatiquement</b><small>Le client reçoit « Confirmé » tout de suite si le créneau est libre, sans attendre ta réponse.</small></span>
+      <input type="checkbox" id="cmd-rr-auto" ${vendeur.rdv_confirmation_auto ? 'checked' : ''}></label>
+    <label class="cmd-rr-ligne"><span><b>Demander un acompte</b><small>Ton message et tes numéros Wave / Orange Money s'affichent au client.</small></span>
+      <input type="checkbox" id="cmd-rr-acompte" ${vendeur.acompte_actif ? 'checked' : ''}></label>
+    <textarea id="cmd-rr-message" maxlength="300" placeholder="Ex : Un acompte de 5 000 FCFA par Wave confirme votre créneau.">${echapperHTML(vendeur.acompte_message || '')}</textarea>
+    <label class="cmd-rr-ligne"><span><b>Annulation en ligne possible jusqu'à</b><small>Avant le rendez-vous, depuis le lien « Mon rendez-vous » du client.</small></span>
+      <select id="cmd-rr-delai">${[2, 6, 12, 24, 48].map((h) => `<option value="${h}" ${Number(vendeur.rdv_annulation_heures || 12) === h ? 'selected' : ''}>${h} h avant</option>`).join('')}</select></label>
+    <button type="button" class="cmd-rr-btn" id="cmd-rr-enregistrer">Enregistrer</button>
+    <p class="cmd-rr-msg" id="cmd-rr-retour" role="status"></p>`;
+  const apres = reglages.querySelector('.cmd-carte-apparence:last-of-type');
+  if (apres) apres.insertAdjacentElement('afterend', bloc); else reglages.prepend(bloc);
+
+  document.getElementById('cmd-rr-enregistrer').addEventListener('click', async () => {
+    const donnees = {
+      rdv_confirmation_auto: document.getElementById('cmd-rr-auto').checked,
+      acompte_actif: document.getElementById('cmd-rr-acompte').checked,
+      acompte_message: document.getElementById('cmd-rr-message').value.trim().slice(0, 300) || null,
+      rdv_annulation_heures: Number(document.getElementById('cmd-rr-delai').value)
+    };
+    const retour = document.getElementById('cmd-rr-retour');
+    const { error } = await supabaseClient.from('vendeurs').update(donnees).eq('id', vendeur.id);
+    retour.style.color = error ? '#b3261e' : '#1f7a3a';
+    retour.textContent = error ? 'Erreur : ' + error.message : 'Enregistré.';
+    if (!error) Object.assign(vendeur, donnees);
+  });
+
+  if (!document.getElementById('cmd-style-rr')) {
+    const style = document.createElement('style');
+    style.id = 'cmd-style-rr';
+    style.textContent = `
+      .cmd-reglages-rdv { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px; }
+      .cmd-rr-titre { font-size: 15px; }
+      .cmd-rr-ligne { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; }
+      .cmd-rr-ligne b { display: block; font-size: 14px; }
+      .cmd-rr-ligne small { display: block; color: #888; font-size: 12.5px; }
+      .cmd-rr-ligne input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--couleur-accent, #e56400); flex-shrink: 0; }
+      .cmd-rr-ligne select { padding: 8px; border-radius: 10px; border: 1px solid #ddd; font: inherit; }
+      .cmd-reglages-rdv textarea { width: 100%; box-sizing: border-box; min-height: 64px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; font: inherit; }
+      .cmd-rr-btn { border: none; border-radius: 10px; padding: 11px; background: var(--couleur-accent, #e56400); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+      .cmd-rr-msg { margin: 0; font-size: 13px; min-height: 1em; }
+    `;
+    document.head.appendChild(style);
+  }
+}

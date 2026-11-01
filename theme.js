@@ -134,6 +134,19 @@ const CMD_THEME = (function () {
       body.cmd-sans-faq #faq-section, body.cmd-sans-faq #faq { display: none !important; }
       body.mode-sombre .cmd-banniere:not(.avec-image) { background: color-mix(in srgb, var(--couleur-accent, #e56400) 18%, #111); }
       body.mode-sombre .cmd-info { border-color: rgba(255,255,255,.15); }
+      .cmd-options { margin: 14px 0 6px; text-align: left; }
+      .cmd-options-groupe { margin-bottom: 12px; }
+      .cmd-options-titre { font-weight: 700; font-size: 14px; margin: 0 0 6px; }
+      .cmd-options-titre span { font-weight: 500; font-size: 12px; opacity: .6; }
+      .cmd-options-choix { display: flex; flex-wrap: wrap; gap: 8px; }
+      .cmd-option { border: 1.5px solid rgba(0,0,0,.18); background: transparent; color: inherit; border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 14px; cursor: pointer; }
+      .cmd-option small { opacity: .65; font-size: 12px; }
+      .cmd-option[aria-pressed="true"] { border-color: var(--couleur-accent, #e56400); background: color-mix(in srgb, var(--couleur-accent, #e56400) 12%, transparent); font-weight: 600; }
+      .cmd-option:disabled { opacity: .4; cursor: not-allowed; text-decoration: line-through; }
+      .cmd-options-erreur { color: #c0392b; font-size: 13px; min-height: 1em; margin: 4px 0 0; }
+      .cmd-plusieurs-choix { font-weight: 400; font-size: .85em; opacity: .65; }
+      .cmd-panier-options { font-size: 12.5px; opacity: .7; margin: 2px 0; }
+      body.mode-sombre .cmd-option { border-color: rgba(255,255,255,.25); }
       .cmd-banniere:not(.avec-image) { color: #1d1b19; }
       .cmd-banniere h2 { color: inherit; }
       .cmd-banniere h2, .cmd-banniere p { text-align: center !important; }

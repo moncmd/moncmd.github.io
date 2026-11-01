@@ -1,5 +1,5 @@
 -- ============================================================
--- CMD. — SCHÉMA COMPLET (état au 1er novembre 2026, après phases 1 à 6)
+-- CMD. — SCHÉMA COMPLET (état au 1er novembre 2026, après phases 1 à 8B)
 --
 -- À QUOI ÇA SERT : recréer la base à l'identique dans un projet
 -- Supabase VIDE (projet de test, nouveau projet, secours).
@@ -374,6 +374,20 @@ $$;
 drop trigger if exists trg_reference_produit on produits;
 create trigger trg_reference_produit before insert on produits
   for each row execute function attribuer_reference_produit();
+
+-- Produit le plus commandé des 7 derniers jours (badge « tendance »)
+create or replace function produit_tendance(p_vendeur_id uuid)
+returns uuid language sql security definer set search_path = public as $$
+  select (item->>'produit_id')::uuid as produit_id
+  from commandes, jsonb_array_elements(contenu) as item
+  where vendeur_id = p_vendeur_id
+    and statut = 'confirmee'
+    and date_creation >= now() - interval '7 days'
+  group by (item->>'produit_id')::uuid
+  order by sum((item->>'quantite')::int) desc
+  limit 1;
+$$;
+grant execute on function produit_tendance(uuid) to anon, authenticated;
 
 -- Boutique de démo
 insert into vendeurs (slug, nom_boutique, numero_whatsapp, wave_numero, om_numero, template)
@@ -2069,3 +2083,654 @@ end;
 $$;
 revoke execute on function mes_visites() from public, anon;
 grant execute on function mes_visites() to authenticated;
+
+-- >>>>>>>>>> migrations/phase7a-correctifs-rendez-vous.sql
+-- ============================================================
+-- PHASE 7A — Correctifs rendez-vous (bugs existants trouvés à l'audit)
+-- 1. Le prestataire ne pouvait ni modifier ni supprimer un RDV dans son
+--    agenda (aucune policy UPDATE/DELETE : la base ignorait sans erreur).
+--    → Statut « payé » / « annulé », changement d'heure, suppression : réparés.
+-- 2. Les clients ne voyaient pas les créneaux déjà pris (lecture des RDV
+--    interdite au public) : tout semblait libre, puis « créneau pris ».
+--    → Fonction qui renvoie seulement les créneaux occupés, sans nom ni numéro.
+-- Rejouable sans erreur.
+-- ============================================================
+
+drop policy if exists "Vendeur modifie ses rendez_vous" on rendez_vous;
+create policy "Vendeur modifie ses rendez_vous" on rendez_vous for update
+  using (vendeur_id in (select vendeur_id from admins where auth_user_id = auth.uid()))
+  with check (vendeur_id in (select vendeur_id from admins where auth_user_id = auth.uid()));
+
+drop policy if exists "Vendeur supprime ses rendez_vous" on rendez_vous;
+create policy "Vendeur supprime ses rendez_vous" on rendez_vous for delete
+  using (vendeur_id in (select vendeur_id from admins where auth_user_id = auth.uid()));
+
+create or replace function creneaux_occupes(p_vendeur_id uuid, p_date date)
+returns table (heure time, personnel_id uuid, duree_minutes integer)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select r.heure, r.personnel_id, coalesce(r.duree_minutes, 30)
+  from rendez_vous r
+  where r.vendeur_id = p_vendeur_id
+    and r.date = p_date
+    and coalesce(r.statut, 'en_attente') <> 'annule';
+$$;
+
+grant execute on function creneaux_occupes(uuid, date) to anon, authenticated;
+
+-- >>>>>>>>>> migrations/phase7b-pack-prestataires.sql
+-- ============================================================
+-- PHASE 7B — Pack prestataires + 2 failles corrigées
+--  A. Vérification des créneaux CÔTÉ BASE (elle n'existait pas : deux
+--     clients pouvaient réserver le même créneau)
+--  B. Stock : seul le vendeur peut décrémenter le stock de SES produits
+--     (avant : n'importe qui pouvait vider le stock de n'importe quelle boutique)
+--  C. Confirmation automatique (option), acompte pour tous (option),
+--     statut « confirmé », lien « Mon rendez-vous » (voir / annuler),
+--     suivi des rappels de la veille.
+-- Prérequis : phases 1 à 7A. Rejouable sans erreur.
+-- ============================================================
+
+
+-- ============ A. VÉRIFICATION DES CRÉNEAUX ============
+create or replace function verifier_disponibilite_rdv()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v vendeurs%rowtype;
+  v_debut integer;
+  v_fin integer;
+  v_capacite integer;
+  v_conflits integer;
+begin
+  -- Le prestataire qui ajoute un RDV à la main peut faire ce qu'il veut
+  if auth.uid() is not null and exists (
+       select 1 from admins where auth_user_id = auth.uid() and vendeur_id = new.vendeur_id) then
+    return new;
+  end if;
+
+  if new.date is null or new.heure is null then
+    raise exception 'Choisis une date et un créneau.';
+  end if;
+
+  select * into v from vendeurs where id = new.vendeur_id;
+  if v.id is null then
+    raise exception 'Boutique introuvable.';
+  end if;
+
+  if new.date < current_date then
+    raise exception 'Ce créneau n''est plus disponible.';
+  end if;
+
+  -- Jour fermé (récurrent ou bloqué)
+  if extract(dow from new.date)::integer = any (coalesce(v.jours_fermeture_recurrents, '{}'))
+     or exists (select 1 from jours_bloques where vendeur_id = new.vendeur_id and date = new.date) then
+    raise exception 'Ce jour n''est pas disponible.';
+  end if;
+
+  v_debut := extract(hour from new.heure)::integer * 60 + extract(minute from new.heure)::integer;
+  v_fin := v_debut + coalesce(new.duree_minutes, 30);
+
+  -- Horaires d'ouverture
+  if v.heure_ouverture is not null and v.heure_fermeture is not null and (
+       new.heure < v.heure_ouverture
+       or v_fin > extract(hour from v.heure_fermeture)::integer * 60 + extract(minute from v.heure_fermeture)::integer) then
+    raise exception 'Ce créneau est en dehors des horaires d''ouverture.';
+  end if;
+
+  -- Créneau bloqué par le prestataire
+  if exists (
+    select 1 from blocages_horaires b
+    where b.vendeur_id = new.vendeur_id and b.date = new.date
+      and (b.personnel_id is null or new.personnel_id is null or b.personnel_id = new.personnel_id)
+      and new.heure < b.heure_fin
+      and (new.heure + make_interval(mins => coalesce(new.duree_minutes, 30))) > b.heure_debut
+  ) then
+    raise exception 'Ce créneau n''est plus disponible.';
+  end if;
+
+  -- RDV qui se chevauchent (même règle que la page de réservation),
+  -- en tenant compte de la capacité simultanée de la prestation
+  select coalesce(capacite_simultanee, 1) into v_capacite from prestations where id = new.prestation_id;
+  v_capacite := greatest(coalesce(v_capacite, 1), 1);
+
+  select count(*) into v_conflits
+  from rendez_vous r
+  where r.vendeur_id = new.vendeur_id
+    and r.date = new.date
+    and coalesce(r.statut, 'en_attente') <> 'annule'
+    and (new.groupe_reservation is null or r.groupe_reservation is distinct from new.groupe_reservation)
+    and (r.personnel_id is null or new.personnel_id is null or r.personnel_id = new.personnel_id)
+    and r.heure < (new.heure + make_interval(mins => coalesce(new.duree_minutes, 30)))
+    and (r.heure + make_interval(mins => coalesce(r.duree_minutes, 30))) > new.heure;
+
+  if v_conflits >= v_capacite then
+    raise exception 'Ce créneau vient d''être pris. Choisis un autre horaire.';
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_verifier_disponibilite_rdv on rendez_vous;
+create trigger trg_verifier_disponibilite_rdv before insert on rendez_vous
+  for each row execute function verifier_disponibilite_rdv();
+
+
+-- ============ B. STOCK ============
+create or replace function decrementer_stock(p_produit_id uuid, p_quantite integer)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if p_quantite is null or p_quantite <= 0 or p_quantite > 1000 then
+    return;
+  end if;
+  update produits
+  set quantite_stock = greatest(quantite_stock - p_quantite, 0)
+  where id = p_produit_id
+    and quantite_stock is not null
+    and vendeur_id in (select vendeur_id from admins where auth_user_id = auth.uid());
+end;
+$$;
+revoke execute on function decrementer_stock(uuid, integer) from public, anon;
+grant execute on function decrementer_stock(uuid, integer) to authenticated;
+
+
+-- ============ C. PACK PRESTATAIRES ============
+-- Réglages du prestataire
+alter table vendeurs add column if not exists rdv_confirmation_auto boolean not null default false;
+alter table vendeurs add column if not exists acompte_actif boolean not null default false;
+alter table vendeurs add column if not exists acompte_message text;
+alter table vendeurs add column if not exists rdv_annulation_heures integer not null default 12;
+
+-- La boutique « Lees » avait son message d'acompte codé en dur : on le garde
+update vendeurs
+set acompte_actif = true,
+    acompte_message = coalesce(acompte_message, 'Veuillez m''envoyer le lien de validation Wave pour réserver le créneau.')
+where slug = 'Lees' and acompte_actif = false;
+
+-- Suivi des rappels envoyés la veille
+alter table rendez_vous add column if not exists rappel_envoye boolean not null default false;
+
+-- Confirmation automatique : un RDV pris en ligne passe directement en
+-- « confirme » si le prestataire l'a activée (le créneau a déjà été vérifié)
+create or replace function confirmer_rdv_automatiquement()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if coalesce(new.statut, 'en_attente') = 'en_attente'
+     and exists (select 1 from vendeurs where id = new.vendeur_id and rdv_confirmation_auto = true) then
+    new.statut := 'confirme';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_zz_confirmation_auto on rendez_vous;
+create trigger trg_zz_confirmation_auto before insert on rendez_vous
+  for each row execute function confirmer_rdv_automatiquement();
+
+-- « Mon rendez-vous » : le client retrouve sa réservation avec le lien
+-- secret reçu (identifiant de groupe, aléatoire et impossible à deviner).
+create or replace function mon_rendez_vous(p_groupe uuid)
+returns json
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select json_build_object(
+    'boutique', json_build_object(
+      'nom', v.nom_boutique, 'slug', v.slug, 'numero_whatsapp', v.numero_whatsapp,
+      'adresse', v.adresse, 'logo_url', v.logo_url, 'couleur_accent', v.couleur_accent,
+      'template', v.template, 'annulation_heures', v.rdv_annulation_heures,
+      'acompte_actif', v.acompte_actif, 'acompte_message', v.acompte_message,
+      'wave_numero', v.wave_numero, 'om_numero', v.om_numero),
+    'nom_client', min(r.nom_client),
+    'lieu', min(r.lieu),
+    'adresse_client', min(r.adresse_client),
+    'statut', case
+      when bool_and(r.statut = 'annule') then 'annule'
+      when bool_and(r.statut = 'paye') then 'paye'
+      when bool_or(r.statut = 'confirme') or bool_or(r.statut = 'paye') then 'confirme'
+      else 'en_attente' end,
+    'services', json_agg(json_build_object(
+      'nom', p.nom, 'date', r.date, 'heure', r.heure, 'duree_minutes', r.duree_minutes,
+      'avec', pe.nom, 'prix', p.prix, 'prix_variable', p.prix_variable) order by r.date, r.heure)
+  )
+  from rendez_vous r
+  join vendeurs v on v.id = r.vendeur_id
+  left join prestations p on p.id = r.prestation_id
+  left join personnel pe on pe.id = r.personnel_id
+  where r.groupe_reservation = p_groupe
+  group by v.id;
+$$;
+grant execute on function mon_rendez_vous(uuid) to anon, authenticated;
+
+create or replace function annuler_mon_rendez_vous(p_groupe uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_debut timestamp;
+  v_delai integer;
+begin
+  select min(r.date + r.heure), max(v.rdv_annulation_heures)
+    into v_debut, v_delai
+  from rendez_vous r join vendeurs v on v.id = r.vendeur_id
+  where r.groupe_reservation = p_groupe and coalesce(r.statut, 'en_attente') <> 'annule';
+
+  if v_debut is null then
+    raise exception 'Rendez-vous introuvable ou déjà annulé.';
+  end if;
+  -- Heure du Sénégal (UTC) ; délai fixé par le prestataire
+  if v_debut < (now() at time zone 'UTC') + make_interval(hours => coalesce(v_delai, 12)) then
+    raise exception 'Il est trop tard pour annuler en ligne. Contacte directement le prestataire.';
+  end if;
+
+  update rendez_vous set statut = 'annule' where groupe_reservation = p_groupe;
+  return 'annule';
+end;
+$$;
+grant execute on function annuler_mon_rendez_vous(uuid) to anon, authenticated;
+
+
+-- ============ D. Adresses réservées : nouvelles pages du site ============
+create or replace function slug_valide(p_slug text)
+returns boolean
+language sql
+immutable
+as $$
+  select p_slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+     and length(p_slug) between 3 and 30
+     and split_part(p_slug, '-', 1) not in (
+       'index', 'panier', 'commande', 'admin', '404', 'inscription',
+       'demo', 'www', 'api', 'app', 'shop', 'moncmd', 'cmd',
+       'connexion', 'login', 'aide', 'support', 'tarifs', 'prestations',
+       'rdv', 'apparence', 'abonnement', 'super', 'voirpanier'
+     );
+$$;
+
+-- >>>>>>>>>> migrations/phase8a-commandes.sql
+-- ============================================================
+-- PHASE 8A — Commandes plus sûres et plus pro
+--  A. Le total est RECALCULÉ par la base à partir des vrais prix
+--     (avant : le navigateur du client envoyait le total, falsifiable)
+--     + code promo vérifié côté base
+--  B. Numéro de commande court par boutique : #1, #2, #3…
+--  C. Page de suivi pour le client (lien secret dans le message WhatsApp)
+--  D. Preuve de paiement envoyée par le client (capture Wave / OM)
+-- Prérequis : phases 1 à 7, bucket privé « paiements » (phase 5).
+-- Rejouable sans erreur.
+-- ============================================================
+
+alter table vendeurs  add column if not exists compteur_commandes integer not null default 0;
+alter table commandes add column if not exists numero integer;
+alter table commandes add column if not exists preuve_chemin text;
+alter table commandes add column if not exists preuve_date timestamptz;
+
+
+-- ============ A + B. Recalcul et numérotation ============
+create or replace function normaliser_commande()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ligne jsonb;
+  v_contenu jsonb := '[]'::jsonb;
+  v_total integer := 0;
+  v_q integer;
+  p produits%rowtype;
+  v_formule text;
+  v_pct integer;
+begin
+  -- Toi dans le SQL Editor (aucun jeton) : pas de recalcul
+  if auth.role() is null then
+    return new;
+  end if;
+
+  if new.contenu is null or jsonb_typeof(new.contenu) <> 'array'
+     or jsonb_array_length(new.contenu) = 0 or jsonb_array_length(new.contenu) > 100 then
+    raise exception 'Panier invalide.';
+  end if;
+
+  for v_ligne in select value from jsonb_array_elements(new.contenu) loop
+    begin
+      select * into p from produits
+      where id = (v_ligne->>'produit_id')::uuid and vendeur_id = new.vendeur_id and actif = true;
+    exception when others then
+      p := null;
+    end;
+    if p.id is null then
+      raise exception 'Un produit de votre panier n''est plus disponible. Rechargez la page.';
+    end if;
+
+    v_q := coalesce(nullif(v_ligne->>'quantite', '')::integer, 1);
+    if v_q < 1 or v_q > 999 then
+      raise exception 'Quantité invalide.';
+    end if;
+
+    v_total := v_total + p.prix * v_q;
+    v_contenu := v_contenu || jsonb_build_object(
+      'produit_id', p.id,
+      'produit', p.nom,
+      'reference', p.reference,
+      'quantite', v_q,
+      'prix', p.prix,
+      'commentaire', left(coalesce(v_ligne->>'commentaire', ''), 300)
+    );
+  end loop;
+
+  -- Code promo : vérifié ici (actif, non expiré, boutique Premium)
+  new.reduction := 0;
+  if nullif(trim(coalesce(new.code_promo, '')), '') is not null then
+    select coalesce(formule, 'standard') into v_formule from vendeurs where id = new.vendeur_id;
+    select reduction_pourcent into v_pct from codes_promo
+    where vendeur_id = new.vendeur_id and actif = true
+      and lower(code) = lower(trim(new.code_promo))
+      and (date_expiration is null or date_expiration >= current_date)
+    limit 1;
+    if v_formule = 'premium' and v_pct is not null and v_pct between 1 and 100 then
+      new.reduction := round(v_total * v_pct / 100.0)::integer;
+      new.code_promo := upper(trim(new.code_promo));
+    else
+      new.code_promo := null;
+    end if;
+  else
+    new.code_promo := null;
+  end if;
+
+  new.contenu := v_contenu;
+  new.total := v_total - new.reduction;
+
+  -- Champs texte : longueurs raisonnables
+  new.nom_client := left(new.nom_client, 80);
+  new.prenom_client := left(new.prenom_client, 80);
+  new.numero_client := left(new.numero_client, 30);
+  new.adresse := left(new.adresse, 300);
+  new.heure_recuperation := left(new.heure_recuperation, 20);
+  new.mode_paiement := left(new.mode_paiement, 30);
+  new.recu_url := null;
+  new.preuve_chemin := null;
+
+  -- Numéro court propre à la boutique
+  update vendeurs set compteur_commandes = compteur_commandes + 1
+  where id = new.vendeur_id
+  returning compteur_commandes into new.numero;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_normaliser_commande on commandes;
+create trigger trg_normaliser_commande before insert on commandes
+  for each row execute function normaliser_commande();
+
+-- Passer commande en une fois et récupérer numéro + total officiels
+create or replace function passer_commande(p jsonb)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  c commandes%rowtype;
+begin
+  insert into commandes (
+    vendeur_id, nom_client, prenom_client, numero_client, adresse,
+    date_livraison, heure_recuperation, mode_paiement, code_promo, contenu, total
+  ) values (
+    (p->>'vendeur_id')::uuid, p->>'nom_client', p->>'prenom_client', p->>'numero_client', p->>'adresse',
+    nullif(p->>'date_livraison', '')::date, p->>'heure_recuperation', p->>'mode_paiement', p->>'code_promo',
+    p->'contenu', 0
+  )
+  returning * into c;
+
+  return json_build_object('id', c.id, 'numero', c.numero, 'total', c.total,
+                           'reduction', c.reduction, 'code_promo', c.code_promo, 'contenu', c.contenu);
+end;
+$$;
+grant execute on function passer_commande(jsonb) to anon, authenticated;
+
+
+-- ============ C. Suivi de commande (lien secret = identifiant) ============
+create or replace function ma_commande(p_id uuid)
+returns json
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select json_build_object(
+    'numero', c.numero, 'statut', c.statut, 'contenu', c.contenu, 'total', c.total,
+    'reduction', c.reduction, 'code_promo', c.code_promo, 'mode_paiement', c.mode_paiement,
+    'date_livraison', c.date_livraison, 'heure', c.heure_recuperation, 'adresse', c.adresse,
+    'nom_client', c.nom_client, 'date_creation', c.date_creation,
+    'preuve_envoyee', c.preuve_chemin is not null,
+    'boutique', json_build_object(
+      'id', v.id, 'nom', v.nom_boutique, 'slug', v.slug, 'numero_whatsapp', v.numero_whatsapp,
+      'logo_url', v.logo_url, 'adresse', v.adresse,
+      'wave_numero', case when coalesce(v.accepte_wave, true) then v.wave_numero end,
+      'om_numero', case when coalesce(v.accepte_om, true) then v.om_numero end)
+  )
+  from commandes c join vendeurs v on v.id = c.vendeur_id
+  where c.id = p_id;
+$$;
+grant execute on function ma_commande(uuid) to anon, authenticated;
+
+
+-- ============ D. Preuve de paiement du client ============
+-- Le client dépose sa capture dans le bucket privé « paiements »,
+-- dans <boutique>/commandes/<id-commande>-…  (images uniquement)
+drop policy if exists "Client depose sa preuve de paiement" on storage.objects;
+create policy "Client depose sa preuve de paiement"
+on storage.objects for insert
+to anon, authenticated
+with check (
+  bucket_id = 'paiements'
+  and (storage.foldername(name))[2] = 'commandes'
+  and lower(storage.extension(name)) in ('jpg', 'jpeg', 'png', 'webp')
+  and (storage.foldername(name))[1] in (select id::text from public.vendeurs where actif = true)
+);
+
+create or replace function joindre_preuve_commande(p_id uuid, p_chemin text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  update commandes c
+  set preuve_chemin = p_chemin, preuve_date = now()
+  where c.id = p_id
+    and c.preuve_chemin is null
+    and c.date_creation > (now() - interval '7 days')
+    and p_chemin like c.vendeur_id::text || '/commandes/' || c.id::text || '-%'
+    and p_chemin not like '%..%';
+  if not found then
+    raise exception 'Impossible d''ajouter la preuve à cette commande.';
+  end if;
+end;
+$$;
+grant execute on function joindre_preuve_commande(uuid, text) to anon, authenticated;
+
+
+-- Adresse réservée : nouvelle page suivi.html
+create or replace function slug_valide(p_slug text)
+returns boolean
+language sql
+immutable
+as $$
+  select p_slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+     and length(p_slug) between 3 and 30
+     and split_part(p_slug, '-', 1) not in (
+       'index', 'panier', 'commande', 'admin', '404', 'inscription',
+       'demo', 'www', 'api', 'app', 'shop', 'moncmd', 'cmd',
+       'connexion', 'login', 'aide', 'support', 'tarifs', 'prestations',
+       'rdv', 'apparence', 'abonnement', 'super', 'voirpanier', 'suivi'
+     );
+$$;
+
+-- >>>>>>>>>> migrations/phase8b-options-produits.sql
+-- ============================================================
+-- PHASE 8B — Options des produits (taille, couleur, pointure, suppléments)
+-- Chaque produit peut avoir des groupes d'options, ex. :
+--   [{"nom":"Taille","obligatoire":true,"multiple":false,
+--     "choix":[{"nom":"M","prix":0,"disponible":true},{"nom":"XL","prix":1000,"disponible":true}]}]
+-- « prix » = supplément ajouté au prix du produit (0 = même prix).
+-- La base vérifie les options et recalcule le prix de chaque ligne.
+-- Prérequis : phase 8A. Rejouable. Les produits sans options ne changent pas.
+-- ============================================================
+
+alter table produits add column if not exists options jsonb;
+alter table produits drop constraint if exists check_options_taille;
+alter table produits add constraint check_options_taille
+  check (options is null or (jsonb_typeof(options) = 'array' and pg_column_size(options) < 20000));
+
+create or replace function normaliser_commande()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_ligne jsonb;
+  v_o jsonb;
+  v_g jsonb;
+  v_c jsonb;
+  v_opts jsonb;
+  v_contenu jsonb := '[]'::jsonb;
+  v_total integer := 0;
+  v_unit integer;
+  v_q integer;
+  p produits%rowtype;
+  v_formule text;
+  v_pct integer;
+begin
+  if auth.role() is null then
+    return new;
+  end if;
+
+  if new.contenu is null or jsonb_typeof(new.contenu) <> 'array'
+     or jsonb_array_length(new.contenu) = 0 or jsonb_array_length(new.contenu) > 100 then
+    raise exception 'Panier invalide.';
+  end if;
+
+  for v_ligne in select value from jsonb_array_elements(new.contenu) loop
+    begin
+      select * into p from produits
+      where id = (v_ligne->>'produit_id')::uuid and vendeur_id = new.vendeur_id and actif = true;
+    exception when others then
+      p := null;
+    end;
+    if p.id is null then
+      raise exception 'Un produit de votre panier n''est plus disponible. Rechargez la page.';
+    end if;
+
+    v_q := coalesce(nullif(v_ligne->>'quantite', '')::integer, 1);
+    if v_q < 1 or v_q > 999 then
+      raise exception 'Quantité invalide.';
+    end if;
+
+    -- Options choisies : chacune doit exister et être disponible
+    v_unit := p.prix;
+    v_opts := '[]'::jsonb;
+    if jsonb_typeof(v_ligne->'options') = 'array' then
+      if jsonb_array_length(v_ligne->'options') > 20 then
+        raise exception 'Trop d''options.';
+      end if;
+      for v_o in select value from jsonb_array_elements(v_ligne->'options') loop
+        select g.value into v_g from jsonb_array_elements(coalesce(p.options, '[]'::jsonb)) g
+        where g.value->>'nom' = v_o->>'groupe' limit 1;
+        if v_g is null then
+          raise exception 'Une option de « % » n''existe plus. Rechargez la page.', p.nom;
+        end if;
+        select c.value into v_c from jsonb_array_elements(coalesce(v_g->'choix', '[]'::jsonb)) c
+        where c.value->>'nom' = v_o->>'choix' limit 1;
+        if v_c is null or coalesce((v_c->>'disponible')::boolean, true) = false then
+          raise exception '« % » n''est plus disponible pour « % ».', v_o->>'choix', p.nom;
+        end if;
+        v_unit := v_unit + coalesce(nullif(v_c->>'prix', '')::integer, 0);
+        v_opts := v_opts || jsonb_build_object('groupe', v_g->>'nom', 'choix', v_c->>'nom',
+                                                'prix', coalesce(nullif(v_c->>'prix', '')::integer, 0));
+      end loop;
+    end if;
+
+    -- Options obligatoires présentes, une seule si choix unique
+    for v_g in select value from jsonb_array_elements(coalesce(p.options, '[]'::jsonb)) loop
+      if coalesce((v_g->>'obligatoire')::boolean, false)
+         and not exists (select 1 from jsonb_array_elements(v_opts) o where o.value->>'groupe' = v_g->>'nom') then
+        raise exception 'Choisis « % » pour « % ».', v_g->>'nom', p.nom;
+      end if;
+      if not coalesce((v_g->>'multiple')::boolean, false)
+         and (select count(*) from jsonb_array_elements(v_opts) o where o.value->>'groupe' = v_g->>'nom') > 1 then
+        raise exception 'Un seul choix possible pour « % ».', v_g->>'nom';
+      end if;
+    end loop;
+
+    v_unit := greatest(v_unit, 0);
+    v_total := v_total + v_unit * v_q;
+    v_contenu := v_contenu || jsonb_build_object(
+      'produit_id', p.id,
+      'produit', p.nom,
+      'reference', p.reference,
+      'quantite', v_q,
+      'prix', v_unit,
+      'options', v_opts,
+      'commentaire', left(coalesce(v_ligne->>'commentaire', ''), 300)
+    );
+  end loop;
+
+  new.reduction := 0;
+  if nullif(trim(coalesce(new.code_promo, '')), '') is not null then
+    select coalesce(formule, 'standard') into v_formule from vendeurs where id = new.vendeur_id;
+    select reduction_pourcent into v_pct from codes_promo
+    where vendeur_id = new.vendeur_id and actif = true
+      and lower(code) = lower(trim(new.code_promo))
+      and (date_expiration is null or date_expiration >= current_date)
+    limit 1;
+    if v_formule = 'premium' and v_pct is not null and v_pct between 1 and 100 then
+      new.reduction := round(v_total * v_pct / 100.0)::integer;
+      new.code_promo := upper(trim(new.code_promo));
+    else
+      new.code_promo := null;
+    end if;
+  else
+    new.code_promo := null;
+  end if;
+
+  new.contenu := v_contenu;
+  new.total := v_total - new.reduction;
+
+  new.nom_client := left(new.nom_client, 80);
+  new.prenom_client := left(new.prenom_client, 80);
+  new.numero_client := left(new.numero_client, 30);
+  new.adresse := left(new.adresse, 300);
+  new.heure_recuperation := left(new.heure_recuperation, 20);
+  new.mode_paiement := left(new.mode_paiement, 30);
+  new.recu_url := null;
+  new.preuve_chemin := null;
+
+  update vendeurs set compteur_commandes = compteur_commandes + 1
+  where id = new.vendeur_id
+  returning compteur_commandes into new.numero;
+
+  return new;
+end;
+$$;

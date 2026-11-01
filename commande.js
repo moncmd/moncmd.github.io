@@ -36,7 +36,7 @@ function afficherResume() {
     panierData.forEach(item => {
         const produit = produits.find(p => p.id === item.id);
         if (!produit) return;
-        const sousTotal = produit.prix * item.quantite;
+        const sousTotal = prixUnitaire(produit, item) * item.quantite;
         total += sousTotal;
 
         resume.innerHTML += `
@@ -44,6 +44,7 @@ function afficherResume() {
                 <img src="${produit.image_url}" alt="${echapperHTML(produit.nom)}" style="width:50px; height:50px; object-fit:cover; border-radius:8px; flex-shrink:0;">
                 <div>
                     <p>${echapperHTML(produit.nom)} x${item.quantite}</p>
+                    ${libelleOptions(item) ? `<p class="commentaire">${echapperHTML(libelleOptions(item))}</p>` : ''}
                     ${item.commentaire ? `<p class="commentaire">💬 ${echapperHTML(item.commentaire)}</p>` : ''}
                     <p>${sousTotal} FCFA</p>
                 </div>
@@ -145,9 +146,9 @@ async function envoyerCommande() {
     panierData.forEach(item => {
         const produit = produits.find(p => p.id === item.id);
         if (!produit) return;
-        const sousTotal = produit.prix * item.quantite;
+        const sousTotal = prixUnitaire(produit, item) * item.quantite;
         total += sousTotal;
-        message += `- ${produit.nom}${produit.reference ? ` (réf. ${produit.reference})` : ''} x${item.quantite} → ${sousTotal} FCFA`;
+        message += `- ${produit.nom}${produit.reference ? ` (réf. ${produit.reference})` : ''}${libelleOptions(item) ? ` [${libelleOptions(item)}]` : ''} x${item.quantite} → ${sousTotal} FCFA`;
         if (item.commentaire) message += ` (${item.commentaire})`;
         message += `\n`;
 
@@ -156,7 +157,8 @@ async function envoyerCommande() {
             produit: produit.nom,
             reference: produit.reference || null,
             quantite: item.quantite,
-            prix: produit.prix,
+            prix: prixUnitaire(produit, item),
+            options: Array.isArray(item.options) ? item.options : [],
             commentaire: item.commentaire || ""
         });
     });
@@ -177,12 +179,9 @@ async function envoyerCommande() {
     message += `\nDate de livraison : ${dateLivraison.split('-').reverse().join('/')}`;
     message += `\nHeure de livraison : ${heure}`;
 
-    // Enregistrement dans Supabase avant l'ouverture de WhatsApp.
-    // L'identifiant est créé ici (le client ne peut pas relire la ligne
-    // créée) : il sert à relier le reçu PDF à la commande.
-    const idCommande = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null;
-    const { error } = await supabaseClient.from('commandes').insert({
-        ...(idCommande ? { id: idCommande } : {}),
+    // Enregistrement : la base recalcule le total à partir des vrais prix,
+    // vérifie le code promo et attribue un numéro de commande (#12).
+    const charge = {
         vendeur_id: vendeurActuel.id,
         nom_client: nom,
         prenom_client: prenom,
@@ -192,25 +191,47 @@ async function envoyerCommande() {
         heure_recuperation: heure,
         mode_paiement: modePaiementActuel,
         code_promo: codePromoApplique ? codePromoApplique.code : null,
-        reduction: reductionAppliquee,
-        contenu: contenu,
-        total: totalFinal
-    });
-    // Pas de .select() ici : le client n'est pas connecté, et Supabase refuse
-    // de renvoyer la ligne créée (aucune règle de lecture pour lui) — ce qui
-    // faisait échouer tout l'enregistrement.
+        contenu: contenu
+    };
+    let idCommande = null;
+    let { data: officiel, error } = await supabaseClient.rpc('passer_commande', { p: charge });
+
+    if (error && error.code === 'PGRST202') {
+        // Fonction pas encore installée (phase 8A) : ancien enregistrement
+        idCommande = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null;
+        ({ error } = await supabaseClient.from('commandes').insert({
+            ...(idCommande ? { id: idCommande } : {}), ...charge, reduction: reductionAppliquee, total: totalFinal
+        }));
+        officiel = null;
+    } else if (error) {
+        // Refus de la base (produit plus disponible, boutique en pause…) :
+        // on prévient le client au lieu d'envoyer une commande fausse.
+        alert(error.message || "La commande n'a pas pu être enregistrée. Réessayez.");
+        return;
+    }
+
+    if (officiel) {
+        idCommande = officiel.id;
+        // Le message WhatsApp reprend les montants officiels calculés par la base
+        if (officiel.total !== totalFinal) {
+            message = message
+                .replace(/\nTotal : [^\n]*/, `\nTotal : ${officiel.total} FCFA`);
+        }
+        const lienSuivi = `${window.location.origin}/suivi.html?c=${officiel.id}`;
+        message = `Commande n°${officiel.numero}\n` + message +
+            `\n\nSuivre ma commande${modePaiementActuel === 'online' ? ' et envoyer ma preuve de paiement' : ''} : ${lienSuivi}`;
+    }
 
     if (error) {
         console.error('Erreur enregistrement commande :', error);
-        // On n'empêche pas la commande WhatsApp même si l'enregistrement échoue
+        // Ancien mode : on n'empêche pas la commande WhatsApp
     }
-    // Le décompte du stock se fait maintenant uniquement quand le vendeur
-    // confirme la commande (voir confirmerCommande dans admin.js) — pas ici,
-    // pour éviter de décompter un stock pour une commande jamais envoyée.
+    // Le décompte du stock se fait uniquement quand le vendeur confirme la
+    // commande (voir confirmerCommande dans admin.js).
 
     // Reçu PDF (réservé aux vendeurs Premium)
     if (vendeurActuel.formule === 'premium') {
-        genererRecuPDF(contenu, totalFinal, nom, prenom, error ? null : idCommande);
+        genererRecuPDF(officiel ? officiel.contenu : contenu, officiel ? officiel.total : totalFinal, nom, prenom, error ? null : idCommande);
     }
 
     const url = `https://wa.me/${vendeurActuel.numero_whatsapp}?text=${encodeURIComponent(message)}`;

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Mon rendez-vous</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --encre:#111; --gris:#6b6b6b; --trait:#ececec; --fond:#fff; --doux:#f7f7f7; --accent:#111; --ok:#1f7a3a; --ok-pale:#e9f5ee; --attente:#8a5a00; --attente-pale:#fff6e0; --ko:#b3261e; --ko-pale:#fdecea; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Inter', system-ui, sans-serif; color: var(--encre); background: var(--fond); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  .page { max-width: 480px; margin: 0 auto; padding: 28px 20px 48px; }
+  .boutique { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .boutique img { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; border: 1px solid var(--trait); }
+  .boutique strong { font-size: 16px; }
+  .boutique span { display: block; color: var(--gris); font-size: 13px; }
+  h1 { font-size: 24px; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .statut { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; margin-bottom: 22px; }
+  .statut.en_attente { background: var(--attente-pale); color: var(--attente); }
+  .statut.confirme, .statut.paye { background: var(--ok-pale); color: var(--ok); }
+  .statut.annule { background: var(--ko-pale); color: var(--ko); }
+  .bloc { border: 1px solid var(--trait); border-radius: 16px; padding: 4px 16px; margin-bottom: 14px; }
+  .ligne { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--trait); font-size: 14.5px; }
+  .ligne:last-child { border-bottom: none; }
+  .ligne span { color: var(--gris); }
+  .ligne b { text-align: right; font-weight: 600; }
+  .note { background: var(--doux); border-radius: 14px; padding: 14px 16px; font-size: 14px; margin-bottom: 14px; }
+  .note b { display: block; margin-bottom: 4px; }
+  .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
+  .btn { display: block; width: 100%; text-align: center; padding: 14px; border-radius: 12px; font: inherit; font-weight: 600; font-size: 15px; text-decoration: none; cursor: pointer; border: 1px solid var(--encre); background: var(--encre); color: #fff; }
+  .btn.ligne-btn { background: #fff; color: var(--encre); border-color: var(--trait); }
+  .btn.danger { background: #fff; color: var(--ko); border-color: var(--trait); }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .btn:focus-visible { outline: 3px solid #999; outline-offset: 2px; }
+  .double { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .message { font-size: 13.5px; margin-top: 10px; min-height: 1.2em; color: var(--ko); text-align: center; }
+  .centre { text-align: center; color: var(--gris); padding: 80px 0; }
+  .pied { text-align: center; color: #aaa; font-size: 12px; margin-top: 36px; }
+  .pied a { color: inherit; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div id="ecran" class="centre">Chargement de ton rendez-vous…</div>
+  <div id="contenu" hidden></div>
+  <p class="pied">Réservation gérée avec <a href="https://www.moncmd.site" target="_blank" rel="noopener">CMD</a></p>
+</div>
+
+<script src="/supabase-config.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const groupe = new URLSearchParams(window.location.search).get('r') || '';
+  const LIBELLES = { en_attente: 'En attente de confirmation', confirme: 'Confirmé', paye: 'Confirmé et payé', annule: 'Annulé' };
+
+  const dateLongue = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const heureFr = (h) => String(h || '').slice(0, 5).replace(':', 'h');
+  const pad = (n) => String(n).padStart(2, '0');
+
+  async function charger() {
+    if (!/^[0-9a-f-]{36}$/i.test(groupe)) { $('ecran').textContent = 'Lien de rendez-vous invalide.'; return; }
+    const { data, error } = await supabaseClient.rpc('mon_rendez_vous', { p_groupe: groupe });
+    if (error || !data) { $('ecran').textContent = 'Rendez-vous introuvable. Vérifie le lien reçu.'; return; }
+    afficher(data);
+  }
+
+  function evenement(d) {
+    const s = d.services;
+    const debut = new Date(`${s[0].date}T${String(s[0].heure).slice(0, 8)}`);
+    const dernier = s[s.length - 1];
+    const fin = new Date(new Date(`${dernier.date}T${String(dernier.heure).slice(0, 8)}`).getTime() + (dernier.duree_minutes || 30) * 60000);
+    const f = (x) => `${x.getFullYear()}${pad(x.getMonth() + 1)}${pad(x.getDate())}T${pad(x.getHours())}${pad(x.getMinutes())}00`;
+    return {
+      debut: f(debut), fin: f(fin),
+      titre: `RDV ${d.boutique.nom} : ${s.map((x) => x.nom).join(', ')}`,
+      lieu: d.lieu === 'domicile' ? (d.adresse_client || 'À domicile') : (d.boutique.adresse || d.boutique.nom),
+      details: `Mon rendez-vous : ${window.location.href}`
+    };
+  }
+
+  function lienGoogle(e) {
+    const p = new URLSearchParams({ action: 'TEMPLATE', text: e.titre, dates: `${e.debut}/${e.fin}`, location: e.lieu, details: e.details });
+    return `https://calendar.google.com/calendar/render?${p.toString()}`;
+  }
+
+  function lienICS(e) {
+    const nettoyer = (t) => String(t).replace(/[\\,;]/g, (c) => '\\' + c).replace(/\n/g, '\\n');
+    const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CMD//RDV//FR', 'BEGIN:VEVENT',
+      `UID:${groupe}@moncmd.site`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
+      `DTSTART:${e.debut}`, `DTEND:${e.fin}`, `SUMMARY:${nettoyer(e.titre)}`, `LOCATION:${nettoyer(e.lieu)}`,
+      `DESCRIPTION:${nettoyer(e.details)}`, 'BEGIN:VALARM', 'TRIGGER:-PT2H', 'ACTION:DISPLAY', 'DESCRIPTION:Rappel', 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    return 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+  }
+
+  function afficher(d) {
+    const b = d.boutique;
+    const s = d.services || [];
+    const annule = d.statut === 'annule';
+    const e = evenement(d);
+    const logo = b.logo_url && String(b.logo_url).startsWith(SUPABASE_URL) ? b.logo_url : '/1C621DE3-4443-4809-A987-882F313088E0_1_105_c.jpeg';
+    const total = s.reduce((t, x) => t + (x.prix || 0), 0);
+    const lienBoutique = `/${encodeURIComponent(b.slug)}`;
+    const wa = `https://wa.me/${encodeURIComponent(b.numero_whatsapp || '')}?text=${encodeURIComponent(`Bonjour, c'est ${d.nom_client || ''} au sujet de mon rendez-vous du ${dateLongue(s[0].date)} à ${heureFr(s[0].heure)}. ${window.location.href}`)}`;
+
+    let acompte = '';
+    if (!annule && d.statut === 'en_attente' && b.acompte_actif) {
+      acompte = `<div class="note"><b>Acompte demandé</b>${esc(b.acompte_message || 'Un acompte est demandé pour confirmer ce créneau.')}
+        ${b.wave_numero ? `<br>Wave : <b style="display:inline">${esc(b.wave_numero)}</b>` : ''}
+        ${b.om_numero ? `<br>Orange Money : <b style="display:inline">${esc(b.om_numero)}</b>` : ''}</div>`;
+    }
+
+    $('contenu').innerHTML = `
+      <div class="boutique"><img src="${esc(logo)}" alt=""><div><strong>${esc(b.nom)}</strong><span>${esc(b.adresse || '')}</span></div></div>
+      <h1>${annule ? 'Rendez-vous annulé' : 'Ton rendez-vous'}</h1>
+      <span class="statut ${esc(d.statut)}">${LIBELLES[d.statut] || ''}</span>
+      <div class="bloc">
+        <div class="ligne"><span>Date</span><b>${esc(dateLongue(s[0].date))}</b></div>
+        ${s.map((x) => `<div class="ligne"><span>${esc(heureFr(x.heure))}</span><b>${esc(x.nom || 'Prestation')}${x.avec ? ` · avec ${esc(x.avec)}` : ''}</b></div>`).join('')}
+        <div class="ligne"><span>Lieu</span><b>${d.lieu === 'domicile' ? `À domicile${d.adresse_client ? ' · ' + esc(d.adresse_client) : ''}` : 'Sur place'}</b></div>
+        ${total ? `<div class="ligne"><span>Total</span><b>${total.toLocaleString('fr-FR')} FCFA${s.some((x) => x.prix_variable) ? ' (à confirmer)' : ''}</b></div>` : ''}
+      </div>
+      ${acompte}
+      <div class="actions">
+        ${annule ? `<a class="btn" href="${lienBoutique}">Reprendre un rendez-vous</a>` : `
+          <div class="double">
+            <a class="btn ligne-btn" href="${lienICS(e)}" download="rendez-vous.ics">Ajouter à l'agenda</a>
+            <a class="btn ligne-btn" href="${lienGoogle(e)}" target="_blank" rel="noopener">Google Agenda</a>
+          </div>
+          <a class="btn" href="${wa}" target="_blank" rel="noopener">Écrire au prestataire</a>
+          <button type="button" class="btn danger" id="btn-annuler">Annuler ce rendez-vous</button>
+          <p class="message" id="message" role="status"></p>
+          <p style="text-align:center;color:var(--gris);font-size:12.5px;margin:0">Annulation en ligne possible jusqu'à ${Number(b.annulation_heures) || 12} h avant. Pour changer d'horaire, annule puis <a href="${lienBoutique}" style="color:inherit">reprends un créneau</a>.</p>`}
+      </div>`;
+
+    document.title = `Mon rendez-vous · ${b.nom}`;
+    $('ecran').hidden = true;
+    $('contenu').hidden = false;
+
+    const btn = $('btn-annuler');
+    if (btn) btn.addEventListener('click', async () => {
+      if (!confirm('Annuler ce rendez-vous ? Le créneau sera libéré pour quelqu\u2019un d\u2019autre.')) return;
+      btn.disabled = true;
+      const { error } = await supabaseClient.rpc('annuler_mon_rendez_vous', { p_groupe: groupe });
+      if (error) { btn.disabled = false; $('message').textContent = error.message; return; }
+      charger();
+    });
+  }
+
+  charger();
+})();
+</script>
+</body>
+</html>

@@ -436,6 +436,7 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="/supabase-config.js"></script>
 <script src="/onboarding.js"></script>
+<script src="/options-produit.js"></script>
 <script src="/admin-prestations.js"></script>
 
 <!-- Modal d'édition d'un rendez-vous (ouvert au clic sur un événement du calendrier) -->
@@ -455,6 +456,7 @@
       <label class="champ-label">Statut du paiement</label>
       <select id="edition-rdv-statut">
         <option value="en_attente">🟡 En attente (on hold)</option>
+        <option value="confirme">🔵 Confirmé (pas encore payé)</option>
         <option value="paye">🟢 Payé</option>
         <option value="annule">🔴 Non payé / Annulé</option>
       </select>

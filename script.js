@@ -493,7 +493,7 @@ function construireCarteProduitClient(produit) {
           ? `<video src="${produit.video_url}" muted loop playsinline autoplay onmouseover="this.play()" onclick="this.paused ? this.play() : this.pause()"></video>`
           : `<img src="${produit.image_url}" alt="${echapperHTML(produit.nom)}">`}
         <p class="produit">${echapperHTML(produit.nom)}</p>
-        <p class="prix">${produit.prix} FCFA</p>
+        <p class="prix">${produit.prix} FCFA${optionsProduit(produit).length ? '<span class="cmd-plusieurs-choix"> · plusieurs choix</span>' : ''}</p>
         ${blocAction}
     </div>
   `;
@@ -802,15 +802,48 @@ function animation() {
   setTimeout(() => document.body.removeChild(toast), 2000);
 }
 
-function ajouterAuPanier(id, commentaire = "") {
+// ---- Options des produits (taille, couleur, suppléments…) ----
+function optionsProduit(produit) {
+  return (produit && Array.isArray(produit.options)) ? produit.options.filter(g => g && Array.isArray(g.choix) && g.choix.length) : [];
+}
+function aDesOptionsObligatoires(produit) {
+  return optionsProduit(produit).some(g => g.obligatoire);
+}
+// Prix d'une unité : prix du produit + suppléments des options choisies
+function prixUnitaire(produit, item) {
+  let prix = Number(produit && produit.prix) || 0;
+  (item && Array.isArray(item.options) ? item.options : []).forEach(o => {
+    const g = optionsProduit(produit).find(x => x.nom === o.groupe);
+    const c = g && g.choix.find(x => x.nom === o.choix);
+    if (c) prix += Number(c.prix) || 0;
+  });
+  return Math.max(prix, 0);
+}
+function libelleOptions(item) {
+  return (item && Array.isArray(item.options) ? item.options : []).map(o => o.choix).join(', ');
+}
+function memesOptions(a, b) {
+  const cle = (l) => JSON.stringify((l || []).map(o => [o.groupe, o.choix]));
+  return cle(a) === cle(b);
+}
+
+function ajouterAuPanier(id, commentaire = "", options = null) {
+  // Produit avec un choix obligatoire (taille…) ajouté depuis la liste :
+  // on ouvre sa fiche pour que le client choisisse.
+  const produitVise = produits.find(p => p.id === id);
+  if (options === null && aDesOptionsObligatoires(produitVise)) {
+    allerVers('panier', id);
+    return;
+  }
+  const choix = Array.isArray(options) ? options : [];
   animation();
 
-  let item = panierData.find(p => p.id === id);
+  let item = panierData.find(p => p.id === id && memesOptions(p.options, choix));
   if (item) {
     item.quantite++;
     item.commentaire = commentaire;
   } else {
-    panierData.push({ id, quantite: 1, commentaire });
+    panierData.push({ id, quantite: 1, commentaire, options: choix });
   }
 
   localStorage.setItem('panier', JSON.stringify(panierData));

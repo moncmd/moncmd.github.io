@@ -84,6 +84,8 @@ async function chargerDashboard(authUserId) {
   afficherBandeauEssai(vendeurConnecte);
   afficherPremiersPas(vendeurConnecte);
   afficherStatsVisites();
+  afficherRdvDemain(vendeurConnecte);
+  afficherReglagesReservation(vendeurConnecte);
   document.getElementById('vue-dashboard-tabs').style.display = 'flex';
   document.getElementById('nom-boutique-admin').textContent = vendeurConnecte.nom_boutique;
   document.getElementById('header-boutique-nom').textContent = `— ${vendeurConnecte.nom_boutique}`;
@@ -1250,7 +1252,7 @@ async function chargerListeAttenteStock() {
         <span class="prix">${echapperHTML(a.numero_client)}</span>
       </div>
       <div class="produit-actions">
-        <a href="https://wa.me/${a.numero_client.replace(/\D/g,'')}?text=Bonjour, le produit que vous attendiez est de nouveau disponible !" target="_blank" class="icon-btn" title="Contacter sur WhatsApp">
+        <a href="https://wa.me/${numeroWhatsAppClient(a.numero_client, vendeurConnecte.numero_whatsapp)}?text=Bonjour, le produit que vous attendiez est de nouveau disponible !" target="_blank" class="icon-btn" title="Contacter sur WhatsApp">
           <i class="fa-brands fa-whatsapp"></i>
         </a>
         <button class="icon-btn" title="Marquer comme contacté" onclick="marquerContacte('${a.id}')">
@@ -1622,6 +1624,12 @@ async function ajouterProduit() {
   }
 
   const donneesProduit = { nom, prix, categorie, favori, description };
+  if (typeof lireOptionsProduit === 'function') {
+    // N'envoie la colonne que si elle existe déjà en base (phase 8B lancée)
+    const opts = lireOptionsProduit();
+    const colonneExiste = (produitsCache || []).some(p => Object.prototype.hasOwnProperty.call(p, 'options'));
+    if (opts || colonneExiste) donneesProduit.options = opts;
+  }
   if (image_url !== undefined) donneesProduit.image_url = image_url;
   if (video_url !== undefined) donneesProduit.video_url = video_url;
   if (!enEdition) {
@@ -1670,6 +1678,7 @@ function chargerProduitPourEdition(id) {
   document.getElementById('nouveau-image-fichier').value = '';
   document.getElementById('nouveau-video-fichier').value = '';
   document.getElementById('nouveau-favori').checked = !!produit.favori;
+  if (typeof remplirOptionsProduit === 'function') remplirOptionsProduit(produit.options);
 
   const select = document.getElementById('nouveau-categorie-select');
   const options = Array.from(select.options).map(o => o.value);
@@ -1696,6 +1705,7 @@ function chargerProduitPourEdition(id) {
 
 function annulerEditionProduit() {
   produitEnEdition = null;
+  if (typeof reinitialiserOptionsProduit === 'function') reinitialiserOptionsProduit();
 
   document.getElementById('nouveau-nom').value = '';
   document.getElementById('nouveau-prix').value = '';

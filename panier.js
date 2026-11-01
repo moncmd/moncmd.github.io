@@ -18,9 +18,53 @@ async function afficherProduitDetail() {
   document.querySelector('.right .description').textContent = produit.description || '';
   document.querySelector('.right .prix').textContent = produit.prix + ' FCFA';
 
+  const groupes = optionsProduit(produit);
+  const selection = {}; // nom du groupe → liste des choix
+  const prixEl = document.querySelector('.right .prix');
+  if (groupes.length) {
+    const bloc = document.createElement('div');
+    bloc.className = 'cmd-options';
+    bloc.innerHTML = groupes.map((g, gi) => `
+      <div class="cmd-options-groupe" data-groupe="${gi}">
+        <p class="cmd-options-titre">${echapperHTML(g.nom)}${g.obligatoire ? ' <span>obligatoire</span>' : (g.multiple ? ' <span>plusieurs choix possibles</span>' : '')}</p>
+        <div class="cmd-options-choix">${g.choix.map((c, ci) => {
+          const dispo = c.disponible !== false;
+          const sup = Number(c.prix) || 0;
+          return `<button type="button" class="cmd-option" data-choix="${ci}" ${dispo ? '' : 'disabled'} aria-pressed="false">${echapperHTML(c.nom)}${sup ? ` <small>${sup > 0 ? '+' : ''}${sup} FCFA</small>` : ''}${dispo ? '' : ' <small>épuisé</small>'}</button>`;
+        }).join('')}</div>
+      </div>`).join('') + '<p class="cmd-options-erreur" role="alert"></p>';
+    const ancre = document.querySelector('.right textarea') || document.getElementById('btn-acheter');
+    ancre.parentNode.insertBefore(bloc, ancre);
+
+    const majPrix = () => {
+      const opts = Object.entries(selection).flatMap(([gn, liste]) => liste.map(c => ({ groupe: gn, choix: c })));
+      prixEl.textContent = prixUnitaire(produit, { options: opts }) + ' FCFA';
+    };
+    bloc.querySelectorAll('.cmd-option').forEach(btn => btn.addEventListener('click', () => {
+      const g = groupes[Number(btn.closest('[data-groupe]').dataset.groupe)];
+      const c = g.choix[Number(btn.dataset.choix)];
+      const liste = selection[g.nom] || [];
+      const deja = liste.includes(c.nom);
+      if (g.multiple) selection[g.nom] = deja ? liste.filter(x => x !== c.nom) : [...liste, c.nom];
+      else selection[g.nom] = deja ? [] : [c.nom];
+      btn.closest('.cmd-options-choix').querySelectorAll('.cmd-option').forEach(b => {
+        const nomChoix = g.choix[Number(b.dataset.choix)].nom;
+        b.setAttribute('aria-pressed', String((selection[g.nom] || []).includes(nomChoix)));
+      });
+      bloc.querySelector('.cmd-options-erreur').textContent = '';
+      majPrix();
+    }));
+  }
+
   document.getElementById('btn-acheter').onclick = function () {
     const commentaire = document.querySelector('textarea')?.value || '';
-    ajouterAuPanier(produit.id, commentaire);
+    const manquant = groupes.find(g => g.obligatoire && !(selection[g.nom] || []).length);
+    if (manquant) {
+      document.querySelector('.cmd-options-erreur').textContent = `Choisis : ${manquant.nom}`;
+      return;
+    }
+    const opts = groupes.flatMap(g => (selection[g.nom] || []).map(c => ({ groupe: g.nom, choix: c })));
+    ajouterAuPanier(produit.id, commentaire, opts);
   };
 
   // Masquer le champ commentaire et afficher les avis clients à la place —

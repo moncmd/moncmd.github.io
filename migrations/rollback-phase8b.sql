@@ -1,0 +1,2 @@
+-- ROLLBACK PHASE 8B : relance simplement migrations/phase8a-commandes.sql
+-- (il remet la version du recalcul sans options). La colonne options reste.

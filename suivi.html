@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Ma commande</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --encre:#111; --gris:#6b6b6b; --trait:#ececec; --fond:#fff; --doux:#f7f7f7; --accent:#111; --ok:#1f7a3a; --ok-pale:#e9f5ee; --attente:#8a5a00; --attente-pale:#fff6e0; --ko:#b3261e; --ko-pale:#fdecea; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Inter', system-ui, sans-serif; color: var(--encre); background: var(--fond); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  .page { max-width: 480px; margin: 0 auto; padding: 28px 20px 48px; }
+  .boutique { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .boutique img { width: 44px; height: 44px; border-radius: 12px; object-fit: cover; border: 1px solid var(--trait); }
+  .boutique strong { font-size: 16px; }
+  .boutique span { display: block; color: var(--gris); font-size: 13px; }
+  h1 { font-size: 24px; letter-spacing: -0.02em; margin: 0 0 8px; }
+  .statut { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 4px 10px; border-radius: 999px; margin-bottom: 22px; }
+  .statut.en_attente { background: var(--attente-pale); color: var(--attente); }
+  .statut.confirme, .statut.paye { background: var(--ok-pale); color: var(--ok); }
+  .statut.annule { background: var(--ko-pale); color: var(--ko); }
+  .bloc { border: 1px solid var(--trait); border-radius: 16px; padding: 4px 16px; margin-bottom: 14px; }
+  .ligne { display: flex; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--trait); font-size: 14.5px; }
+  .ligne:last-child { border-bottom: none; }
+  .ligne span { color: var(--gris); }
+  .ligne b { text-align: right; font-weight: 600; }
+  .note { background: var(--doux); border-radius: 14px; padding: 14px 16px; font-size: 14px; margin-bottom: 14px; }
+  .note b { display: block; margin-bottom: 4px; }
+  .actions { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
+  .btn { display: block; width: 100%; text-align: center; padding: 14px; border-radius: 12px; font: inherit; font-weight: 600; font-size: 15px; text-decoration: none; cursor: pointer; border: 1px solid var(--encre); background: var(--encre); color: #fff; }
+  .btn.ligne-btn { background: #fff; color: var(--encre); border-color: var(--trait); }
+  .btn.danger { background: #fff; color: var(--ko); border-color: var(--trait); }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .btn:focus-visible { outline: 3px solid #999; outline-offset: 2px; }
+  .double { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .message { font-size: 13.5px; margin-top: 10px; min-height: 1.2em; color: var(--ko); text-align: center; }
+  .centre { text-align: center; color: var(--gris); padding: 80px 0; }
+  .pied { text-align: center; color: #aaa; font-size: 12px; margin-top: 36px; }
+  .pied a { color: inherit; }
+  .etapes { display: flex; gap: 6px; margin: 4px 0 22px; }
+  .etapes div { flex: 1; height: 4px; border-radius: 4px; background: var(--trait); }
+  .etapes div.fait { background: var(--ok); }
+  .upload { border: 1.5px dashed #d6d6d6; border-radius: 14px; padding: 14px; margin-top: 10px; }
+  .upload input { width: 100%; margin: 8px 0 10px; font: inherit; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div id="ecran" class="centre">Chargement de ta commande…</div>
+  <div id="contenu" hidden></div>
+  <p class="pied">Commande gérée avec <a href="https://www.moncmd.site" target="_blank" rel="noopener">CMD</a></p>
+</div>
+
+<script src="/supabase-config.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const id = new URLSearchParams(window.location.search).get('c') || '';
+  const fcfa = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
+
+  async function charger() {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) { $('ecran').textContent = 'Lien de commande invalide.'; return; }
+    const { data, error } = await supabaseClient.rpc('ma_commande', { p_id: id });
+    if (error || !data) { $('ecran').textContent = 'Commande introuvable. Vérifie le lien reçu.'; return; }
+    afficher(data);
+  }
+
+  function afficher(c) {
+    const b = c.boutique;
+    const confirmee = c.statut === 'confirmee';
+    const logo = b.logo_url && String(b.logo_url).startsWith(SUPABASE_URL) ? b.logo_url : '/1C621DE3-4443-4809-A987-882F313088E0_1_105_c.jpeg';
+    const sousTotal = (c.contenu || []).reduce((t, l) => t + (l.prix || 0) * (l.quantite || 1), 0);
+    const wa = `https://wa.me/${encodeURIComponent(b.numero_whatsapp || '')}?text=${encodeURIComponent(`Bonjour, c'est ${c.nom_client || ''} au sujet de ma commande n°${c.numero}. ${window.location.href}`)}`;
+    const attendPreuve = c.mode_paiement === 'online' && !c.preuve_envoyee && !confirmee;
+
+    $('contenu').innerHTML = `
+      <div class="boutique"><img src="${esc(logo)}" alt=""><div><strong>${esc(b.nom)}</strong><span>${esc(b.adresse || '')}</span></div></div>
+      <h1>Commande n°${esc(c.numero ?? '')}</h1>
+      <span class="statut ${confirmee ? 'confirme' : 'en_attente'}">${confirmee ? 'Confirmée par la boutique' : 'Reçue, en attente de confirmation'}</span>
+      <div class="etapes" aria-hidden="true"><div class="fait"></div><div class="${c.preuve_envoyee || confirmee || c.mode_paiement !== 'online' ? 'fait' : ''}"></div><div class="${confirmee ? 'fait' : ''}"></div></div>
+      <div class="bloc">
+        ${(c.contenu || []).map((l) => `<div class="ligne"><span>${esc(l.quantite)} × ${esc(l.produit)}${Array.isArray(l.options) && l.options.length ? `<br><small>${esc(l.options.map((o) => o.choix).join(', '))}</small>` : ''}${l.commentaire ? `<br><small>${esc(l.commentaire)}</small>` : ''}</span><b>${fcfa((l.prix || 0) * (l.quantite || 1))}</b></div>`).join('')}
+        ${c.reduction ? `<div class="ligne"><span>Code ${esc(c.code_promo || '')}</span><b>−${fcfa(c.reduction)}</b></div>` : ''}
+        <div class="ligne"><span>Total</span><b>${fcfa(c.total ?? sousTotal)}</b></div>
+      </div>
+      <div class="bloc">
+        ${c.date_livraison ? `<div class="ligne"><span>Livraison</span><b>${esc(new Date(c.date_livraison + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))}${c.heure ? ' · ' + esc(String(c.heure).slice(0, 5)) : ''}</b></div>` : ''}
+        ${c.adresse ? `<div class="ligne"><span>Adresse</span><b>${esc(c.adresse)}</b></div>` : ''}
+        <div class="ligne"><span>Paiement</span><b>${c.mode_paiement === 'online' ? 'Wave / Orange Money' : 'À la livraison'}${c.preuve_envoyee ? ' · preuve envoyée' : ''}</b></div>
+      </div>
+      ${attendPreuve ? `
+        <div class="note"><b>Paiement</b>Envoie ${fcfa(c.total)} puis ajoute ta capture d'écran : la boutique confirmera plus vite.
+          ${b.wave_numero ? `<br>Wave : <b style="display:inline">${esc(b.wave_numero)}</b>` : ''}
+          ${b.om_numero ? `<br>Orange Money : <b style="display:inline">${esc(b.om_numero)}</b>` : ''}
+          <div class="upload">
+            <label for="preuve"><b style="display:inline">Ma preuve de paiement</b></label>
+            <input type="file" id="preuve" accept="image/jpeg,image/png,image/webp">
+            <button type="button" class="btn" id="btn-preuve">Envoyer la preuve</button>
+            <p class="message" id="message" role="status"></p>
+          </div>
+        </div>` : ''}
+      <div class="actions">
+        <a class="btn ${attendPreuve ? 'ligne-btn' : ''}" href="${wa}" target="_blank" rel="noopener">Écrire à la boutique</a>
+        <a class="btn ligne-btn" href="/${encodeURIComponent(b.slug)}">Retour à la boutique</a>
+      </div>`;
+
+    document.title = `Commande n°${c.numero} · ${b.nom}`;
+    $('ecran').hidden = true;
+    $('contenu').hidden = false;
+
+    const btn = $('btn-preuve');
+    if (btn) btn.addEventListener('click', async () => {
+      const fichier = $('preuve').files[0];
+      const msg = $('message');
+      if (!fichier) { msg.textContent = 'Choisis d\'abord ta capture d\'écran.'; return; }
+      if (fichier.size > 5 * 1024 * 1024) { msg.textContent = 'Image trop lourde : 5 Mo maximum.'; return; }
+      const ext = ({ 'image/png': 'png', 'image/webp': 'webp' })[fichier.type] || 'jpg';
+      const chemin = `${b.id}/commandes/${id}-${Date.now()}.${ext}`;
+      btn.disabled = true; msg.style.color = ''; msg.textContent = 'Envoi…';
+      const { error: e1 } = await supabaseClient.storage.from('paiements').upload(chemin, fichier, { contentType: fichier.type });
+      if (e1) { btn.disabled = false; msg.textContent = 'Envoi impossible, réessaie.'; return; }
+      const { error: e2 } = await supabaseClient.rpc('joindre_preuve_commande', { p_id: id, p_chemin: chemin });
+      if (e2) { btn.disabled = false; msg.textContent = e2.message; return; }
+      charger();
+    });
+  }
+
+  charger();
+})();
+</script>
+</body>
+</html>
