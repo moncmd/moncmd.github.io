@@ -100,6 +100,7 @@
         <button type="button" class="btn secondaire petit" id="btn-copier">Copier</button>
       </div>
       <p class="aide" style="margin:10px 0 0">Envoie exactement le montant indiqué, puis garde la référence de la transaction (dans le SMS ou l'application).</p>
+      <p class="aide" style="margin:8px 0 0">Tu n'es pas au Sénégal ou tu n'as ni Wave ni Orange Money ? <a id="lien-international" target="_blank" rel="noopener">Écris-nous pour payer autrement</a>.</p>
     </section>
 
     <section class="carte">
@@ -156,6 +157,7 @@
     if (!tarifs.length) { $('ecran').textContent = 'Le paiement en ligne n’est pas encore disponible. Contacte CMD sur WhatsApp.'; return; }
 
     afficherStatut();
+    $('lien-international').href = `https://wa.me/${WHATSAPP_CMD}?text=${encodeURIComponent(`Bonjour, je voudrais payer mon abonnement CMD depuis l'étranger pour la boutique "${vendeur.nom_boutique}" (${vendeur.slug}).`)}`;
     const parDefaut = tarifs.find((x) => x.formule === vendeur.formule) || tarifs.find((x) => x.formule === 'pro') || tarifs[0];
     choix.formule = parDefaut.formule;
     construire();

@@ -60,6 +60,10 @@
   .champ { margin-bottom: 18px; }
   .champ input { width: 100%; padding: 13px 14px; border: 1.5px solid var(--trait); border-radius: 10px; font: inherit; font-size: 15px; color: var(--encre); background: #fff; }
   .champ input:focus { outline: none; border-color: var(--accent); }
+  .champ-tel { display: flex; gap: 8px; }
+  .champ-tel select { flex: 0 0 auto; padding: 0 10px; border: 1.5px solid var(--trait); border-radius: 10px; font: inherit; font-size: 15px; background: #fff; color: var(--encre); }
+  .champ-tel select:focus { outline: none; border-color: var(--accent); }
+  .champ-tel input { min-width: 0; }
   .champ-prefixe { display: flex; align-items: stretch; border: 1.5px solid var(--trait); border-radius: 10px; overflow: hidden; }
   .champ-prefixe:focus-within { border-color: var(--accent); }
   .champ-prefixe span { background: var(--fond-doux); color: var(--gris); padding: 13px 10px 13px 14px; font-size: 14px; white-space: nowrap; border-right: 1px solid var(--trait); }
@@ -128,7 +132,35 @@
 
       <div class="champ">
         <label for="whatsapp">Numéro WhatsApp <span class="aide">— où tu recevras les commandes</span></label>
-        <input id="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="77 123 45 67" required>
+        <div class="champ-tel">
+          <select id="indicatif" aria-label="Indicatif du pays">
+            <option value="221" selected>🇸🇳 +221</option>
+            <option value="223">🇲🇱 +223</option>
+            <option value="225">🇨🇮 +225</option>
+            <option value="224">🇬🇳 +224</option>
+            <option value="226">🇧🇫 +226</option>
+            <option value="227">🇳🇪 +227</option>
+            <option value="228">🇹🇬 +228</option>
+            <option value="229">🇧🇯 +229</option>
+            <option value="222">🇲🇷 +222</option>
+            <option value="220">🇬🇲 +220</option>
+            <option value="245">🇬🇼 +245</option>
+            <option value="237">🇨🇲 +237</option>
+            <option value="241">🇬🇦 +241</option>
+            <option value="242">🇨🇬 +242</option>
+            <option value="243">🇨🇩 +243</option>
+            <option value="212">🇲🇦 +212</option>
+            <option value="216">🇹🇳 +216</option>
+            <option value="33">🇫🇷 +33</option>
+            <option value="32">🇧🇪 +32</option>
+            <option value="41">🇨🇭 +41</option>
+            <option value="39">🇮🇹 +39</option>
+            <option value="34">🇪🇸 +34</option>
+            <option value="44">🇬🇧 +44</option>
+            <option value="1">🇨🇦🇺🇸 +1</option>
+          </select>
+          <input id="whatsapp" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="77 123 45 67" required>
+        </div>
       </div>
 
       <div class="bloc-compte" id="bloc-compte">
@@ -172,6 +204,21 @@
   let minuterie = null;
 
   const typeChoisi = () => document.querySelector('input[name="type"]:checked').value;
+  const indicatifEl = document.getElementById('indicatif');
+
+  // Numéro complet au format international, sans répéter l'indicatif
+  // si la personne l'a déjà tapé.
+  function numeroInternational() {
+    const indicatif = indicatifEl.value;
+    let local = telEl.value.replace(/[^0-9]/g, '').replace(/^00/, '');
+    if (local.startsWith(indicatif) && local.length > indicatif.length + 6) local = local.slice(indicatif.length);
+    // Le 0 de début ne se retire que dans les pays où il n'est pas composé depuis
+    // l'étranger (France 06… → +33 6…). En Côte d'Ivoire, le 0 fait partie du numéro.
+    if (['33', '32', '41', '44', '212'].includes(indicatif)) local = local.replace(/^0+/, '');
+    return indicatif + local;
+  }
+  const EXEMPLES = { '221': '77 123 45 67', '223': '70 12 34 56', '225': '07 12 34 56 78', '33': '6 12 34 56 78', '1': '514 123 4567' };
+  indicatifEl.addEventListener('change', () => { telEl.placeholder = EXEMPLES[indicatifEl.value] || 'Ton numéro'; });
   const espaceAdmin = (type) => type === 'prestation' ? '/admin-prestations.html' : '/admin.html';
 
   function versSlug(texte) {
@@ -225,11 +272,11 @@
   function valider() {
     const nom = nomEl.value.trim();
     const slug = slugEl.value.replace(/-+$/, '');
-    const tel = telEl.value.replace(/[^0-9]/g, '');
+    const tel = numeroInternational();
     if (nom.length < 2) return 'Indique le nom de ta boutique.';
     if (slug.length < 3) return 'Choisis une adresse d’au moins 3 caractères.';
     if (dernierSlugVerifie === slug && !slugEstDisponible) return 'Cette adresse n’est pas disponible. Choisis-en une autre.';
-    if (tel.length < 8) return 'Indique ton numéro WhatsApp.';
+    if (tel.length < 10 || tel.length > 15) return 'Vérifie ton numéro WhatsApp et le pays choisi.';
     if (!compteConnecte) {
       if (!/^\S+@\S+\.\S+$/.test(emailEl.value.trim())) return 'Indique une adresse email valide.';
       if (mdpEl.value.length < 8) return 'Le mot de passe doit faire au moins 8 caractères.';
@@ -255,7 +302,7 @@
     const infos = {
       slug: slugEl.value.replace(/-+$/, ''),
       nom: nomEl.value.trim(),
-      whatsapp: telEl.value.trim(),
+      whatsapp: numeroInternational(),
       type: typeChoisi()
     };
 
