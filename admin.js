@@ -360,14 +360,17 @@ async function chargerDashboard(authUserId) {
     .single();
 
   if (errAdmin || !admin) {
-    document.getElementById('login-erreur').textContent = "Aucune boutique liée à ce compte.";
+    // Nouveau compte sans boutique : finalise l'inscription (voir onboarding.js)
+    await gererCompteSansBoutique();
     return;
   }
 
   vendeurConnecte = admin.vendeurs;
+  if (redirigerVersBonAdmin(vendeurConnecte)) return;
 
   document.getElementById('vue-login').style.display = 'none';
   document.getElementById('vue-dashboard').style.display = 'block';
+  afficherBandeauEssai(vendeurConnecte);
   document.getElementById('nom-boutique-admin').textContent = vendeurConnecte.nom_boutique;
   document.documentElement.style.setProperty('--couleur-accent', vendeurConnecte.couleur_accent || '#e56400');
 

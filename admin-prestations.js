@@ -66,11 +66,13 @@ async function chargerDashboard(authUserId) {
     .single();
 
   if (error || !admin) {
-    document.getElementById('login-erreur').textContent = "Aucune boutique liée à ce compte.";
+    // Nouveau compte sans boutique : finalise l'inscription (voir onboarding.js)
+    await gererCompteSansBoutique();
     return;
   }
 
   vendeurConnecte = admin.vendeurs;
+  if (redirigerVersBonAdmin(vendeurConnecte)) return;
 
   // L'onglet Boutique/Produits n'a de sens que pour les vendeurs hybride
   // (prestations + boutique) — masqué pour tous les autres.
@@ -79,6 +81,7 @@ async function chargerDashboard(authUserId) {
 
   document.getElementById('vue-login').style.display = 'none';
   document.getElementById('vue-dashboard').style.display = 'block';
+  afficherBandeauEssai(vendeurConnecte);
   document.getElementById('vue-dashboard-tabs').style.display = 'flex';
   document.getElementById('nom-boutique-admin').textContent = vendeurConnecte.nom_boutique;
   document.getElementById('header-boutique-nom').textContent = `— ${vendeurConnecte.nom_boutique}`;

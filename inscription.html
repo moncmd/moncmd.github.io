@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Créer ma boutique — CMD.</title>
+<meta name="description" content="Crée ta boutique ou ta page de réservation CMD. en quelques minutes. 14 jours de Premium offerts.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --encre: #1d1b19;
+    --gris: #6f6a64;
+    --trait: #e7e2dc;
+    --fond: #ffffff;
+    --fond-doux: #faf8f5;
+    --accent: #e56400;
+    --accent-pale: #fff1e4;
+    --ok: #1f7a3a;
+    --erreur: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Montserrat', system-ui, sans-serif; color: var(--encre); background: var(--fond); line-height: 1.5; }
+  a { color: var(--accent); font-weight: 600; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .page { max-width: 520px; margin: 0 auto; padding: 28px 22px 60px; }
+  .entete { display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; }
+  .entete img { width: 44px; height: 44px; border-radius: 10px; object-fit: cover; }
+  .entete a { font-size: 14px; }
+
+  h1 { font-size: 30px; line-height: 1.15; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 10px; }
+  .intro { color: var(--gris); margin: 0 0 30px; font-size: 15px; }
+
+  /* L'élément signature : l'adresse de la boutique qui se construit en direct */
+  .adresse-live { background: var(--fond-doux); border: 1px solid var(--trait); border-radius: 14px; padding: 18px 18px 14px; margin-bottom: 30px; }
+  .adresse-live .domaine { font-size: 14px; color: var(--gris); font-weight: 500; }
+  .adresse-live .slug-affiche { display: block; font-size: 26px; font-weight: 800; letter-spacing: -0.01em; word-break: break-all; min-height: 1.3em; }
+  .adresse-live .slug-affiche.vide { color: #c9c2ba; }
+  .adresse-live .statut { font-size: 13px; margin-top: 6px; min-height: 1.4em; }
+  .statut.ok { color: var(--ok); }
+  .statut.ko { color: var(--erreur); }
+
+  fieldset { border: none; padding: 0; margin: 0 0 22px; }
+  legend, label { display: block; font-weight: 700; font-size: 14px; margin-bottom: 8px; }
+  .aide { font-weight: 400; color: var(--gris); font-size: 13px; }
+
+  .choix-activite { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .choix-activite input { position: absolute; opacity: 0; pointer-events: none; }
+  .choix-activite label { margin: 0; border: 1.5px solid var(--trait); border-radius: 12px; padding: 14px; cursor: pointer; font-weight: 600; font-size: 14px; line-height: 1.3; transition: border-color .15s, background .15s; }
+  .choix-activite label i { display: block; font-size: 20px; margin-bottom: 8px; color: var(--gris); }
+  .choix-activite label small { display: block; font-weight: 400; color: var(--gris); font-size: 12px; margin-top: 4px; }
+  .choix-activite input:checked + label { border-color: var(--accent); background: var(--accent-pale); }
+  .choix-activite input:checked + label i { color: var(--accent); }
+  .choix-activite input:focus-visible + label { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .champ { margin-bottom: 18px; }
+  .champ input { width: 100%; padding: 13px 14px; border: 1.5px solid var(--trait); border-radius: 10px; font: inherit; font-size: 15px; color: var(--encre); background: #fff; }
+  .champ input:focus { outline: none; border-color: var(--accent); }
+  .champ-prefixe { display: flex; align-items: stretch; border: 1.5px solid var(--trait); border-radius: 10px; overflow: hidden; }
+  .champ-prefixe:focus-within { border-color: var(--accent); }
+  .champ-prefixe span { background: var(--fond-doux); color: var(--gris); padding: 13px 10px 13px 14px; font-size: 14px; white-space: nowrap; border-right: 1px solid var(--trait); }
+  .champ-prefixe input { border: none; border-radius: 0; }
+
+  .bloc-compte { border-top: 1px solid var(--trait); padding-top: 22px; margin-top: 8px; }
+
+  button.principal { width: 100%; padding: 15px; border: none; border-radius: 12px; background: var(--accent); color: #fff; font: inherit; font-weight: 700; font-size: 16px; cursor: pointer; margin-top: 6px; }
+  button.principal:disabled { opacity: .55; cursor: wait; }
+  button.principal:focus-visible { outline: 3px solid var(--encre); outline-offset: 2px; }
+
+  .message-erreur { color: var(--erreur); font-size: 14px; margin: 14px 0 0; min-height: 1.2em; }
+  .mention { color: var(--gris); font-size: 12.5px; margin-top: 16px; }
+
+  .ecran-email { display: none; text-align: left; }
+  .ecran-email i { font-size: 34px; color: var(--accent); margin-bottom: 14px; }
+  .ecran-email p { color: var(--gris); }
+
+  @media (max-width: 380px) {
+    h1 { font-size: 26px; }
+    .choix-activite { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="entete">
+    <a href="/" aria-label="CMD."><img src="/1C621DE3-4443-4809-A987-882F313088E0_1_105_c.jpeg" alt="CMD."></a>
+    <a href="/admin.html">J'ai déjà un compte</a>
+  </div>
+
+  <div id="ecran-formulaire">
+    <h1>Crée ta boutique</h1>
+    <p class="intro">Tes clients commandent ou réservent en ligne, tu reçois tout sur WhatsApp. Les 14 premiers jours sont en Premium, sans paiement.</p>
+
+    <div class="adresse-live" aria-live="polite">
+      <span class="domaine">Ton lien à partager</span>
+      <span class="slug-affiche vide" id="apercu-lien">shop.moncmd.site/ta-boutique</span>
+      <div class="statut" id="statut-slug"></div>
+    </div>
+
+    <form id="form-inscription" novalidate>
+      <fieldset>
+        <legend>Ton activité</legend>
+        <div class="choix-activite">
+          <input type="radio" name="type" id="type-produit" value="produit" checked>
+          <label for="type-produit"><i class="fa-solid fa-bag-shopping"></i>Je vends des produits<small>Vêtements, cosmétiques, plats…</small></label>
+          <input type="radio" name="type" id="type-prestation" value="prestation">
+          <label for="type-prestation"><i class="fa-regular fa-calendar-check"></i>Je propose des prestations<small>Coiffure, beauté, ongles…</small></label>
+        </div>
+      </fieldset>
+
+      <div class="champ">
+        <label for="nom">Nom de la boutique</label>
+        <input id="nom" type="text" maxlength="60" autocomplete="organization" placeholder="Ex : Awa Beauty" required>
+      </div>
+
+      <div class="champ">
+        <label for="slug">Adresse <span class="aide">— lettres minuscules, chiffres et tirets</span></label>
+        <div class="champ-prefixe">
+          <span>shop.moncmd.site/</span>
+          <input id="slug" type="text" maxlength="30" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="awa-beauty" required>
+        </div>
+      </div>
+
+      <div class="champ">
+        <label for="whatsapp">Numéro WhatsApp <span class="aide">— où tu recevras les commandes</span></label>
+        <input id="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="77 123 45 67" required>
+      </div>
+
+      <div class="bloc-compte" id="bloc-compte">
+        <div class="champ">
+          <label for="email">Email</label>
+          <input id="email" type="email" autocomplete="email" placeholder="toi@exemple.com" required>
+        </div>
+        <div class="champ">
+          <label for="motdepasse">Mot de passe <span class="aide">— 8 caractères minimum</span></label>
+          <input id="motdepasse" type="password" autocomplete="new-password" minlength="8" required>
+        </div>
+      </div>
+
+      <button type="submit" class="principal" id="btn-creer">Créer ma boutique</button>
+      <p class="message-erreur" id="message-erreur" role="alert"></p>
+      <p class="mention">Après l'essai, ta boutique reste en ligne en formule Standard. Tu peux passer en Pro ou Premium quand tu veux.</p>
+    </form>
+  </div>
+
+  <div class="ecran-email" id="ecran-email">
+    <i class="fa-regular fa-envelope-open"></i>
+    <h1>Vérifie ta boîte mail</h1>
+    <p>On vient d'envoyer un lien à <strong id="email-affiche"></strong>. Clique dessus pour activer ton compte : ta boutique sera créée automatiquement et tu arriveras sur ton tableau de bord.</p>
+    <p>Rien reçu après quelques minutes ? Regarde dans les spams ou les promotions.</p>
+  </div>
+</div>
+
+<script src="/supabase-config.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const nomEl = $('nom'), slugEl = $('slug'), telEl = $('whatsapp');
+  const emailEl = $('email'), mdpEl = $('motdepasse');
+  const apercuEl = $('apercu-lien'), statutEl = $('statut-slug');
+  const erreurEl = $('message-erreur'), btn = $('btn-creer');
+
+  let slugModifieALaMain = false;
+  let dernierSlugVerifie = null;
+  let slugEstDisponible = false;
+  let compteConnecte = false;
+  let minuterie = null;
+
+  const typeChoisi = () => document.querySelector('input[name="type"]:checked').value;
+  const espaceAdmin = (type) => type === 'prestation' ? '/admin-prestations.html' : '/admin.html';
+
+  function versSlug(texte) {
+    return texte.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30).replace(/-+$/, '');
+  }
+
+  function majApercu() {
+    const s = slugEl.value;
+    apercuEl.textContent = 'shop.moncmd.site/' + (s || 'ta-boutique');
+    apercuEl.classList.toggle('vide', !s);
+  }
+
+  function planifierVerification() {
+    clearTimeout(minuterie);
+    slugEstDisponible = false;
+    const s = slugEl.value;
+    if (!s) { statutEl.textContent = ''; statutEl.className = 'statut'; return; }
+    statutEl.textContent = 'Vérification…'; statutEl.className = 'statut';
+    minuterie = setTimeout(() => verifierSlug(s), 400);
+  }
+
+  async function verifierSlug(s) {
+    if (s.length < 3) {
+      afficherStatut(false, 'Au moins 3 caractères.');
+      return;
+    }
+    const { data, error } = await supabaseClient.rpc('slug_disponible', { p_slug: s });
+    if (slugEl.value !== s) return; // la saisie a changé entre-temps
+    dernierSlugVerifie = s;
+    if (error) { afficherStatut(false, 'Vérification impossible, réessaie.'); return; }
+    slugEstDisponible = data === true;
+    afficherStatut(slugEstDisponible, slugEstDisponible ? 'Cette adresse est libre.' : 'Adresse déjà prise ou réservée. Essaie une variante.');
+  }
+
+  function afficherStatut(ok, texte) {
+    statutEl.textContent = texte;
+    statutEl.className = 'statut ' + (ok ? 'ok' : 'ko');
+  }
+
+  nomEl.addEventListener('input', () => {
+    if (!slugModifieALaMain) { slugEl.value = versSlug(nomEl.value); majApercu(); planifierVerification(); }
+  });
+  slugEl.addEventListener('input', () => {
+    slugModifieALaMain = slugEl.value.length > 0;
+    const propre = slugEl.value.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/--+/g, '-');
+    if (propre !== slugEl.value) slugEl.value = propre;
+    majApercu(); planifierVerification();
+  });
+
+  function valider() {
+    const nom = nomEl.value.trim();
+    const slug = slugEl.value.replace(/-+$/, '');
+    const tel = telEl.value.replace(/[^0-9]/g, '');
+    if (nom.length < 2) return 'Indique le nom de ta boutique.';
+    if (slug.length < 3) return 'Choisis une adresse d’au moins 3 caractères.';
+    if (dernierSlugVerifie === slug && !slugEstDisponible) return 'Cette adresse n’est pas disponible. Choisis-en une autre.';
+    if (tel.length < 8) return 'Indique ton numéro WhatsApp.';
+    if (!compteConnecte) {
+      if (!/^\S+@\S+\.\S+$/.test(emailEl.value.trim())) return 'Indique une adresse email valide.';
+      if (mdpEl.value.length < 8) return 'Le mot de passe doit faire au moins 8 caractères.';
+    }
+    return null;
+  }
+
+  async function creerBoutiqueEtOuvrirAdmin(infos) {
+    const { data, error } = await supabaseClient.rpc('creer_boutique', {
+      p_slug: infos.slug, p_nom: infos.nom, p_whatsapp: infos.whatsapp, p_type_activite: infos.type
+    });
+    if (error) throw new Error(error.message);
+    await supabaseClient.auth.updateUser({ data: { boutique_en_attente: null } });
+    window.location.href = espaceAdmin(data.type_activite);
+  }
+
+  $('form-inscription').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    erreurEl.textContent = '';
+    const probleme = valider();
+    if (probleme) { erreurEl.textContent = probleme; return; }
+
+    const infos = {
+      slug: slugEl.value.replace(/-+$/, ''),
+      nom: nomEl.value.trim(),
+      whatsapp: telEl.value.trim(),
+      type: typeChoisi()
+    };
+
+    btn.disabled = true;
+    btn.textContent = 'Création en cours…';
+
+    try {
+      if (compteConnecte) {
+        await creerBoutiqueEtOuvrirAdmin(infos);
+        return;
+      }
+
+      const email = emailEl.value.trim();
+      const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password: mdpEl.value,
+        options: {
+          data: { boutique_en_attente: infos },
+          emailRedirectTo: window.location.origin + espaceAdmin(infos.type)
+        }
+      });
+
+      if (error) {
+        const deja = /registered|already/i.test(error.message);
+        throw new Error(deja
+          ? 'Un compte existe déjà avec cet email. Connecte-toi depuis « J’ai déjà un compte ».'
+          : 'Inscription impossible pour le moment. Réessaie dans quelques minutes.');
+      }
+
+      // Avec la confirmation email activée, Supabase ne signale pas un email
+      // déjà utilisé : il renvoie un utilisateur sans identité.
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+        throw new Error('Un compte existe déjà avec cet email. Connecte-toi depuis « J’ai déjà un compte ».');
+      }
+
+      if (data.session) {
+        await creerBoutiqueEtOuvrirAdmin(infos);   // confirmation email désactivée
+      } else {
+        $('email-affiche').textContent = email;      // confirmation email activée
+        $('ecran-formulaire').style.display = 'none';
+        $('ecran-email').style.display = 'block';
+      }
+    } catch (err) {
+      erreurEl.textContent = err.message;
+      btn.disabled = false;
+      btn.textContent = 'Créer ma boutique';
+    }
+  });
+
+  // Au chargement : déjà connecté ? (ex. retour après une erreur)
+  (async function init() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('erreur')) erreurEl.textContent = params.get('erreur');
+    if (params.get('type') === 'prestation') $('type-prestation').checked = true;
+
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) return;
+
+    const { data: admin } = await supabaseClient
+      .from('admins').select('vendeur_id, vendeurs(type_activite)')
+      .eq('auth_user_id', session.user.id).maybeSingle();
+
+    if (admin) {
+      window.location.replace(espaceAdmin(admin.vendeurs && admin.vendeurs.type_activite));
+      return;
+    }
+
+    compteConnecte = true;
+    $('bloc-compte').style.display = 'none';
+    const attente = session.user.user_metadata && session.user.user_metadata.boutique_en_attente;
+    if (attente) {
+      nomEl.value = attente.nom || '';
+      telEl.value = attente.whatsapp || '';
+      if (attente.type === 'prestation') $('type-prestation').checked = true;
+    }
+  })();
+})();
+</script>
+</body>
+</html>
