@@ -372,6 +372,7 @@ async function chargerDashboard(authUserId) {
   document.getElementById('vue-dashboard').style.display = 'block';
   afficherBandeauEssai(vendeurConnecte);
   afficherPremiersPas(vendeurConnecte);
+  afficherStatsVisites();
   document.getElementById('nom-boutique-admin').textContent = vendeurConnecte.nom_boutique;
   document.documentElement.style.setProperty('--couleur-accent', vendeurConnecte.couleur_accent || '#e56400');
 

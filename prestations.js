@@ -31,6 +31,7 @@ async function chargerBoutiquePrestations() {
     return;
   }
   vendeurActuel = vendeur;
+  if (typeof afficherSiBoutiqueEnPause === 'function' && afficherSiBoutiqueEnPause(vendeur)) return;
 
   // Si on arrive ici via 404.html (paramètre "pretty=1"), on remet l'URL
   // "chemin propre" (/slug) dans la barre d'adresse, sans recharger la page.

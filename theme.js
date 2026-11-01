@@ -284,7 +284,42 @@ const CMD_THEME = (function () {
   return { appliquer, autorise, ACCES, FONDS, POLICES, NIVEAUX };
 })();
 
+// ---- Boutique en pause (fin d'essai / abonnement non renouvelé) ----
+// Renvoie true si la page a été remplacée par le message d'indisponibilité.
+function afficherSiBoutiqueEnPause(vendeur) {
+  const apercu = new URLSearchParams(window.location.search).get('apercu') === '1';
+  if (!vendeur || !vendeur.en_pause || apercu) return false;
+  const nom = String(vendeur.nom_boutique || 'Cette boutique').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  document.title = vendeur.nom_boutique || 'Boutique indisponible';
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:system-ui,sans-serif;text-align:center;background:#f6f4f1;color:#1d1b19">
+      <div style="max-width:420px">
+        <h1 style="font-size:24px;margin:0 0 10px">${nom}</h1>
+        <p style="color:#6f6a64;margin:0">Cette boutique est momentanément indisponible. Revenez bientôt.</p>
+      </div>
+    </div>`;
+  return true;
+}
+
+// ---- Compteur de visites (aucune donnée personnelle, 1 fois par session) ----
+function enregistrerVisite(vendeur) {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('apercu') === '1' || !vendeur || !vendeur.id) return;
+    const nom = (window.location.pathname.split('/').pop() || 'index').replace('.html', '');
+    let type = null, produitId = null;
+    if (nom.startsWith('panier') && params.get('id')) { type = 'produit'; produitId = params.get('id'); }
+    else if (!nom.startsWith('panier') && !nom.startsWith('commande')) type = 'boutique';
+    if (!type) return;
+    const cle = `cmd-vu-${vendeur.id}-${type}-${produitId || ''}`;
+    if (sessionStorage.getItem(cle)) return;
+    sessionStorage.setItem(cle, '1');
+    supabaseClient.rpc('enregistrer_visite', { p_vendeur_id: vendeur.id, p_type: type, p_produit_id: produitId });
+  } catch (e) { /* jamais bloquant */ }
+}
+
 function appliquerTheme(vendeur) {
+  enregistrerVisite(vendeur);
   try { CMD_THEME.appliquer(vendeur); }
   catch (err) { console.error('Thème non appliqué :', err); } // ne bloque jamais la boutique
   if (new URLSearchParams(window.location.search).get('apercu') === '1' && window.parent !== window) {

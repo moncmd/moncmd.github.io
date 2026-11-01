@@ -60,17 +60,22 @@ function afficherBandeauEssai(vendeur) {
   const dateFr = (d) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
   let texte = null;
   let bouton = null;
+  let urgent = false;
 
-  if (vendeur.essai_fin && new Date(vendeur.essai_fin) > maintenant) {
+  if (vendeur.en_pause) {
+    texte = '<strong>Ta boutique est en pause</strong> : tes clients ne peuvent plus la voir ni commander. Tes produits et tes commandes sont conservés. Choisis une formule pour la réactiver.';
+    bouton = 'Réactiver ma boutique';
+    urgent = true;
+  } else if (vendeur.essai_fin && new Date(vendeur.essai_fin) > maintenant) {
     const fin = new Date(vendeur.essai_fin);
     const jours = Math.ceil((fin - maintenant) / JOUR);
-    texte = `Essai ${nomFormule} : <strong>${jours} jour${jours > 1 ? 's' : ''}</strong> restant${jours > 1 ? 's' : ''} (jusqu'au ${echapperHTML(dateFr(fin))}). Ensuite, ta boutique passe en Standard.`;
+    texte = `Essai ${nomFormule} : <strong>${jours} jour${jours > 1 ? 's' : ''}</strong> restant${jours > 1 ? 's' : ''} (jusqu'au ${echapperHTML(dateFr(fin))}). Ensuite, ta boutique sera mise en pause jusqu'à ton premier paiement.`;
     bouton = `Garder ${nomFormule}`;
   } else if (vendeur.abonnement_fin) {
     const fin = new Date(vendeur.abonnement_fin);
     const jours = Math.ceil((fin - maintenant) / JOUR);
     if (jours <= 0) {
-      texte = `Ton abonnement ${nomFormule} est arrivé à échéance le ${echapperHTML(dateFr(fin))}. Renouvelle-le pour ne pas repasser en Standard.`;
+      texte = `Ton abonnement ${nomFormule} est arrivé à échéance le ${echapperHTML(dateFr(fin))}. Renouvelle-le avant que ta boutique soit mise en pause.`;
       bouton = 'Renouveler';
     } else if (jours <= 7) {
       texte = `Ton abonnement ${nomFormule} se termine dans <strong>${jours} jour${jours > 1 ? 's' : ''}</strong> (le ${echapperHTML(dateFr(fin))}).`;
@@ -80,10 +85,13 @@ function afficherBandeauEssai(vendeur) {
   if (!texte) return;
 
   const bandeau = document.createElement('div');
-  bandeau.className = 'cmd-bandeau-essai';
+  bandeau.className = 'cmd-bandeau-essai' + (urgent ? ' urgent' : '');
   bandeau.innerHTML = `<span>${texte}</span><a href="/abonnement.html">${bouton}</a>`;
   const conteneur = document.getElementById('vue-dashboard');
-  if (conteneur && !conteneur.querySelector('.cmd-bandeau-essai')) conteneur.prepend(bandeau);
+  if (!conteneur || conteneur.querySelector('.cmd-bandeau-essai')) return;
+  // Sous le titre de la boutique (jamais caché par l'en-tête fixe)
+  const titre = conteneur.querySelector('.admin-topbar');
+  if (titre) titre.insertAdjacentElement('afterend', bandeau); else conteneur.prepend(bandeau);
 }
 
 // ---- Mot de passe oublié ----
@@ -142,6 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .cmd-liens-login a { color: var(--couleur-accent, #e56400); text-decoration: none; font-weight: 600; cursor: pointer; }
     .cmd-bandeau-essai { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
       background: #fff4ea; border: 1px solid #ffd9b8; color: #6b3500; border-radius: 12px; padding: 12px 14px; margin: 16px 0; font-size: 13px; line-height: 1.4; }
+    .cmd-bandeau-essai.urgent { background: #fdecea; border-color: #f5c2bd; color: #8a1c14; }
     .cmd-bandeau-essai a { background: var(--couleur-accent, #e56400); color: #fff; text-decoration: none; font-weight: 700; padding: 8px 12px; border-radius: 8px; white-space: nowrap; }
     #cmd-nouveau-mdp { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 10000; padding: 20px; }
     .cmd-nouveau-mdp-carte { background: #fff; border-radius: 16px; padding: 22px; width: 100%; max-width: 380px; font-family: inherit; }
@@ -280,3 +289,59 @@ document.addEventListener('DOMContentLoaded', () => {
   `;
   document.head.appendChild(style);
 });
+
+
+// ---- Statistiques de visites (tableau de bord) ----
+async function afficherStatsVisites() {
+  const conteneur = document.getElementById('onglet-dashboard');
+  if (!conteneur || conteneur.querySelector('.cmd-visites')) return;
+  const { data, error } = await supabaseClient.rpc('mes_visites');
+  if (error || !data) return; // phase 6 pas encore lancée : on n'affiche rien
+
+  const carte = document.createElement('div');
+  carte.className = 'cmd-visites';
+  const chiffres = `
+    <div class="cmd-visites-chiffres">
+      <div><strong>${Number(data.aujourdhui)}</strong><span>aujourd'hui</span></div>
+      <div><strong>${Number(data.j7)}</strong><span>7 derniers jours</span></div>
+      <div><strong>${Number(data.j30)}</strong><span>30 derniers jours</span></div>
+    </div>`;
+  let detail = '';
+  if (data.par_jour) {
+    const max = Math.max(1, ...data.par_jour.map((j) => Number(j.nb)));
+    detail += `<div class="cmd-visites-barres" aria-label="Visites des 14 derniers jours">${data.par_jour.map((j) =>
+      `<span title="${echapperHTML(j.jour)} : ${Number(j.nb)} visite(s)" style="height:${Math.max(4, Math.round(Number(j.nb) / max * 100))}%"></span>`).join('')}</div>`;
+    const top = data.top_produits || [];
+    detail += top.length
+      ? `<p class="cmd-visites-sous">Produits les plus vus (30 jours)</p><ol class="cmd-visites-top">${top.map((t) =>
+          `<li><span>${echapperHTML(t.nom)}</span><b>${Number(t.vues)}</b></li>`).join('')}</ol>`
+      : '';
+  } else {
+    detail = '<a class="cmd-visites-pro" href="/abonnement.html">Passe en Pro pour voir l’évolution jour par jour et tes produits les plus vus</a>';
+  }
+  carte.innerHTML = `<p class="cmd-visites-titre">Visites de ta boutique</p>${chiffres}${detail}`;
+
+  const premiersPas = conteneur.querySelector('.cmd-premiers-pas');
+  if (premiersPas) premiersPas.insertAdjacentElement('afterend', carte); else conteneur.prepend(carte);
+
+  if (!document.getElementById('cmd-style-visites')) {
+    const style = document.createElement('style');
+    style.id = 'cmd-style-visites';
+    style.textContent = `
+      .cmd-visites { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+      .cmd-visites-titre { font-weight: 700; font-size: 15px; margin: 0 0 12px; }
+      .cmd-visites-chiffres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+      .cmd-visites-chiffres div { background: #faf8f5; border-radius: 12px; padding: 10px; }
+      .cmd-visites-chiffres strong { display: block; font-size: 22px; }
+      .cmd-visites-chiffres span { font-size: 12px; color: #888; }
+      .cmd-visites-barres { display: flex; align-items: flex-end; gap: 4px; height: 70px; margin-top: 14px; }
+      .cmd-visites-barres span { flex: 1; background: var(--couleur-accent, #e56400); border-radius: 4px 4px 0 0; opacity: .85; }
+      .cmd-visites-sous { font-size: 13px; font-weight: 700; margin: 14px 0 6px; }
+      .cmd-visites-top { margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
+      .cmd-visites-top li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid #eee; }
+      .cmd-visites-top li:last-child { border-bottom: none; }
+      .cmd-visites-pro { display: block; margin-top: 12px; font-size: 13px; font-weight: 600; color: var(--couleur-accent, #e56400); text-decoration: none; }
+    `;
+    document.head.appendChild(style);
+  }
+}

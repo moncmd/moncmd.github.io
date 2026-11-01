@@ -121,6 +121,9 @@ async function chargerBoutique() {
 
   vendeurActuel = vendeur;
 
+  // Boutique en pause : message d'indisponibilité à la place du catalogue
+  if (typeof afficherSiBoutiqueEnPause === 'function' && afficherSiBoutiqueEnPause(vendeur)) return;
+
   // Si ce fichier ne correspond pas à la template réelle du vendeur,
   // on redirige immédiatement vers le bon fichier et on arrête tout ici.
   if (verifierTemplateCorrect()) return;

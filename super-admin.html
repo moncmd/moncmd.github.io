@@ -155,6 +155,7 @@
     ['pro', 'Pro payant', (b) => b.formule === 'pro' && !enEssai(b)],
     ['premium', 'Premium payant', (b) => b.formule === 'premium' && !enEssai(b)],
     ['inactives', 'Sans activité 30 j', (b) => b.actif && (b.commandes_30j + b.rdv_30j) === 0],
+    ['en-pause', 'En pause', (b) => b.en_pause],
     ['desactivees', 'Désactivées', (b) => !b.actif]
   ];
 
@@ -200,7 +201,7 @@
     const fcfa = (n) => Number(n).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ') + ' FCFA';
     $('liste-paiements').innerHTML = demandes.map((d) => `
       <div class="paiement" data-demande="${d.id}">
-        <div class="titre">${esc(d.nom_boutique)} : ${noms[d.formule]} · ${d.mois} mois · ${fcfa(d.montant)}</div>
+        <div class="titre">${esc(d.nom_boutique)} : ${noms[d.formule]} · ${d.mois} mois · ${fcfa(d.montant)}${d.mise_en_place ? ' · <span style="color:var(--accent)">+ mise en place à faire</span>' : ''}</div>
         <div class="details">${d.moyen === 'wave' ? 'Wave' : 'Orange Money'} · réf. <b>${esc(d.reference)}</b> · ${dateFr(d.date_creation)}<br>
           Formule actuelle : ${esc(noms[d.formule_actuelle] || d.formule_actuelle)}${d.abonnement_fin ? ' · payée jusqu’au ' + dateFr(d.abonnement_fin) : ''} · shop.moncmd.site/${esc(d.slug)}</div>
         <div class="rangee">
@@ -246,11 +247,12 @@
   }
 
   function afficherChiffres() {
-    const actives = boutiques.filter((b) => b.actif);
+    const actives = boutiques.filter((b) => b.actif && !b.en_pause);
     const payantes = (f) => actives.filter((b) => b.formule === f && !enEssai(b)).length;
     const il7j = Date.now() - 7 * JOUR;
     const items = [
-      [actives.length, 'boutiques actives'],
+      [actives.length, 'boutiques en ligne'],
+      [boutiques.filter((b) => b.en_pause).length, 'en pause (à relancer)'],
       [payantes('pro') + payantes('premium'), 'Pro + Premium payants'],
       [actives.filter(enEssai).length, 'essais en cours'],
       [actives.filter((b) => enEssai(b) && joursRestants(b) <= 3).length, 'essais finissant sous 3 j'],
@@ -273,6 +275,7 @@
   function etiquettes(b) {
     const t = [];
     if (!b.actif) t.push('<span class="etiquette off">Désactivée</span>');
+    if (b.en_pause) t.push('<span class="etiquette off">En pause</span>');
     const j = joursRestants(b);
     if (j !== null && j > 0) t.push(`<span class="etiquette essai${j <= 3 ? ' urgent' : ''}">Essai : ${j} j</span>`);
     t.push(`<span class="etiquette ${esc(b.formule)}">${esc((FORMULES.find((f) => f[0] === b.formule) || [0, b.formule || 'Standard'])[1])}</span>`);
@@ -362,6 +365,12 @@
       </div>
 
       <div class="bloc">
+        <h3>Pause</h3>
+        <p style="margin:0 0 8px;color:var(--gris);font-size:12.5px">${b.en_pause ? 'En pause : les clients ne voient plus la boutique, le vendeur garde son admin.' : 'Mise en pause automatique à la fin de l’essai ou d’un abonnement non renouvelé.'}</p>
+        <button type="button" class="btn ${b.en_pause ? '' : 'secondaire'} petit" data-action="pause">${b.en_pause ? 'Sortir de pause' : 'Mettre en pause'}</button>
+      </div>
+
+      <div class="bloc">
         <h3>Statut</h3>
         <button type="button" class="btn ${b.actif ? 'secondaire' : ''} petit" data-action="actif">${b.actif ? 'Désactiver la boutique' : 'Réactiver la boutique'}</button>
       </div>
@@ -379,6 +388,7 @@
       essai7: () => ({ essai_fin: prolonger(b, 7) }),
       essai14: () => ({ essai_fin: prolonger(b, 14) }),
       template: () => ({ template: val('template') }),
+      pause: () => ({ en_pause: !b.en_pause }),
       actif: () => {
         if (b.actif && !confirm(`Désactiver « ${b.nom_boutique} » ? La boutique ne sera plus visible par ses clients.`)) return null;
         return { actif: !b.actif };

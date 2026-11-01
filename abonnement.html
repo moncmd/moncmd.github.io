@@ -33,6 +33,9 @@
   .choix span { color: var(--gris); font-size: 12.5px; }
   .choix[aria-pressed="true"] { border-color: var(--encre); box-shadow: 0 0 0 1px var(--encre); }
   .choix.centre { text-align: center; }
+  .option-mep { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; padding: 12px; border: 1.5px dashed var(--trait); border-radius: 12px; cursor: pointer; font-size: 13px; color: var(--gris); }
+  .option-mep input { margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); flex-shrink: 0; }
+  .option-mep strong { display: block; color: var(--encre); margin-bottom: 2px; }
   .total { background: var(--accent-pale); border-radius: 12px; padding: 14px; margin-top: 14px; }
   .total strong { font-size: 24px; display: block; }
   .total span { font-size: 12.5px; color: var(--gris); }
@@ -81,6 +84,11 @@
       <div class="formules" id="formules"></div>
       <label class="titre">Durée</label>
       <div class="durees" id="durees"></div>
+      <label class="option-mep" id="bloc-mise-en-place" hidden>
+        <input type="checkbox" id="mise-en-place">
+        <span><strong>Mise en place par CMD (+ <span id="prix-mise-en-place"></span>, une fois)</strong>
+        On ajoute tes produits, on règle l'apparence de ta boutique et on prépare ton affiche de lancement. Tu nous envoies juste tes photos et tes prix.</span>
+      </label>
       <div class="total" aria-live="polite"><strong id="total">—</strong><span id="total-detail"></span></div>
     </section>
 
@@ -117,11 +125,12 @@
   const $ = (id) => document.getElementById(id);
   const NOMS = { standard: 'Standard', pro: 'Pro', premium: 'Premium' };
   const DESCRIPTIONS = { standard: "L'essentiel", pro: 'Sans limites + stock et stats', premium: 'Tout, sans mention CMD' };
-  const DUREES = [[1, '1 mois'], [3, '3 mois'], [6, '6 mois'], [12, '12 mois']];
+  const DUREES = [[1, '1 mois', ''], [3, '3 mois', ''], [6, '6 mois', '1 mois offert'], [12, '12 mois', '2 mois offerts']];
+  const MOIS_PAYES = { 1: 1, 3: 3, 6: 5, 12: 10 };
   const WHATSAPP_CMD = '221784218267';
 
   let vendeur = null, tarifs = [], params = {};
-  let choix = { formule: null, mois: 1, moyen: 'wave' };
+  let choix = { formule: null, mois: 1, moyen: 'wave', miseEnPlace: false };
   let montant = null;
 
   const fcfa = (n) => Number(n).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ') + ' FCFA';
@@ -157,10 +166,11 @@
   }
 
   function afficherStatut() {
-    $('formule-actuelle').textContent = NOMS[vendeur.formule] || 'Standard';
+    $('formule-actuelle').textContent = vendeur.en_pause ? 'Boutique en pause' : (NOMS[vendeur.formule] || 'Standard');
     const maintenant = new Date();
     let detail = '';
-    if (vendeur.essai_fin && new Date(vendeur.essai_fin) > maintenant) detail = `Essai gratuit jusqu'au ${dateFr(vendeur.essai_fin)}. Ensuite, ta boutique passe en Standard sauf si tu choisis une formule.`;
+    if (vendeur.en_pause) detail = 'Ta boutique est en pause : tes clients ne la voient plus. Elle sera réactivée dès la validation de ton paiement. Rien n’a été supprimé.';
+    else if (vendeur.essai_fin && new Date(vendeur.essai_fin) > maintenant) detail = `Essai gratuit jusqu'au ${dateFr(vendeur.essai_fin)}. Ensuite, ta boutique sera mise en pause jusqu'à ton premier paiement.`;
     else if (vendeur.abonnement_fin) detail = new Date(vendeur.abonnement_fin) > maintenant
       ? `Payée jusqu'au ${dateFr(vendeur.abonnement_fin)}. Un nouveau paiement s'ajoute à la suite.`
       : `Ton abonnement est arrivé à échéance le ${dateFr(vendeur.abonnement_fin)}. Renouvelle-le pour garder ta formule.`;
@@ -171,8 +181,14 @@
     $('formules').innerHTML = tarifs.map((t) =>
       `<button type="button" class="choix" data-formule="${t.formule}" aria-pressed="${t.formule === choix.formule}">
         <strong>${NOMS[t.formule]}</strong><span>${fcfa(t.prix_mensuel)} / mois · ${DESCRIPTIONS[t.formule]}</span></button>`).join('');
-    $('durees').innerHTML = DUREES.map(([m, l]) =>
-      `<button type="button" class="choix centre" data-mois="${m}" aria-pressed="${m === choix.mois}"><strong>${l}</strong></button>`).join('');
+    $('durees').innerHTML = DUREES.map(([m, l, bonus]) =>
+      `<button type="button" class="choix centre" data-mois="${m}" aria-pressed="${m === choix.mois}"><strong>${l}</strong>${bonus ? `<span style="color:var(--ok);font-weight:700">${bonus}</span>` : ''}</button>`).join('');
+    const prixMEP = parseInt(params.prix_mise_en_place || '0', 10);
+    if (prixMEP > 0) {
+      $('bloc-mise-en-place').hidden = false;
+      $('prix-mise-en-place').textContent = fcfa(prixMEP);
+      $('mise-en-place').addEventListener('change', async (e) => { choix.miseEnPlace = e.target.checked; await calculer(); });
+    }
     const moyens = [['wave', 'Wave', params.numero_wave], ['om', 'Orange Money', params.numero_om]].filter((m) => m[2]);
     if (!moyens.find((m) => m[0] === choix.moyen) && moyens.length) choix.moyen = moyens[0][0];
     $('moyens').innerHTML = moyens.map(([v, l]) =>
@@ -196,14 +212,17 @@
 
   async function calculer() {
     $('total').textContent = '…';
-    const { data, error } = await supabaseClient.rpc('mon_montant', { p_formule: choix.formule, p_mois: choix.mois });
+    const { data, error } = await supabaseClient.rpc('mon_montant', { p_formule: choix.formule, p_mois: choix.mois, p_mise_en_place: choix.miseEnPlace });
     if (error || data === null) { montant = null; $('total').textContent = '—'; $('total-detail').textContent = 'Formule indisponible.'; return; }
     montant = data;
     const t = tarifs.find((x) => x.formule === choix.formule);
     $('total').textContent = fcfa(montant);
-    $('total-detail').textContent = montant !== t.prix_mensuel * choix.mois
-      ? `Premier paiement : inclut les frais de mise en service. ${NOMS[choix.formule]}, ${choix.mois} mois.`
-      : `${NOMS[choix.formule]}, ${choix.mois} mois.`;
+    const base = t.prix_mensuel * MOIS_PAYES[choix.mois];
+    const morceaux = [`${NOMS[choix.formule]}, ${choix.mois} mois`];
+    if (MOIS_PAYES[choix.mois] < choix.mois) morceaux.push(`${choix.mois - MOIS_PAYES[choix.mois]} mois offert${choix.mois - MOIS_PAYES[choix.mois] > 1 ? 's' : ''}`);
+    if (choix.miseEnPlace) morceaux.push('mise en place incluse');
+    if (montant > base + (choix.miseEnPlace ? parseInt(params.prix_mise_en_place || '0', 10) : 0)) morceaux.push('frais de mise en service inclus');
+    $('total-detail').textContent = morceaux.join(' · ') + '.';
   }
 
   $('btn-copier').addEventListener('click', async () => {
@@ -229,7 +248,8 @@
     }
 
     const { error } = await supabaseClient.rpc('declarer_paiement', {
-      p_formule: choix.formule, p_mois: choix.mois, p_moyen: choix.moyen, p_reference: reference, p_capture_chemin: chemin
+      p_formule: choix.formule, p_mois: choix.mois, p_moyen: choix.moyen, p_reference: reference, p_capture_chemin: chemin,
+      p_mise_en_place: choix.miseEnPlace
     });
     $('btn-declarer').disabled = false;
     if (error) { msg.className = 'message ko'; msg.textContent = error.message; return; }
@@ -247,7 +267,7 @@
     const libelles = { en_attente: 'En attente', validee: 'Validé', refusee: 'Refusé' };
     $('historique').innerHTML = (data && data.length) ? data.map((d) => `
       <div class="ligne">
-        <div><strong>${NOMS[d.formule]} · ${d.mois} mois · ${fcfa(d.montant)}</strong><br>
+        <div><strong>${NOMS[d.formule]} · ${d.mois} mois${d.mise_en_place ? ' + mise en place' : ''} · ${fcfa(d.montant)}</strong><br>
           <span class="aide" style="margin:0">${dateFr(d.date_creation)} · réf. ${esc(d.reference)}${d.motif_refus ? ' · ' + esc(d.motif_refus) : ''}</span></div>
         <span class="badge ${d.statut}">${libelles[d.statut]}</span>
       </div>`).join('') : '<p class="aide" style="margin:0">Aucun paiement pour l’instant.</p>';

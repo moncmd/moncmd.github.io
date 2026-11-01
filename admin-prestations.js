@@ -83,6 +83,7 @@ async function chargerDashboard(authUserId) {
   document.getElementById('vue-dashboard').style.display = 'block';
   afficherBandeauEssai(vendeurConnecte);
   afficherPremiersPas(vendeurConnecte);
+  afficherStatsVisites();
   document.getElementById('vue-dashboard-tabs').style.display = 'flex';
   document.getElementById('nom-boutique-admin').textContent = vendeurConnecte.nom_boutique;
   document.getElementById('header-boutique-nom').textContent = `— ${vendeurConnecte.nom_boutique}`;
