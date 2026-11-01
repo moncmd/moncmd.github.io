@@ -1,0 +1,3 @@
+Anciens scripts SQL, gardés pour l'historique uniquement.
+La référence est désormais schema-complet.sql (à la racine du projet),
+et les évolutions se font dans le dossier migrations/.
