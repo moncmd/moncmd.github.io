@@ -75,6 +75,13 @@
   .retour { font-size: 13px; min-height: 1.2em; margin-top: 8px; }
   .retour.ok { color: var(--ok); }
   .retour.ko { color: var(--erreur); }
+  .paiements { background: var(--carte); border: 1.5px solid var(--accent); border-radius: 14px; padding: 14px; margin-bottom: 18px; }
+  .paiements h2 { font-size: 15px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+  .compteur { background: var(--accent); color: #fff; border-radius: 999px; font-size: 12px; padding: 2px 9px; }
+  .paiement { border-top: 1px solid var(--trait); padding: 12px 0; display: flex; flex-direction: column; gap: 8px; }
+  .paiement:first-child { border-top: none; padding-top: 0; }
+  .paiement .titre { font-weight: 700; }
+  .paiement .details { color: var(--gris); font-size: 13px; overflow-wrap: anywhere; }
   .vide { text-align: center; color: var(--gris); padding: 40px 10px; background: var(--carte); border-radius: 12px; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -101,6 +108,11 @@
         <button class="btn secondaire petit" id="btn-deconnexion" type="button">Déconnexion</button>
       </div>
     </div>
+
+    <section class="paiements" id="bloc-paiements" hidden>
+      <h2>Paiements à valider <span class="compteur" id="nb-paiements"></span></h2>
+      <div id="liste-paiements"></div>
+    </section>
 
     <div class="chiffres" id="chiffres"></div>
 
@@ -178,7 +190,52 @@
     await charger();
   }
 
+  async function chargerPaiements() {
+    const { data, error } = await supabaseClient.rpc('sa_liste_demandes', { p_statut: 'en_attente' });
+    if (error) { $('bloc-paiements').hidden = true; return; } // phase 5 pas encore lancée
+    const demandes = data || [];
+    $('bloc-paiements').hidden = !demandes.length;
+    $('nb-paiements').textContent = demandes.length;
+    const noms = { standard: 'Standard', pro: 'Pro', premium: 'Premium' };
+    const fcfa = (n) => Number(n).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ') + ' FCFA';
+    $('liste-paiements').innerHTML = demandes.map((d) => `
+      <div class="paiement" data-demande="${d.id}">
+        <div class="titre">${esc(d.nom_boutique)} : ${noms[d.formule]} · ${d.mois} mois · ${fcfa(d.montant)}</div>
+        <div class="details">${d.moyen === 'wave' ? 'Wave' : 'Orange Money'} · réf. <b>${esc(d.reference)}</b> · ${dateFr(d.date_creation)}<br>
+          Formule actuelle : ${esc(noms[d.formule_actuelle] || d.formule_actuelle)}${d.abonnement_fin ? ' · payée jusqu’au ' + dateFr(d.abonnement_fin) : ''} · shop.moncmd.site/${esc(d.slug)}</div>
+        <div class="rangee">
+          ${d.capture_chemin ? '<button type="button" class="btn secondaire petit" data-capture="' + esc(d.capture_chemin) + '">Voir la capture</button>' : '<span class="details">Pas de capture</span>'}
+          <button type="button" class="btn petit" data-valider>Valider</button>
+          <button type="button" class="btn secondaire petit" data-refuser>Refuser</button>
+          <a class="btn secondaire petit" href="https://wa.me/${encodeURIComponent(d.numero_whatsapp || '')}" target="_blank" rel="noopener">WhatsApp</a>
+        </div>
+        <p class="retour" data-retour-paiement role="status"></p>
+      </div>`).join('');
+
+    $('liste-paiements').querySelectorAll('[data-capture]').forEach((b) => b.addEventListener('click', async () => {
+      const { data: lien, error: e } = await supabaseClient.storage.from('paiements').createSignedUrl(b.dataset.capture, 600);
+      if (e || !lien) { alert('Capture introuvable.'); return; }
+      window.open(lien.signedUrl, '_blank', 'noopener');
+    }));
+    $('liste-paiements').querySelectorAll('.paiement').forEach((bloc) => {
+      const id = bloc.dataset.demande;
+      const retour = bloc.querySelector('[data-retour-paiement]');
+      const traiter = async (valider) => {
+        let motif = null;
+        if (!valider) { motif = prompt('Motif du refus (visible par le vendeur) :', 'Paiement introuvable'); if (motif === null) return; }
+        else if (!confirm('Confirmer : tu as bien reçu ce paiement ?')) return;
+        bloc.querySelectorAll('button').forEach((x) => { x.disabled = true; });
+        const { error: e } = await supabaseClient.rpc('sa_traiter_demande', { p_demande_id: id, p_valider: valider, p_motif: motif });
+        if (e) { retour.className = 'retour ko'; retour.textContent = 'Erreur : ' + e.message; bloc.querySelectorAll('button').forEach((x) => { x.disabled = false; }); return; }
+        await charger();
+      };
+      bloc.querySelector('[data-valider]').addEventListener('click', () => traiter(true));
+      bloc.querySelector('[data-refuser]').addEventListener('click', () => traiter(false));
+    });
+  }
+
   async function charger() {
+    chargerPaiements();
     $('liste').innerHTML = '<div class="vide">Chargement…</div>';
     const { data, error } = await supabaseClient.rpc('sa_liste_boutiques');
     if (error) { $('liste').innerHTML = `<div class="vide">Erreur : ${esc(error.message)}</div>`; return; }
@@ -253,8 +310,9 @@
 
   function detail(b) {
     const j = joursRestants(b);
-    const essaiTexte = j === null ? 'Aucun essai (formule payée ou ancien client)'
-      : j > 0 ? `En essai jusqu'au ${dateFr(b.essai_fin)} (${j} j)` : 'Essai terminé';
+    const essaiTexte = (j !== null && j > 0) ? `En essai jusqu'au ${dateFr(b.essai_fin)} (${j} j)`
+      : b.abonnement_fin ? `Payée jusqu'au ${dateFr(b.abonnement_fin)}`
+      : j === null ? 'Sans date de fin (formule gérée à la main)' : 'Essai terminé';
     const tplListe = TEMPLATES.some((t) => t[0] === (b.template || '')) ? TEMPLATES : [[b.template, b.template], ...TEMPLATES];
     const activite = b.type_activite === 'prestation'
       ? `${b.nb_prestations} prestations · ${b.rdv_30j} RDV sur 30 j`
@@ -283,7 +341,7 @@
           <button type="button" class="btn secondaire petit" data-action="essai7">Essai +7 j</button>
           <button type="button" class="btn secondaire petit" data-action="essai14">Essai +14 j</button>
         </div>
-        <p style="margin:8px 0 0;color:var(--gris);font-size:12.5px">« Formule payée » applique la formule choisie et arrête l'essai : la boutique ne redescendra plus en Standard.</p>
+        <p style="margin:8px 0 0;color:var(--gris);font-size:12.5px">« Formule payée » applique la formule et arrête l'essai, sans date de fin (comme tes clients actuels). Pour un paiement déclaré par le client, utilise plutôt « Valider » dans « Paiements à valider » : la date de fin est calculée toute seule.</p>
       </div>
 
       <div class="bloc">

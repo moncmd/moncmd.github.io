@@ -53,22 +53,35 @@ function redirigerVersBonAdmin(vendeur) {
 }
 
 function afficherBandeauEssai(vendeur) {
-  if (!vendeur || !vendeur.essai_fin) return;
-  const fin = new Date(vendeur.essai_fin);
-  const msRestants = fin - new Date();
-  if (msRestants <= 0) return;
+  if (!vendeur) return;
+  const JOUR = 86400000;
+  const maintenant = new Date();
+  const nomFormule = { standard: 'Standard', pro: 'Pro', premium: 'Premium' }[vendeur.formule] || 'Standard';
+  const dateFr = (d) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  let texte = null;
+  let bouton = null;
 
-  const jours = Math.ceil(msRestants / 86400000);
-  const dateFin = fin.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
-  const message = encodeURIComponent(`Bonjour, je souhaite garder la formule ${vendeur.formule} pour la boutique "${vendeur.nom_boutique}" (${vendeur.slug}).`);
+  if (vendeur.essai_fin && new Date(vendeur.essai_fin) > maintenant) {
+    const fin = new Date(vendeur.essai_fin);
+    const jours = Math.ceil((fin - maintenant) / JOUR);
+    texte = `Essai ${nomFormule} : <strong>${jours} jour${jours > 1 ? 's' : ''}</strong> restant${jours > 1 ? 's' : ''} (jusqu'au ${echapperHTML(dateFr(fin))}). Ensuite, ta boutique passe en Standard.`;
+    bouton = `Garder ${nomFormule}`;
+  } else if (vendeur.abonnement_fin) {
+    const fin = new Date(vendeur.abonnement_fin);
+    const jours = Math.ceil((fin - maintenant) / JOUR);
+    if (jours <= 0) {
+      texte = `Ton abonnement ${nomFormule} est arrivé à échéance le ${echapperHTML(dateFr(fin))}. Renouvelle-le pour ne pas repasser en Standard.`;
+      bouton = 'Renouveler';
+    } else if (jours <= 7) {
+      texte = `Ton abonnement ${nomFormule} se termine dans <strong>${jours} jour${jours > 1 ? 's' : ''}</strong> (le ${echapperHTML(dateFr(fin))}).`;
+      bouton = 'Renouveler';
+    }
+  }
+  if (!texte) return;
 
-  const nomFormule = { standard: 'Standard', pro: 'Pro', premium: 'Premium' }[vendeur.formule] || 'Premium';
   const bandeau = document.createElement('div');
   bandeau.className = 'cmd-bandeau-essai';
-  bandeau.innerHTML = `
-    <span>Essai ${nomFormule} : <strong>${jours} jour${jours > 1 ? 's' : ''}</strong> restant${jours > 1 ? 's' : ''} (jusqu'au ${echapperHTML(dateFin)}). Ensuite, ta boutique passe en Standard.</span>
-    <a href="https://wa.me/${CMD_CONTACT_WHATSAPP}?text=${message}" target="_blank" rel="noopener">Garder ${nomFormule}</a>`;
-
+  bandeau.innerHTML = `<span>${texte}</span><a href="/abonnement.html">${bouton}</a>`;
   const conteneur = document.getElementById('vue-dashboard');
   if (conteneur && !conteneur.querySelector('.cmd-bandeau-essai')) conteneur.prepend(bandeau);
 }
@@ -253,6 +266,11 @@ document.addEventListener('DOMContentLoaded', () => {
   carte.href = '/apparence.html';
   carte.innerHTML = '<strong>Apparence de ma boutique</strong><span>Point de départ, couleurs, police, bannière, à propos… avec aperçu en direct.</span>';
   reglages.prepend(carte);
+  const carteAbo = document.createElement('a');
+  carteAbo.className = 'cmd-carte-apparence';
+  carteAbo.href = '/abonnement.html';
+  carteAbo.innerHTML = '<strong>Mon abonnement</strong><span>Changer de formule, payer par Wave ou Orange Money, voir mes paiements.</span>';
+  carte.insertAdjacentElement('afterend', carteAbo);
   const style = document.createElement('style');
   style.textContent = `
     .cmd-carte-apparence { display: block; background: #fff; border: 1.5px solid var(--couleur-accent, #e56400); border-radius: 16px; padding: 16px 44px 16px 16px; margin-bottom: 16px; text-decoration: none; color: inherit; position: relative; }

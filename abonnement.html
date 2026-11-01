@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Mon abonnement — CMD.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --encre:#1d1b19; --gris:#6f6a64; --trait:#e7e2dc; --fond:#f6f4f1; --accent:#e56400; --accent-pale:#fff1e4; --ok:#1f7a3a; --ok-pale:#e8f4ec; --alerte:#9a5b00; --alerte-pale:#fff6dd; --erreur:#b3261e; --erreur-pale:#fdecea; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Montserrat', system-ui, sans-serif; background: var(--fond); color: var(--encre); font-size: 14px; line-height: 1.5; }
+  button, input { font: inherit; color: inherit; }
+  a { color: var(--accent); font-weight: 600; text-decoration: none; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .entete { background: #fff; border-bottom: 1px solid var(--trait); padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; }
+  .entete h1 { font-size: 16px; margin: 0; }
+  .page { max-width: 640px; margin: 0 auto; padding: 18px 16px 60px; }
+  .carte { background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+  .carte h2 { font-size: 16px; margin: 0 0 6px; }
+  .aide { color: var(--gris); font-size: 13px; margin: 0 0 12px; }
+  .statut-actuel strong { font-size: 20px; display: block; }
+  .etape-num { display: inline-flex; width: 24px; height: 24px; border-radius: 50%; background: var(--encre); color: #fff; font-size: 12px; font-weight: 800; align-items: center; justify-content: center; margin-right: 8px; }
+  .formules, .durees, .moyens { display: grid; gap: 8px; }
+  .formules { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+  .durees { grid-template-columns: repeat(4, 1fr); }
+  .moyens { grid-template-columns: 1fr 1fr; }
+  .choix { border: 1.5px solid var(--trait); border-radius: 12px; padding: 12px; background: #fff; cursor: pointer; text-align: left; }
+  .choix strong { display: block; }
+  .choix span { color: var(--gris); font-size: 12.5px; }
+  .choix[aria-pressed="true"] { border-color: var(--encre); box-shadow: 0 0 0 1px var(--encre); }
+  .choix.centre { text-align: center; }
+  .total { background: var(--accent-pale); border-radius: 12px; padding: 14px; margin-top: 14px; }
+  .total strong { font-size: 24px; display: block; }
+  .total span { font-size: 12.5px; color: var(--gris); }
+  .numero { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--fond); border-radius: 12px; padding: 12px 14px; margin-top: 10px; }
+  .numero strong { font-size: 20px; letter-spacing: .03em; }
+  .btn { border: none; border-radius: 10px; padding: 12px 18px; font-weight: 700; cursor: pointer; background: var(--accent); color: #fff; }
+  .btn.secondaire { background: #fff; color: var(--encre); border: 1.5px solid var(--trait); }
+  .btn.petit { padding: 7px 12px; font-size: 13px; }
+  .btn.large { width: 100%; }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  label.titre { display: block; font-size: 13px; font-weight: 700; margin: 12px 0 6px; }
+  input[type="text"] { width: 100%; padding: 12px; border: 1.5px solid var(--trait); border-radius: 10px; background: #fff; }
+  .message { font-size: 13.5px; margin-top: 10px; min-height: 1.2em; }
+  .message.ko { color: var(--erreur); }
+  .message.ok { color: var(--ok); }
+  .historique { display: flex; flex-direction: column; gap: 8px; }
+  .ligne { display: flex; justify-content: space-between; gap: 10px; align-items: center; border-bottom: 1px solid var(--trait); padding: 8px 0; font-size: 13px; }
+  .ligne:last-child { border-bottom: none; }
+  .badge { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .badge.en_attente { background: var(--alerte-pale); color: var(--alerte); }
+  .badge.validee { background: var(--ok-pale); color: var(--ok); }
+  .badge.refusee { background: var(--erreur-pale); color: var(--erreur); }
+  .chargement { text-align: center; color: var(--gris); padding: 60px 0; }
+  @media (max-width: 420px) { .durees { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="entete">
+  <a id="lien-retour" href="/admin.html">← Tableau de bord</a>
+  <h1>Mon abonnement</h1>
+  <span></span>
+</div>
+
+<div class="page">
+  <div id="ecran" class="chargement">Chargement…</div>
+
+  <div id="contenu" hidden>
+    <section class="carte statut-actuel">
+      <p class="aide" style="margin:0 0 4px">Ta formule actuelle</p>
+      <strong id="formule-actuelle"></strong>
+      <p class="aide" id="statut-detail" style="margin:4px 0 0"></p>
+    </section>
+
+    <section class="carte">
+      <h2><span class="etape-num">1</span>Choisis ta formule</h2>
+      <div class="formules" id="formules"></div>
+      <label class="titre">Durée</label>
+      <div class="durees" id="durees"></div>
+      <div class="total" aria-live="polite"><strong id="total">—</strong><span id="total-detail"></span></div>
+    </section>
+
+    <section class="carte">
+      <h2><span class="etape-num">2</span>Envoie le paiement</h2>
+      <div class="moyens" id="moyens"></div>
+      <div class="numero">
+        <div><span class="aide" style="margin:0;display:block" id="numero-libelle">Numéro</span><strong id="numero"></strong></div>
+        <button type="button" class="btn secondaire petit" id="btn-copier">Copier</button>
+      </div>
+      <p class="aide" style="margin:10px 0 0">Envoie exactement le montant indiqué, puis garde la référence de la transaction (dans le SMS ou l'application).</p>
+    </section>
+
+    <section class="carte">
+      <h2><span class="etape-num">3</span>Déclare ton paiement</h2>
+      <label class="titre" for="reference">Référence de la transaction</label>
+      <input type="text" id="reference" maxlength="40" autocomplete="off" placeholder="Ex : T_2KJ8P4QX…">
+      <label class="titre" for="capture">Capture d'écran du paiement (conseillée)</label>
+      <input type="file" id="capture" accept="image/jpeg,image/png,image/webp">
+      <button type="button" class="btn large" id="btn-declarer" style="margin-top:16px">J'ai payé : envoyer ma demande</button>
+      <p class="message" id="message" role="status"></p>
+    </section>
+
+    <section class="carte">
+      <h2>Mes paiements</h2>
+      <div class="historique" id="historique"></div>
+    </section>
+  </div>
+</div>
+
+<script src="/supabase-config.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const NOMS = { standard: 'Standard', pro: 'Pro', premium: 'Premium' };
+  const DESCRIPTIONS = { standard: "L'essentiel", pro: 'Sans limites + stock et stats', premium: 'Tout, sans mention CMD' };
+  const DUREES = [[1, '1 mois'], [3, '3 mois'], [6, '6 mois'], [12, '12 mois']];
+  const WHATSAPP_CMD = '221784218267';
+
+  let vendeur = null, tarifs = [], params = {};
+  let choix = { formule: null, mois: 1, moyen: 'wave' };
+  let montant = null;
+
+  const fcfa = (n) => Number(n).toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ') + ' FCFA';
+  const dateFr = (d) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  async function demarrer() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) { window.location.replace('/admin.html'); return; }
+    const { data: admin } = await supabaseClient.from('admins').select('vendeur_id, vendeurs(*)').eq('auth_user_id', session.user.id).single();
+    if (!admin || !admin.vendeurs) { $('ecran').textContent = 'Aucune boutique liée à ce compte.'; return; }
+    vendeur = admin.vendeurs;
+    $('lien-retour').href = vendeur.type_activite === 'prestation' ? '/admin-prestations.html' : '/admin.html';
+
+    const type = vendeur.type_activite === 'prestation' ? 'prestation' : 'produit';
+    const [{ data: t }, { data: p }] = await Promise.all([
+      supabaseClient.from('tarifs').select('*').eq('type_activite', type).order('prix_mensuel'),
+      supabaseClient.from('parametres_cmd').select('*')
+    ]);
+    tarifs = t || [];
+    (p || []).forEach((r) => { params[r.cle] = r.valeur; });
+
+    if (!tarifs.length) { $('ecran').textContent = 'Le paiement en ligne n’est pas encore disponible. Contacte CMD sur WhatsApp.'; return; }
+
+    afficherStatut();
+    const parDefaut = tarifs.find((x) => x.formule === vendeur.formule) || tarifs.find((x) => x.formule === 'pro') || tarifs[0];
+    choix.formule = parDefaut.formule;
+    construire();
+    await calculer();
+    await chargerHistorique();
+    $('ecran').hidden = true;
+    $('contenu').hidden = false;
+  }
+
+  function afficherStatut() {
+    $('formule-actuelle').textContent = NOMS[vendeur.formule] || 'Standard';
+    const maintenant = new Date();
+    let detail = '';
+    if (vendeur.essai_fin && new Date(vendeur.essai_fin) > maintenant) detail = `Essai gratuit jusqu'au ${dateFr(vendeur.essai_fin)}. Ensuite, ta boutique passe en Standard sauf si tu choisis une formule.`;
+    else if (vendeur.abonnement_fin) detail = new Date(vendeur.abonnement_fin) > maintenant
+      ? `Payée jusqu'au ${dateFr(vendeur.abonnement_fin)}. Un nouveau paiement s'ajoute à la suite.`
+      : `Ton abonnement est arrivé à échéance le ${dateFr(vendeur.abonnement_fin)}. Renouvelle-le pour garder ta formule.`;
+    $('statut-detail').textContent = detail;
+  }
+
+  function construire() {
+    $('formules').innerHTML = tarifs.map((t) =>
+      `<button type="button" class="choix" data-formule="${t.formule}" aria-pressed="${t.formule === choix.formule}">
+        <strong>${NOMS[t.formule]}</strong><span>${fcfa(t.prix_mensuel)} / mois · ${DESCRIPTIONS[t.formule]}</span></button>`).join('');
+    $('durees').innerHTML = DUREES.map(([m, l]) =>
+      `<button type="button" class="choix centre" data-mois="${m}" aria-pressed="${m === choix.mois}"><strong>${l}</strong></button>`).join('');
+    const moyens = [['wave', 'Wave', params.numero_wave], ['om', 'Orange Money', params.numero_om]].filter((m) => m[2]);
+    if (!moyens.find((m) => m[0] === choix.moyen) && moyens.length) choix.moyen = moyens[0][0];
+    $('moyens').innerHTML = moyens.map(([v, l]) =>
+      `<button type="button" class="choix centre" data-moyen="${v}" aria-pressed="${v === choix.moyen}"><strong>${l}</strong></button>`).join('');
+
+    const brancher = (sel, cle, convertir) => document.querySelectorAll(sel).forEach((b) => b.addEventListener('click', async () => {
+      choix[cle] = convertir(b.dataset[cle]);
+      document.querySelectorAll(sel).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      if (cle === 'moyen') afficherNumero(); else await calculer();
+    }));
+    brancher('[data-formule]', 'formule', String);
+    brancher('[data-mois]', 'mois', Number);
+    brancher('[data-moyen]', 'moyen', String);
+    afficherNumero();
+  }
+
+  function afficherNumero() {
+    $('numero-libelle').textContent = `${choix.moyen === 'wave' ? 'Wave' : 'Orange Money'} · ${params.nom_beneficiaire || 'CMD'}`;
+    $('numero').textContent = (choix.moyen === 'wave' ? params.numero_wave : params.numero_om) || '—';
+  }
+
+  async function calculer() {
+    $('total').textContent = '…';
+    const { data, error } = await supabaseClient.rpc('mon_montant', { p_formule: choix.formule, p_mois: choix.mois });
+    if (error || data === null) { montant = null; $('total').textContent = '—'; $('total-detail').textContent = 'Formule indisponible.'; return; }
+    montant = data;
+    const t = tarifs.find((x) => x.formule === choix.formule);
+    $('total').textContent = fcfa(montant);
+    $('total-detail').textContent = montant !== t.prix_mensuel * choix.mois
+      ? `Premier paiement : inclut les frais de mise en service. ${NOMS[choix.formule]}, ${choix.mois} mois.`
+      : `${NOMS[choix.formule]}, ${choix.mois} mois.`;
+  }
+
+  $('btn-copier').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('numero').textContent); $('btn-copier').textContent = 'Copié'; setTimeout(() => { $('btn-copier').textContent = 'Copier'; }, 1500); } catch (e) {}
+  });
+
+  $('btn-declarer').addEventListener('click', async () => {
+    const msg = $('message');
+    msg.className = 'message';
+    const reference = $('reference').value.trim();
+    if (montant === null) { msg.className = 'message ko'; msg.textContent = 'Choisis une formule disponible.'; return; }
+    if (reference.length < 4) { msg.className = 'message ko'; msg.textContent = 'Indique la référence de ta transaction.'; return; }
+
+    $('btn-declarer').disabled = true;
+    msg.textContent = 'Envoi…';
+    let chemin = null;
+    const fichier = $('capture').files[0];
+    if (fichier) {
+      if (fichier.size > 5 * 1024 * 1024) { msg.className = 'message ko'; msg.textContent = 'Capture trop lourde : 5 Mo maximum.'; $('btn-declarer').disabled = false; return; }
+      chemin = `${vendeur.id}/${Date.now()}-${nettoyerNomFichier(fichier.name)}`;
+      const { error: errUp } = await supabaseClient.storage.from('paiements').upload(chemin, fichier);
+      if (errUp) { msg.className = 'message ko'; msg.textContent = 'La capture n’a pas pu être envoyée. Réessaie, ou envoie sans capture.'; $('btn-declarer').disabled = false; return; }
+    }
+
+    const { error } = await supabaseClient.rpc('declarer_paiement', {
+      p_formule: choix.formule, p_mois: choix.mois, p_moyen: choix.moyen, p_reference: reference, p_capture_chemin: chemin
+    });
+    $('btn-declarer').disabled = false;
+    if (error) { msg.className = 'message ko'; msg.textContent = error.message; return; }
+
+    msg.className = 'message ok';
+    const texte = encodeURIComponent(`Bonjour, je viens de déclarer un paiement de ${fcfa(montant)} (${NOMS[choix.formule]}, ${choix.mois} mois) pour la boutique "${vendeur.nom_boutique}" (${vendeur.slug}). Référence : ${reference}`);
+    msg.innerHTML = `Demande envoyée. Ta formule sera activée dès validation, en général sous 24 h. <a href="https://wa.me/${WHATSAPP_CMD}?text=${texte}" target="_blank" rel="noopener">Prévenir CMD sur WhatsApp</a>`;
+    $('reference').value = '';
+    $('capture').value = '';
+    await chargerHistorique();
+  });
+
+  async function chargerHistorique() {
+    const { data } = await supabaseClient.from('demandes_paiement').select('*').eq('vendeur_id', vendeur.id).order('date_creation', { ascending: false }).limit(20);
+    const libelles = { en_attente: 'En attente', validee: 'Validé', refusee: 'Refusé' };
+    $('historique').innerHTML = (data && data.length) ? data.map((d) => `
+      <div class="ligne">
+        <div><strong>${NOMS[d.formule]} · ${d.mois} mois · ${fcfa(d.montant)}</strong><br>
+          <span class="aide" style="margin:0">${dateFr(d.date_creation)} · réf. ${esc(d.reference)}${d.motif_refus ? ' · ' + esc(d.motif_refus) : ''}</span></div>
+        <span class="badge ${d.statut}">${libelles[d.statut]}</span>
+      </div>`).join('') : '<p class="aide" style="margin:0">Aucun paiement pour l’instant.</p>';
+  }
+
+  demarrer();
+})();
+</script>
+</body>
+</html>

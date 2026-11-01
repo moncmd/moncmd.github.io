@@ -298,7 +298,8 @@
       const lien = carte.querySelector('[data-debloquer]');
       if (lien) {
         lien.textContent = `Passer en ${nomFormule(acces)} pour l’activer`;
-        lien.href = `https://wa.me/${WHATSAPP_CMD}?text=${encodeURIComponent(`Bonjour, je voudrais passer ma boutique "${vendeur.nom_boutique}" (${vendeur.slug}) en ${nomFormule(acces)}.`)}`;
+        lien.href = '/abonnement.html';
+        lien.removeAttribute('target');
       }
       carte.querySelectorAll('input, textarea, button').forEach((el) => { if (!ok) el.disabled = true; });
     });
