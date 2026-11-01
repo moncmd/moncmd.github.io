@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>CMD. — Super admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --encre: #1d1b19; --gris: #6f6a64; --trait: #e7e2dc; --fond: #f6f4f1; --carte: #fff;
+    --accent: #e56400; --accent-pale: #fff1e4; --ok: #1f7a3a; --ok-pale: #e8f4ec;
+    --alerte: #9a5b00; --alerte-pale: #fff6dd; --erreur: #b3261e; --erreur-pale: #fdecea;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Montserrat', system-ui, sans-serif; background: var(--fond); color: var(--encre); font-size: 14px; line-height: 1.45; }
+  button, input, select { font: inherit; }
+  a { color: var(--accent); font-weight: 600; text-decoration: none; }
+  .page { max-width: 1100px; margin: 0 auto; padding: 20px 16px 80px; }
+
+  #vue-login { max-width: 380px; margin: 12vh auto 0; background: var(--carte); border-radius: 16px; padding: 26px; }
+  #vue-login h1 { font-size: 20px; margin: 0 0 4px; }
+  #vue-login p { color: var(--gris); margin: 0 0 18px; }
+  .champ { width: 100%; padding: 12px; border: 1.5px solid var(--trait); border-radius: 10px; margin-bottom: 10px; background: #fff; }
+  .champ:focus { outline: none; border-color: var(--accent); }
+  .btn { border: none; border-radius: 10px; padding: 11px 16px; font-weight: 700; cursor: pointer; background: var(--accent); color: #fff; }
+  .btn.secondaire { background: #fff; color: var(--encre); border: 1.5px solid var(--trait); }
+  .btn.petit { padding: 7px 11px; font-size: 13px; }
+  .btn:disabled { opacity: .5; cursor: wait; }
+  .btn:focus-visible, .champ:focus-visible, .filtre:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .message { min-height: 1.3em; font-size: 13px; margin-top: 8px; color: var(--erreur); }
+
+  #vue-app { display: none; }
+  .barre { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .barre h1 { font-size: 20px; margin: 0; }
+
+  .chiffres { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .chiffre { background: var(--carte); border-radius: 12px; padding: 14px; }
+  .chiffre strong { display: block; font-size: 24px; font-weight: 800; }
+  .chiffre span { color: var(--gris); font-size: 12.5px; }
+
+  .outils { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+  .filtres { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+  .filtre { border: 1.5px solid var(--trait); background: #fff; border-radius: 999px; padding: 7px 12px; cursor: pointer; white-space: nowrap; font-weight: 600; font-size: 13px; color: var(--gris); }
+  .filtre[aria-pressed="true"] { border-color: var(--encre); color: var(--encre); }
+  .filtre .nb { color: var(--gris); font-weight: 500; }
+
+  .liste { display: flex; flex-direction: column; gap: 8px; }
+  .boutique { background: var(--carte); border-radius: 12px; border: 1.5px solid transparent; }
+  .boutique.ouverte { border-color: var(--trait); }
+  .ligne { display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 14px; cursor: pointer; width: 100%; text-align: left; background: none; border: none; color: inherit; }
+  .ligne .nom { font-weight: 700; font-size: 15px; }
+  .ligne .meta { color: var(--gris); font-size: 12.5px; margin-top: 2px; overflow-wrap: anywhere; }
+  .etiquettes { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; align-content: flex-start; }
+  .etiquette { font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: var(--fond); color: var(--gris); white-space: nowrap; }
+  .etiquette.premium { background: var(--encre); color: #fff; }
+  .etiquette.pro { background: var(--accent-pale); color: var(--accent); }
+  .etiquette.essai { background: var(--alerte-pale); color: var(--alerte); }
+  .etiquette.essai.urgent { background: var(--erreur-pale); color: var(--erreur); }
+  .etiquette.off { background: var(--erreur-pale); color: var(--erreur); }
+
+  .detail { display: none; padding: 0 14px 16px; border-top: 1px solid var(--trait); }
+  .boutique.ouverte .detail { display: block; }
+  .infos { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 16px; padding: 14px 0; color: var(--gris); font-size: 13px; }
+  .infos b { display: block; color: var(--encre); font-weight: 600; word-break: break-all; }
+  .bloc { padding: 12px 0; border-top: 1px dashed var(--trait); }
+  .bloc h3 { font-size: 13px; margin: 0 0 8px; }
+  .rangee { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .rangee select { padding: 8px 10px; border: 1.5px solid var(--trait); border-radius: 10px; background: #fff; }
+  .interrupteur { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px 0; }
+  .interrupteur input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .retour { font-size: 13px; min-height: 1.2em; margin-top: 8px; }
+  .retour.ok { color: var(--ok); }
+  .retour.ko { color: var(--erreur); }
+  .vide { text-align: center; color: var(--gris); padding: 40px 10px; background: var(--carte); border-radius: 12px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div id="vue-login">
+    <h1>Super admin CMD.</h1>
+    <p>Accès réservé.</p>
+    <form id="form-login">
+      <input class="champ" type="email" id="email" placeholder="Email" autocomplete="email" required>
+      <input class="champ" type="password" id="mdp" placeholder="Mot de passe" autocomplete="current-password" required>
+      <button class="btn" type="submit" style="width:100%">Se connecter</button>
+      <p class="message" id="msg-login" role="alert"></p>
+    </form>
+  </div>
+
+  <div id="vue-app">
+    <div class="barre">
+      <h1>Toutes les boutiques</h1>
+      <div class="rangee">
+        <button class="btn secondaire petit" id="btn-actualiser" type="button">Actualiser</button>
+        <button class="btn secondaire petit" id="btn-deconnexion" type="button">Déconnexion</button>
+      </div>
+    </div>
+
+    <div class="chiffres" id="chiffres"></div>
+
+    <div class="outils">
+      <input class="champ" id="recherche" type="search" placeholder="Rechercher : nom, adresse, email, numéro…" style="margin:0">
+      <div class="filtres" id="filtres" role="group" aria-label="Filtrer les boutiques"></div>
+    </div>
+
+    <div class="liste" id="liste"></div>
+  </div>
+</div>
+
+<script src="/supabase-config.js"></script>
+<script>
+(function () {
+  const BOUTIQUE_URL = 'https://shop.moncmd.site/';
+  const TEMPLATES = [
+    ['', 'Par défaut (produits)'], ['urbain', 'Urbain'], ['marche', 'Marché'], ['doux', 'Doux'],
+    ['restaurant', 'Restaurant'], ['sport', 'Sport'], ['import', 'Import'], ['hybride', 'Hybride'],
+    ['minimal', 'Minimal (prestations)'], ['editorial', 'Éditorial (prestations)']
+  ];
+  const FORMULES = [['standard', 'Standard'], ['pro', 'Pro'], ['premium', 'Premium']];
+  const JOUR = 86400000;
+
+  let boutiques = [];
+  let filtreActif = 'toutes';
+  let ouverte = null;
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (t) => (t === null || t === undefined) ? '' : String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const dateFr = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  const joursRestants = (b) => b.essai_fin ? Math.ceil((new Date(b.essai_fin) - new Date()) / JOUR) : null;
+  const enEssai = (b) => { const j = joursRestants(b); return j !== null && j > 0; };
+
+  const FILTRES = [
+    ['toutes', 'Toutes', () => true],
+    ['essai', 'En essai', (b) => enEssai(b)],
+    ['fin-essai', 'Fin d\u2019essai sous 3 jours', (b) => enEssai(b) && joursRestants(b) <= 3],
+    ['standard', 'Standard', (b) => b.formule === 'standard' && !enEssai(b)],
+    ['pro', 'Pro payant', (b) => b.formule === 'pro' && !enEssai(b)],
+    ['premium', 'Premium payant', (b) => b.formule === 'premium' && !enEssai(b)],
+    ['inactives', 'Sans activité 30 j', (b) => b.actif && (b.commandes_30j + b.rdv_30j) === 0],
+    ['desactivees', 'Désactivées', (b) => !b.actif]
+  ];
+
+  async function demarrer() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) await ouvrirApp();
+  }
+
+  $('form-login').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('msg-login').textContent = '';
+    const { error } = await supabaseClient.auth.signInWithPassword({ email: $('email').value.trim(), password: $('mdp').value });
+    if (error) { $('msg-login').textContent = 'Email ou mot de passe incorrect.'; return; }
+    await ouvrirApp();
+  });
+
+  $('btn-deconnexion').addEventListener('click', async () => {
+    await supabaseClient.auth.signOut();
+    window.location.reload();
+  });
+  $('btn-actualiser').addEventListener('click', charger);
+  $('recherche').addEventListener('input', afficherListe);
+
+  async function ouvrirApp() {
+    const { data: estSA } = await supabaseClient.rpc('est_super_admin');
+    if (estSA !== true) {
+      $('msg-login').textContent = "Ce compte n'a pas l'accès super admin.";
+      await supabaseClient.auth.signOut();
+      return;
+    }
+    $('vue-login').style.display = 'none';
+    $('vue-app').style.display = 'block';
+    await charger();
+  }
+
+  async function charger() {
+    $('liste').innerHTML = '<div class="vide">Chargement…</div>';
+    const { data, error } = await supabaseClient.rpc('sa_liste_boutiques');
+    if (error) { $('liste').innerHTML = `<div class="vide">Erreur : ${esc(error.message)}</div>`; return; }
+    boutiques = data || [];
+    afficherChiffres();
+    afficherFiltres();
+    afficherListe();
+  }
+
+  function afficherChiffres() {
+    const actives = boutiques.filter((b) => b.actif);
+    const payantes = (f) => actives.filter((b) => b.formule === f && !enEssai(b)).length;
+    const il7j = Date.now() - 7 * JOUR;
+    const items = [
+      [actives.length, 'boutiques actives'],
+      [payantes('pro') + payantes('premium'), 'Pro + Premium payants'],
+      [actives.filter(enEssai).length, 'essais en cours'],
+      [actives.filter((b) => enEssai(b) && joursRestants(b) <= 3).length, 'essais finissant sous 3 j'],
+      [boutiques.filter((b) => new Date(b.date_creation).getTime() > il7j).length, 'inscriptions sur 7 j']
+    ];
+    $('chiffres').innerHTML = items.map(([n, l]) => `<div class="chiffre"><strong>${n}</strong><span>${l}</span></div>`).join('');
+  }
+
+  function afficherFiltres() {
+    $('filtres').innerHTML = FILTRES.map(([id, label, test]) =>
+      `<button type="button" class="filtre" data-filtre="${id}" aria-pressed="${id === filtreActif}">${label} <span class="nb">${boutiques.filter(test).length}</span></button>`
+    ).join('');
+    $('filtres').querySelectorAll('.filtre').forEach((b) => b.addEventListener('click', () => {
+      filtreActif = b.dataset.filtre;
+      afficherFiltres();
+      afficherListe();
+    }));
+  }
+
+  function etiquettes(b) {
+    const t = [];
+    if (!b.actif) t.push('<span class="etiquette off">Désactivée</span>');
+    const j = joursRestants(b);
+    if (j !== null && j > 0) t.push(`<span class="etiquette essai${j <= 3 ? ' urgent' : ''}">Essai : ${j} j</span>`);
+    t.push(`<span class="etiquette ${esc(b.formule)}">${esc((FORMULES.find((f) => f[0] === b.formule) || [0, b.formule || 'Standard'])[1])}</span>`);
+    t.push(`<span class="etiquette">${b.type_activite === 'prestation' ? 'Prestations' : 'Produits'}</span>`);
+    return t.join('');
+  }
+
+  function afficherListe() {
+    const q = $('recherche').value.trim().toLowerCase();
+    const test = FILTRES.find((f) => f[0] === filtreActif)[2];
+    const resultat = boutiques.filter(test).filter((b) => !q ||
+      [b.nom_boutique, b.slug, b.email, b.numero_whatsapp].some((v) => v && String(v).toLowerCase().includes(q)));
+
+    if (!resultat.length) { $('liste').innerHTML = '<div class="vide">Aucune boutique ne correspond.</div>'; return; }
+
+    $('liste').innerHTML = resultat.map((b) => `
+      <div class="boutique${ouverte === b.id ? ' ouverte' : ''}" data-id="${b.id}">
+        <button type="button" class="ligne" aria-expanded="${ouverte === b.id}">
+          <div>
+            <div class="nom">${esc(b.nom_boutique)}</div>
+            <div class="meta">shop.moncmd.site/${esc(b.slug)} · ${esc(b.email || 'pas de compte lié')}</div>
+          </div>
+          <div class="etiquettes">${etiquettes(b)}</div>
+        </button>
+        <div class="detail">${ouverte === b.id ? detail(b) : ''}</div>
+      </div>`).join('');
+
+    $('liste').querySelectorAll('.ligne').forEach((btn) => btn.addEventListener('click', () => {
+      const id = btn.parentElement.dataset.id;
+      ouverte = (ouverte === id) ? null : id;
+      afficherListe();
+    }));
+    if (ouverte) brancherDetail(ouverte);
+  }
+
+  function detail(b) {
+    const j = joursRestants(b);
+    const essaiTexte = j === null ? 'Aucun essai (formule payée ou ancien client)'
+      : j > 0 ? `En essai jusqu'au ${dateFr(b.essai_fin)} (${j} j)` : 'Essai terminé';
+    const tplListe = TEMPLATES.some((t) => t[0] === (b.template || '')) ? TEMPLATES : [[b.template, b.template], ...TEMPLATES];
+    const activite = b.type_activite === 'prestation'
+      ? `${b.nb_prestations} prestations · ${b.rdv_30j} RDV sur 30 j`
+      : `${b.nb_produits} produits · ${b.commandes_30j} commandes sur 30 j`;
+    return `
+      <div class="infos">
+        <div>Inscrite le<b>${dateFr(b.date_creation)}</b></div>
+        <div>Origine<b>${b.origine === 'inscription' ? 'Inscription en ligne' : 'Créée à la main'}</b></div>
+        <div>Activité<b>${activite}</b></div>
+        <div>Dernière commande / RDV<b>${dateFr(b.derniere_activite)}</b></div>
+        <div>WhatsApp<b>${esc(b.numero_whatsapp)}</b></div>
+      </div>
+      <div class="rangee" style="padding-bottom:10px">
+        <a class="btn secondaire petit" href="${BOUTIQUE_URL}${encodeURIComponent(b.slug)}" target="_blank" rel="noopener">Ouvrir la boutique</a>
+        <a class="btn secondaire petit" href="https://wa.me/${encodeURIComponent(b.numero_whatsapp || '')}" target="_blank" rel="noopener">Écrire sur WhatsApp</a>
+      </div>
+
+      <div class="bloc">
+        <h3>Formule et essai</h3>
+        <p style="margin:0 0 8px;color:var(--gris)">${essaiTexte}</p>
+        <div class="rangee">
+          <select data-champ="formule" aria-label="Formule">
+            ${FORMULES.map(([v, l]) => `<option value="${v}"${b.formule === v ? ' selected' : ''}>${l}</option>`).join('')}
+          </select>
+          <button type="button" class="btn petit" data-action="payee">Formule payée</button>
+          <button type="button" class="btn secondaire petit" data-action="essai7">Essai +7 j</button>
+          <button type="button" class="btn secondaire petit" data-action="essai14">Essai +14 j</button>
+        </div>
+        <p style="margin:8px 0 0;color:var(--gris);font-size:12.5px">« Formule payée » applique la formule choisie et arrête l'essai : la boutique ne redescendra plus en Standard.</p>
+      </div>
+
+      <div class="bloc">
+        <h3>Apparence</h3>
+        <div class="rangee">
+          <select data-champ="template" aria-label="Template">
+            ${tplListe.map(([v, l]) => `<option value="${esc(v)}"${(b.template || '') === v ? ' selected' : ''}>${esc(l)}</option>`).join('')}
+          </select>
+          <button type="button" class="btn secondaire petit" data-action="template">Appliquer le template</button>
+        </div>
+      </div>
+
+      <div class="bloc">
+        <h3>Options débloquées</h3>
+        <label class="interrupteur"><input type="checkbox" data-option="logo_debloque"${b.logo_debloque ? ' checked' : ''}> Logo personnalisé</label>
+        <label class="interrupteur"><input type="checkbox" data-option="recherche_debloquee"${b.recherche_debloquee ? ' checked' : ''}> Barre de recherche</label>
+        <label class="interrupteur"><input type="checkbox" data-option="masquer_commentaire_produit"${b.masquer_commentaire_produit ? ' checked' : ''}> Masquer le commentaire produit</label>
+      </div>
+
+      <div class="bloc">
+        <h3>Statut</h3>
+        <button type="button" class="btn ${b.actif ? 'secondaire' : ''} petit" data-action="actif">${b.actif ? 'Désactiver la boutique' : 'Réactiver la boutique'}</button>
+      </div>
+      <p class="retour" data-retour role="status"></p>`;
+  }
+
+  function brancherDetail(id) {
+    const carte = $('liste').querySelector(`.boutique[data-id="${id}"]`);
+    if (!carte) return;
+    const b = boutiques.find((x) => x.id === id);
+    const val = (champ) => carte.querySelector(`[data-champ="${champ}"]`).value;
+
+    const actions = {
+      payee: () => ({ formule: val('formule'), essai_fin: null }),
+      essai7: () => ({ essai_fin: prolonger(b, 7) }),
+      essai14: () => ({ essai_fin: prolonger(b, 14) }),
+      template: () => ({ template: val('template') }),
+      actif: () => {
+        if (b.actif && !confirm(`Désactiver « ${b.nom_boutique} » ? La boutique ne sera plus visible par ses clients.`)) return null;
+        return { actif: !b.actif };
+      }
+    };
+
+    carte.querySelectorAll('[data-action]').forEach((btn) => btn.addEventListener('click', async () => {
+      const modifs = actions[btn.dataset.action]();
+      if (modifs) await enregistrer(id, modifs, btn);
+    }));
+    carte.querySelectorAll('[data-option]').forEach((box) => box.addEventListener('change', async () => {
+      await enregistrer(id, { [box.dataset.option]: box.checked }, box);
+    }));
+  }
+
+  function prolonger(b, jours) {
+    const base = enEssai(b) ? new Date(b.essai_fin).getTime() : Date.now();
+    return new Date(base + jours * JOUR).toISOString();
+  }
+
+  async function enregistrer(id, modifs, declencheur) {
+    const carte = $('liste').querySelector(`.boutique[data-id="${id}"]`);
+    const retour = carte.querySelector('[data-retour]');
+    declencheur.disabled = true;
+    retour.className = 'retour'; retour.textContent = 'Enregistrement…';
+    const { error } = await supabaseClient.rpc('sa_modifier_boutique', { p_vendeur_id: id, p_modifs: modifs });
+    declencheur.disabled = false;
+    if (error) {
+      retour.className = 'retour ko';
+      retour.textContent = /check_template/.test(error.message)
+        ? "Ce template n'est pas autorisé par la base (contrainte check_template_valide)."
+        : 'Erreur : ' + error.message;
+      return;
+    }
+    const b = boutiques.find((x) => x.id === id);
+    Object.assign(b, modifs);
+    afficherChiffres();
+    afficherFiltres();
+    afficherListe();
+    const nouvelleCarte = $('liste').querySelector(`.boutique[data-id="${id}"] [data-retour]`);
+    if (nouvelleCarte) { nouvelleCarte.className = 'retour ok'; nouvelleCarte.textContent = 'Enregistré.'; }
+  }
+
+  demarrer();
+})();
+</script>
+</body>
+</html>

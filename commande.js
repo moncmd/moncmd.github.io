@@ -177,8 +177,12 @@ async function envoyerCommande() {
     message += `\nDate de livraison : ${dateLivraison.split('-').reverse().join('/')}`;
     message += `\nHeure de livraison : ${heure}`;
 
-    // Enregistrement dans Supabase avant l'ouverture de WhatsApp
+    // Enregistrement dans Supabase avant l'ouverture de WhatsApp.
+    // L'identifiant est créé ici (le client ne peut pas relire la ligne
+    // créée) : il sert à relier le reçu PDF à la commande.
+    const idCommande = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null;
     const { error } = await supabaseClient.from('commandes').insert({
+        ...(idCommande ? { id: idCommande } : {}),
         vendeur_id: vendeurActuel.id,
         nom_client: nom,
         prenom_client: prenom,
@@ -206,7 +210,7 @@ async function envoyerCommande() {
 
     // Reçu PDF (réservé aux vendeurs Premium)
     if (vendeurActuel.formule === 'premium') {
-        genererRecuPDF(contenu, totalFinal, nom, prenom, null);
+        genererRecuPDF(contenu, totalFinal, nom, prenom, error ? null : idCommande);
     }
 
     const url = `https://wa.me/${vendeurActuel.numero_whatsapp}?text=${encodeURIComponent(message)}`;
@@ -297,9 +301,12 @@ async function genererRecuPDF(contenu, total, nom, prenom, commandeId) {
 
         const { data: urlData } = supabaseClient.storage.from('recus').getPublicUrl(cheminFichier);
 
-        await supabaseClient.from('commandes').update({
-            recu_url: urlData.publicUrl
-        }).eq('id', commandeId);
+        // Fonction serveur (phase 3) : le client n'a pas le droit de
+        // modifier une commande directement.
+        await supabaseClient.rpc('lier_recu_commande', {
+            p_commande_id: commandeId,
+            p_url: urlData.publicUrl
+        });
     } catch (err) {
         console.error('Erreur sauvegarde reçu :', err);
     }

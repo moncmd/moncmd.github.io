@@ -371,6 +371,7 @@ async function chargerDashboard(authUserId) {
   document.getElementById('vue-login').style.display = 'none';
   document.getElementById('vue-dashboard').style.display = 'block';
   afficherBandeauEssai(vendeurConnecte);
+  afficherPremiersPas(vendeurConnecte);
   document.getElementById('nom-boutique-admin').textContent = vendeurConnecte.nom_boutique;
   document.documentElement.style.setProperty('--couleur-accent', vendeurConnecte.couleur_accent || '#e56400');
 
