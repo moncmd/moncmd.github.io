@@ -83,13 +83,10 @@ async function appliquerCodePromo() {
     const code = input.value.trim().toUpperCase();
     if (!code || !vendeurActuel) return;
 
+    // Vérification côté serveur (fonction verifier_code_promo, phase 1A) :
+    // la liste des codes n'est plus lisible publiquement.
     const { data, error } = await supabaseClient
-        .from('codes_promo')
-        .select('code, reduction_pourcent, date_expiration')
-        .eq('vendeur_id', vendeurActuel.id)
-        .ilike('code', code)
-        .eq('actif', true)
-        .maybeSingle();
+        .rpc('verifier_code_promo', { p_vendeur_id: vendeurActuel.id, p_code: code });
 
     if (error || !data) {
         messageEl.textContent = "Code promo invalide.";
