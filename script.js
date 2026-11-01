@@ -198,6 +198,7 @@ function appliquerIdentiteVendeur(vendeur) {
   }
 
   afficherReseauxSociaux(vendeur);
+  if (typeof appliquerTheme === 'function') appliquerTheme(vendeur);
 }
 
 // Affiche le petit message d'accueil du vendeur en haut de la page,
@@ -225,12 +226,18 @@ function afficherReseauxSociaux(vendeur) {
     { url: vendeur.instagram, icone: 'fa-instagram' },
     { url: vendeur.tiktok, icone: 'fa-tiktok' },
     { url: vendeur.facebook, icone: 'fa-facebook' }
-  ].filter(r => r.url);
+  ].map(r => {
+    // Lien saisi par le vendeur : on accepte "instagram.com/…" (https ajouté)
+    // mais jamais un autre protocole (javascript:, data:…).
+    let u = String(r.url || '').trim();
+    if (u && !/^https?:\/\//i.test(u)) u = /^[a-z][a-z0-9+.-]*:/i.test(u) ? '' : 'https://' + u.replace(/^\/+/, '');
+    return { url: u, icone: r.icone };
+  }).filter(r => r.url);
 
   if (!reseaux.length) { conteneur.style.display = 'none'; return; }
 
   conteneur.innerHTML = reseaux.map(r =>
-    `<a href="${r.url}" target="_blank" rel="noopener"><i class="fa-brands ${r.icone}"></i></a>`
+    `<a href="${echapperHTML(r.url)}" target="_blank" rel="noopener"><i class="fa-brands ${r.icone}"></i></a>`
   ).join('');
 }
 

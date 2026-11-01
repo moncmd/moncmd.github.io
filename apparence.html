@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Apparence de ma boutique — CMD.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Poppins:wght@600&family=Playfair+Display:wght@700&family=Nunito:wght@800&family=Lora:wght@700&family=Archivo+Black&family=DM+Sans:wght@700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --encre: #1d1b19; --gris: #6f6a64; --trait: #e7e2dc; --fond: #f6f4f1; --carte: #fff;
+    --accent: #e56400; --ok: #1f7a3a; --erreur: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Montserrat', system-ui, sans-serif; background: var(--fond); color: var(--encre); font-size: 14px; line-height: 1.45; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  a { color: var(--accent); font-weight: 600; text-decoration: none; }
+
+  .entete { position: sticky; top: 0; z-index: 20; background: #fff; border-bottom: 1px solid var(--trait); display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 16px; }
+  .entete h1 { font-size: 16px; margin: 0; }
+  .entete .retour { font-size: 13px; }
+  .btn { border: none; border-radius: 10px; padding: 11px 18px; font-weight: 700; cursor: pointer; background: var(--accent); color: #fff; }
+  .btn.secondaire { background: #fff; color: var(--encre); border: 1.5px solid var(--trait); }
+  .btn.petit { padding: 7px 12px; font-size: 13px; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  .disposition { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; max-width: 1180px; margin: 0 auto; padding: 20px 16px 120px; align-items: start; }
+  .apercu-colonne { position: sticky; top: 76px; }
+  .telephone { width: 390px; height: min(780px, calc(100vh - 110px)); border: 10px solid #1d1b19; border-radius: 34px; overflow: hidden; background: #fff; margin: 0 auto; }
+  .telephone iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .apercu-note { text-align: center; color: var(--gris); font-size: 12.5px; margin-top: 8px; }
+  .btn-apercu-mobile { display: none; }
+  @media (max-width: 900px) {
+    .disposition { grid-template-columns: 1fr; }
+    .apercu-colonne { display: none; position: fixed; inset: 0; top: 57px; z-index: 30; background: var(--fond); padding: 12px; }
+    body.voir-apercu .apercu-colonne { display: block; }
+    .telephone { width: 100%; max-width: 390px; height: calc(100vh - 120px); border-width: 6px; border-radius: 22px; }
+    .btn-apercu-mobile { display: inline-block; }
+  }
+
+  .carte { background: var(--carte); border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+  .carte h2 { font-size: 15px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+  .carte .aide { color: var(--gris); font-size: 13px; margin: 0 0 14px; }
+  .verrou { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: var(--fond); color: var(--gris); }
+  .carte.verrouillee .contenu { opacity: .45; pointer-events: none; }
+  .carte .debloquer { display: none; margin-top: 10px; font-size: 13px; }
+  .carte.verrouillee .debloquer { display: block; }
+
+  .grille-modeles { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+  .modele { border: 1.5px solid var(--trait); border-radius: 12px; padding: 12px; background: #fff; cursor: pointer; text-align: left; }
+  .modele strong { display: block; font-size: 14px; }
+  .modele span { color: var(--gris); font-size: 12px; }
+  .modele[aria-pressed="true"] { border-color: var(--encre); box-shadow: 0 0 0 1px var(--encre); }
+
+  .pastilles { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .pastille { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1.5px var(--trait); cursor: pointer; }
+  .pastille[aria-pressed="true"] { box-shadow: 0 0 0 2.5px var(--encre); }
+  .pastille-texte { width: auto; padding: 0 12px; border-radius: 999px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; }
+  input[type="color"] { width: 44px; height: 36px; border: 1.5px solid var(--trait); border-radius: 10px; padding: 2px; background: #fff; cursor: pointer; }
+
+  .polices { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .police { border: 1.5px solid var(--trait); border-radius: 12px; padding: 12px; background: #fff; cursor: pointer; text-align: left; }
+  .police b { display: block; font-size: 19px; line-height: 1.2; }
+  .police span { font-size: 12px; color: var(--gris); }
+  .police[aria-pressed="true"] { border-color: var(--encre); box-shadow: 0 0 0 1px var(--encre); }
+
+  .interrupteur { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; padding: 2px 0; }
+  .interrupteur input { appearance: none; width: 44px; height: 26px; border-radius: 999px; background: #d9d4ce; position: relative; cursor: pointer; flex-shrink: 0; transition: background .15s; }
+  .interrupteur input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .15s; }
+  .interrupteur input:checked { background: var(--accent); }
+  .interrupteur input:checked::after { transform: translateX(18px); }
+  .champs { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .champs[hidden] { display: none; }
+  .champs label { font-size: 12.5px; font-weight: 600; color: var(--gris); }
+  .champs input[type="text"], .champs textarea { width: 100%; padding: 11px 12px; border: 1.5px solid var(--trait); border-radius: 10px; background: #fff; }
+  .champs textarea { min-height: 90px; resize: vertical; }
+  .image-banniere { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .image-banniere img { width: 96px; height: 54px; object-fit: cover; border-radius: 8px; border: 1px solid var(--trait); }
+
+  .barre-enregistrer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; background: #fff; border-top: 1px solid var(--trait); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); display: flex; align-items: center; justify-content: center; gap: 12px; }
+  .barre-enregistrer .etat { color: var(--gris); font-size: 13px; }
+  .barre-enregistrer .etat.ok { color: var(--ok); }
+  .barre-enregistrer .etat.ko { color: var(--erreur); }
+  .chargement { text-align: center; padding: 80px 20px; color: var(--gris); }
+</style>
+</head>
+<body>
+
+<div class="entete">
+  <a class="retour" id="lien-retour" href="/admin.html">← Tableau de bord</a>
+  <h1>Apparence</h1>
+  <button class="btn secondaire petit btn-apercu-mobile" id="btn-apercu" type="button" aria-expanded="false">Aperçu</button>
+</div>
+
+<div id="ecran" class="chargement">Chargement…</div>
+
+<div class="disposition" id="editeur" hidden>
+  <div id="formulaire">
+
+    <section class="carte" data-acces="standard">
+      <h2>Point de départ</h2>
+      <p class="aide">Le style de base de ta boutique. Tes réglages ci-dessous s'ajoutent par-dessus. Le changement s'applique tout de suite.</p>
+      <div class="contenu"><div class="grille-modeles" id="modeles"></div></div>
+      <p class="aide" id="msg-modele" style="margin:10px 0 0"></p>
+    </section>
+
+    <section class="carte" data-acces="standard">
+      <h2>Couleur principale</h2>
+      <p class="aide">Boutons, prix, liens et bandeau d'annonce.</p>
+      <div class="contenu pastilles" id="couleurs"></div>
+    </section>
+
+    <section class="carte" data-acces="standard">
+      <label class="interrupteur"><span><h2 style="margin:0">Bandeau d'annonce</h2><span class="aide" style="margin:0">Une ligne en haut de la boutique : promo, livraison, nouveauté.</span></span><input type="checkbox" data-bascule="annonce"></label>
+      <div class="contenu champs" data-champs="annonce" hidden>
+        <label for="annonce-texte">Texte (140 caractères max)</label>
+        <input type="text" id="annonce-texte" maxlength="140" placeholder="Livraison offerte dès 20 000 FCFA à Dakar">
+      </div>
+    </section>
+
+    <section class="carte" data-acces="standard">
+      <label class="interrupteur"><span><h2 style="margin:0">Infos pratiques</h2><span class="aide" style="margin:0">Horaires, adresse, paiement et livraison, en bas de la boutique.</span></span><input type="checkbox" data-bascule="infos"></label>
+      <div class="contenu champs" data-champs="infos" hidden>
+        <label for="infos-livraison">Livraison (facultatif)</label>
+        <input type="text" id="infos-livraison" maxlength="160" placeholder="Dakar en 24 h, régions en 48 h">
+        <span class="aide" style="margin:0">Horaires et adresse se règlent dans Réglages du tableau de bord.</span>
+      </div>
+    </section>
+
+    <section class="carte" data-acces="standard">
+      <label class="interrupteur"><span><h2 style="margin:0">Bouton WhatsApp flottant</h2><span class="aide" style="margin:0">Toujours visible en bas à droite, pour te poser une question.</span></span><input type="checkbox" data-bascule="whatsapp"></label>
+    </section>
+
+    <section class="carte" data-acces="pro">
+      <h2>Fond de page <span class="verrou" data-badge></span></h2>
+      <p class="aide">Une teinte douce derrière tes produits.</p>
+      <div class="contenu pastilles" id="fonds"></div>
+      <a class="debloquer" data-debloquer target="_blank" rel="noopener"></a>
+    </section>
+
+    <section class="carte" data-acces="pro">
+      <h2>Police d'écriture <span class="verrou" data-badge></span></h2>
+      <p class="aide">Change le caractère de toute la boutique.</p>
+      <div class="contenu polices" id="polices"></div>
+      <a class="debloquer" data-debloquer target="_blank" rel="noopener"></a>
+    </section>
+
+    <section class="carte" data-acces="pro" data-seulement="produit">
+      <label class="interrupteur"><span><h2 style="margin:0">Bannière d'accueil <span class="verrou" data-badge></span></h2><span class="aide" style="margin:0">Un grand titre en haut de la boutique.</span></span><input type="checkbox" data-bascule="banniere"></label>
+      <div class="contenu champs" data-champs="banniere" hidden>
+        <label for="banniere-titre">Titre</label>
+        <input type="text" id="banniere-titre" maxlength="80" placeholder="Le nom de ta boutique par défaut">
+        <label for="banniere-sous">Phrase d'accroche</label>
+        <input type="text" id="banniere-sous" maxlength="200" placeholder="Ex : Des pièces uniques, livrées chez vous">
+        <label for="banniere-bouton">Texte du bouton</label>
+        <input type="text" id="banniere-bouton" maxlength="30" placeholder="Voir le catalogue">
+        <label>Image de fond <span class="verrou" id="badge-image"></span></label>
+        <div class="image-banniere">
+          <img id="banniere-miniature" alt="" hidden>
+          <input type="file" id="banniere-fichier" accept="image/jpeg,image/png,image/webp">
+          <button type="button" class="btn secondaire petit" id="banniere-retirer" hidden>Retirer l'image</button>
+        </div>
+      </div>
+      <a class="debloquer" data-debloquer target="_blank" rel="noopener"></a>
+    </section>
+
+    <section class="carte" data-acces="pro">
+      <label class="interrupteur"><span><h2 style="margin:0">À propos <span class="verrou" data-badge></span></h2><span class="aide" style="margin:0">Ton histoire, en quelques lignes.</span></span><input type="checkbox" data-bascule="apropos"></label>
+      <div class="contenu champs" data-champs="apropos" hidden>
+        <label for="apropos-titre">Titre</label>
+        <input type="text" id="apropos-titre" maxlength="60" placeholder="À propos">
+        <label for="apropos-texte">Texte</label>
+        <textarea id="apropos-texte" maxlength="1200" placeholder="Qui es-tu, depuis quand, ce qui rend ta boutique unique…"></textarea>
+      </div>
+      <a class="debloquer" data-debloquer target="_blank" rel="noopener"></a>
+    </section>
+
+    <section class="carte" data-acces="pro">
+      <h2>Sections affichées <span class="verrou" data-badge></span></h2>
+      <div class="contenu champs" style="margin-top:4px">
+        <label class="interrupteur"><span>Avis clients</span><input type="checkbox" id="section-avis"></label>
+        <label class="interrupteur"><span>Questions fréquentes</span><input type="checkbox" id="section-faq"></label>
+      </div>
+      <a class="debloquer" data-debloquer target="_blank" rel="noopener"></a>
+    </section>
+
+    <section class="carte" data-acces="premium">
+      <label class="interrupteur"><span><h2 style="margin:0">Retirer « Créée avec CMD » <span class="verrou" data-badge></span></h2><span class="aide" style="margin:0">Le petit lien en bas de ta boutique.</span></span><input type="checkbox" id="masquer-cmd"></label>
+      <a class="debloquer" data-debloquer target="_blank" rel="noopener"></a>
+    </section>
+  </div>
+
+  <div class="apercu-colonne" id="apercu-colonne">
+    <div class="telephone"><iframe id="apercu" title="Aperçu de ta boutique"></iframe></div>
+    <p class="apercu-note">Aperçu en direct. Tes clients verront les changements après « Enregistrer ».</p>
+  </div>
+</div>
+
+<div class="barre-enregistrer" id="barre" hidden>
+  <span class="etat" id="etat" role="status">Aucune modification</span>
+  <button class="btn" id="btn-enregistrer" type="button" disabled>Enregistrer</button>
+</div>
+
+<script src="/supabase-config.js"></script>
+<script src="/theme.js"></script>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const WHATSAPP_CMD = '221784218267';
+  const MODELES_PRODUITS = [
+    ['', 'Classique', 'Sobre et polyvalent'], ['urbain', 'Urbain', 'Mode, streetwear'],
+    ['doux', 'Doux', 'Beauté, bien-être'], ['marche', 'Marché', 'Grand catalogue'],
+    ['restaurant', 'Restaurant', 'Plats, traiteur'], ['sport', 'Sport', 'Équipement, énergie'],
+    ['import', 'Import', 'Chic, haut de gamme']
+  ];
+  const MODELES_PRESTATIONS = [['minimal', 'Minimal', 'Épuré, lumineux'], ['editorial', 'Éditorial', 'Magazine, affirmé']];
+  const COULEURS = ['#e56400', '#c0392b', '#d63384', '#7b4fd6', '#2563eb', '#0e7c86', '#1f7a3a', '#b8860b', '#1d1b19'];
+  const NOMS_FONDS = { blanc: 'Blanc', creme: 'Crème', sable: 'Sable', perle: 'Perle', poudre: 'Poudré', menthe: 'Menthe' };
+  const NOMS_POLICES = { moderne: ['Poppins', 'Moderne'], elegante: ['Playfair Display', 'Élégante'], douce: ['Nunito', 'Douce'],
+    classique: ['Lora', 'Classique'], impact: ['Archivo Black', 'Percutante'], epuree: ['DM Sans', 'Épurée'] };
+
+  let vendeur = null;
+  let theme = {};
+  let accent = '#e56400';
+  let modifie = false;
+  let minuterie = null;
+
+  const niveau = () => CMD_THEME.NIVEAUX[vendeur.formule] ?? 0;
+  const autorise = (acces) => niveau() >= CMD_THEME.NIVEAUX[acces];
+  const nomFormule = (f) => ({ standard: 'Standard', pro: 'Pro', premium: 'Premium' }[f]);
+
+  async function demarrer() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (!session) { window.location.replace('/admin.html'); return; }
+    const { data: admin, error } = await supabaseClient
+      .from('admins').select('vendeur_id, vendeurs(*)').eq('auth_user_id', session.user.id).single();
+    if (error || !admin || !admin.vendeurs) { $('ecran').textContent = 'Aucune boutique liée à ce compte.'; return; }
+
+    vendeur = admin.vendeurs;
+    theme = JSON.parse(JSON.stringify(vendeur.theme || {}));
+    accent = /^#[0-9a-fA-F]{6}$/.test(vendeur.couleur_accent || '') ? vendeur.couleur_accent : '#e56400';
+    $('lien-retour').href = vendeur.type_activite === 'prestation' ? '/admin-prestations.html' : '/admin.html';
+
+    construire();
+    $('ecran').hidden = true;
+    $('editeur').hidden = false;
+    $('barre').hidden = false;
+    chargerApercu();
+  }
+
+  function fichierApercu() {
+    const t = (vendeur.template || '').toLowerCase();
+    if (t === 'hybride') return 'index-hybride';
+    if (vendeur.type_activite === 'prestation') return `index-prestations-${t || 'minimal'}`;
+    return t ? `index-${t}` : 'index';
+  }
+
+  function chargerApercu() {
+    $('apercu').src = `/${fichierApercu()}.html?v=${encodeURIComponent(vendeur.slug)}&apercu=1&t=${Date.now()}`;
+  }
+
+  function envoyerApercu() {
+    const fenetre = $('apercu').contentWindow;
+    if (fenetre) fenetre.postMessage({ type: 'cmd-apercu-theme', theme, accent, formule: vendeur.formule }, window.location.origin);
+  }
+
+  window.addEventListener('message', (e) => {
+    if (e.origin === window.location.origin && e.data && e.data.type === 'cmd-apercu-pret') envoyerApercu();
+  });
+
+  function marquerModifie() {
+    modifie = true;
+    $('etat').className = 'etat';
+    $('etat').textContent = 'Modifications non enregistrées';
+    $('btn-enregistrer').disabled = false;
+    clearTimeout(minuterie);
+    minuterie = setTimeout(envoyerApercu, 120);
+  }
+
+  const sousObjet = (cle) => (theme[cle] = theme[cle] || {});
+
+  function construire() {
+    // Réglages réservés aux boutiques produits (les pages prestataires ont déjà leur propre accueil)
+    if (vendeur.type_activite === 'prestation') document.querySelectorAll('[data-seulement="produit"]').forEach((el) => el.remove());
+
+    // Verrous selon la formule
+    document.querySelectorAll('.carte[data-acces]').forEach((carte) => {
+      const acces = carte.dataset.acces;
+      const ok = autorise(acces);
+      carte.classList.toggle('verrouillee', !ok);
+      const badge = carte.querySelector('[data-badge]');
+      if (badge) badge.textContent = ok ? '' : nomFormule(acces);
+      if (badge) badge.hidden = ok;
+      const lien = carte.querySelector('[data-debloquer]');
+      if (lien) {
+        lien.textContent = `Passer en ${nomFormule(acces)} pour l’activer`;
+        lien.href = `https://wa.me/${WHATSAPP_CMD}?text=${encodeURIComponent(`Bonjour, je voudrais passer ma boutique "${vendeur.nom_boutique}" (${vendeur.slug}) en ${nomFormule(acces)}.`)}`;
+      }
+      carte.querySelectorAll('input, textarea, button').forEach((el) => { if (!ok) el.disabled = true; });
+    });
+    if (vendeur.essai_fin && new Date(vendeur.essai_fin) > new Date()) {
+      $('etat').textContent = `Essai ${nomFormule(vendeur.formule)} : tout ce qui est débloqué ici le reste tant que ta formule le permet.`;
+    }
+
+    // Points de départ
+    const modeles = vendeur.type_activite === 'prestation' ? MODELES_PRESTATIONS : MODELES_PRODUITS;
+    const actuel = (vendeur.template || '').toLowerCase();
+    if (actuel === 'hybride') {
+      $('modeles').innerHTML = '<p class="aide" style="margin:0">Ta boutique utilise le modèle Hybride (boutique + réservation). Pour en changer, contacte l\u2019équipe CMD.</p>';
+    } else {
+      $('modeles').innerHTML = modeles.map(([v, n, d]) =>
+        `<button type="button" class="modele" data-modele="${v}" aria-pressed="${actuel === v}"><strong>${n}</strong><span>${d}</span></button>`).join('');
+      $('modeles').querySelectorAll('.modele').forEach((b) => b.addEventListener('click', () => changerModele(b.dataset.modele)));
+    }
+
+    // Couleurs
+    $('couleurs').innerHTML = COULEURS.map((c) =>
+      `<button type="button" class="pastille" data-couleur="${c}" style="background:${c}" aria-label="Couleur ${c}" aria-pressed="${c.toLowerCase() === accent.toLowerCase()}"></button>`
+    ).join('') + `<input type="color" id="couleur-libre" value="${accent}" aria-label="Autre couleur">`;
+    const choisirCouleur = (c) => {
+      accent = c;
+      $('couleurs').querySelectorAll('.pastille').forEach((p) => p.setAttribute('aria-pressed', String(p.dataset.couleur.toLowerCase() === c.toLowerCase())));
+      $('couleur-libre').value = c;
+      marquerModifie();
+    };
+    $('couleurs').querySelectorAll('.pastille').forEach((p) => p.addEventListener('click', () => choisirCouleur(p.dataset.couleur)));
+    $('couleur-libre').addEventListener('input', (e) => choisirCouleur(e.target.value));
+
+    // Fonds
+    $('fonds').innerHTML = `<button type="button" class="pastille pastille-texte" data-fond="" aria-pressed="${!theme.fond}" style="background:#fff">Du modèle</button>` +
+      Object.entries(CMD_THEME.FONDS).map(([k, c]) =>
+        `<button type="button" class="pastille" data-fond="${k}" style="background:${c}" aria-label="Fond ${NOMS_FONDS[k]}" title="${NOMS_FONDS[k]}" aria-pressed="${theme.fond === k}"></button>`).join('');
+    $('fonds').querySelectorAll('[data-fond]').forEach((p) => p.addEventListener('click', () => {
+      theme.fond = p.dataset.fond || null;
+      $('fonds').querySelectorAll('[data-fond]').forEach((x) => x.setAttribute('aria-pressed', String(x === p)));
+      marquerModifie();
+    }));
+
+    // Polices
+    $('polices').innerHTML = `<button type="button" class="police" data-police="" aria-pressed="${!theme.police}"><b>Aa</b><span>Celle du modèle</span></button>` +
+      Object.entries(NOMS_POLICES).map(([k, [famille, nom]]) =>
+        `<button type="button" class="police" data-police="${k}" aria-pressed="${theme.police === k}"><b style="font-family:'${famille}'">Aa Bb</b><span>${nom}</span></button>`).join('');
+    $('polices').querySelectorAll('[data-police]').forEach((p) => p.addEventListener('click', () => {
+      theme.police = p.dataset.police || null;
+      $('polices').querySelectorAll('[data-police]').forEach((x) => x.setAttribute('aria-pressed', String(x === p)));
+      marquerModifie();
+    }));
+
+    // Interrupteurs + champs
+    const liens = {
+      annonce: [['annonce-texte', 'texte']],
+      infos: [['infos-livraison', 'livraison']],
+      banniere: [['banniere-titre', 'titre'], ['banniere-sous', 'sousTitre'], ['banniere-bouton', 'bouton']],
+      apropos: [['apropos-titre', 'titre'], ['apropos-texte', 'texte']]
+    };
+    document.querySelectorAll('[data-bascule]').forEach((box) => {
+      const cle = box.dataset.bascule;
+      const champs = document.querySelector(`[data-champs="${cle}"]`);
+      const actif = cle === 'whatsapp' ? theme.whatsapp === true : !!(theme[cle] && theme[cle].actif);
+      box.checked = actif;
+      if (champs) champs.hidden = !actif;
+      box.addEventListener('change', () => {
+        if (cle === 'whatsapp') theme.whatsapp = box.checked;
+        else sousObjet(cle).actif = box.checked;
+        if (champs) champs.hidden = !box.checked;
+        marquerModifie();
+      });
+      (liens[cle] || []).forEach(([id, prop]) => {
+        $(id).value = (theme[cle] && theme[cle][prop]) || '';
+        $(id).addEventListener('input', () => { sousObjet(cle)[prop] = $(id).value; marquerModifie(); });
+      });
+    });
+
+    // Sections
+    $('section-avis').checked = !(theme.sections && theme.sections.avis === false);
+    $('section-faq').checked = !(theme.sections && theme.sections.faq === false);
+    $('section-avis').addEventListener('change', (e) => { sousObjet('sections').avis = e.target.checked; marquerModifie(); });
+    $('section-faq').addEventListener('change', (e) => { sousObjet('sections').faq = e.target.checked; marquerModifie(); });
+
+    // Retirer « Créée avec CMD »
+    $('masquer-cmd').checked = theme.masquerCMD === true;
+    $('masquer-cmd').addEventListener('change', (e) => { theme.masquerCMD = e.target.checked; marquerModifie(); });
+
+    // Image de bannière (Premium)
+    const imageOk = autorise('premium');
+    $('badge-image').textContent = imageOk ? '' : 'Premium';
+    $('badge-image').hidden = imageOk;
+    if (!imageOk) $('banniere-fichier').disabled = true;
+    afficherMiniature();
+    $('banniere-fichier').addEventListener('change', envoyerImage);
+    $('banniere-retirer').addEventListener('click', () => { sousObjet('banniere').image = null; afficherMiniature(); marquerModifie(); });
+  }
+
+  function afficherMiniature() {
+    const url = theme.banniere && theme.banniere.image;
+    $('banniere-miniature').hidden = !url;
+    $('banniere-retirer').hidden = !url;
+    if (url) $('banniere-miniature').src = url;
+  }
+
+  async function envoyerImage() {
+    const fichier = $('banniere-fichier').files[0];
+    if (!fichier) return;
+    if (fichier.size > 3 * 1024 * 1024) { alert('Image trop lourde : 3 Mo maximum.'); return; }
+    $('etat').textContent = 'Envoi de l’image…';
+    const chemin = `${vendeur.id}/banniere-${Date.now()}-${nettoyerNomFichier(fichier.name)}`;
+    const { error } = await supabaseClient.storage.from('logos-vendeurs').upload(chemin, fichier);
+    if (error) { $('etat').className = 'etat ko'; $('etat').textContent = 'Envoi impossible : ' + error.message; return; }
+    const { data } = supabaseClient.storage.from('logos-vendeurs').getPublicUrl(chemin);
+    sousObjet('banniere').image = data.publicUrl;
+    afficherMiniature();
+    marquerModifie();
+  }
+
+  async function changerModele(valeur) {
+    if (modifie && !confirm('Changer de point de départ recharge l’aperçu. Enregistre d’abord tes autres modifications si tu veux les garder. Continuer ?')) return;
+    $('msg-modele').textContent = 'Application…';
+    const { error } = await supabaseClient.rpc('changer_template', { p_template: valeur });
+    if (error) { $('msg-modele').textContent = error.message; return; }
+    vendeur.template = valeur;
+    $('modeles').querySelectorAll('.modele').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.modele === valeur)));
+    $('msg-modele').textContent = 'Point de départ appliqué à ta boutique.';
+    chargerApercu();
+  }
+
+  $('btn-enregistrer').addEventListener('click', async () => {
+    $('btn-enregistrer').disabled = true;
+    $('etat').className = 'etat'; $('etat').textContent = 'Enregistrement…';
+    const { error } = await supabaseClient.from('vendeurs')
+      .update({ theme, couleur_accent: accent })
+      .eq('id', vendeur.id);
+    if (error) {
+      $('btn-enregistrer').disabled = false;
+      $('etat').className = 'etat ko'; $('etat').textContent = 'Erreur : ' + error.message;
+      return;
+    }
+    modifie = false;
+    $('etat').className = 'etat ok'; $('etat').textContent = 'Enregistré : ta boutique est à jour.';
+  });
+
+  window.addEventListener('beforeunload', (e) => { if (modifie) { e.preventDefault(); e.returnValue = ''; } });
+
+  $('btn-apercu').addEventListener('click', () => {
+    const ouvert = document.body.classList.toggle('voir-apercu');
+    $('btn-apercu').setAttribute('aria-expanded', String(ouvert));
+    $('btn-apercu').textContent = ouvert ? 'Réglages' : 'Aperçu';
+  });
+
+  demarrer();
+})();
+</script>
+</body>
+</html>

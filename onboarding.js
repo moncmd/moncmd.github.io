@@ -243,3 +243,22 @@ document.addEventListener('DOMContentLoaded', () => {
   `;
   document.head.appendChild(style);
 });
+
+// ---- Accès à la page Apparence depuis l'onglet Réglages ----
+document.addEventListener('DOMContentLoaded', () => {
+  const reglages = document.getElementById('onglet-reglages');
+  if (!reglages || reglages.querySelector('.cmd-carte-apparence')) return;
+  const carte = document.createElement('a');
+  carte.className = 'cmd-carte-apparence';
+  carte.href = '/apparence.html';
+  carte.innerHTML = '<strong>Apparence de ma boutique</strong><span>Point de départ, couleurs, police, bannière, à propos… avec aperçu en direct.</span>';
+  reglages.prepend(carte);
+  const style = document.createElement('style');
+  style.textContent = `
+    .cmd-carte-apparence { display: block; background: #fff; border: 1.5px solid var(--couleur-accent, #e56400); border-radius: 16px; padding: 16px 44px 16px 16px; margin-bottom: 16px; text-decoration: none; color: inherit; position: relative; }
+    .cmd-carte-apparence::after { content: "›"; position: absolute; right: 18px; top: 50%; transform: translateY(-50%); font-size: 26px; color: var(--couleur-accent, #e56400); }
+    .cmd-carte-apparence strong { display: block; font-size: 15px; margin-bottom: 2px; }
+    .cmd-carte-apparence span { display: block; color: #888; font-size: 13px; }
+  `;
+  document.head.appendChild(style);
+});

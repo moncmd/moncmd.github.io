@@ -45,6 +45,7 @@ async function chargerBoutiquePrestations() {
   const footerNom = document.querySelector('.footer-nom');
   if (footerNom) footerNom.textContent = `2026 — ${vendeur.nom_boutique}`;
   document.title = vendeur.nom_boutique;
+  if (typeof appliquerTheme === 'function') appliquerTheme(vendeur);
 
   // Lien WhatsApp du header (ciblage précis par href, pas par classe générique
   // ".icon-link" qui matche aussi le bouton "Espace vendeur" sur le template hybride)
