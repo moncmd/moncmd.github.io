@@ -221,6 +221,7 @@
   const $ = (id) => document.getElementById(id);
   const WHATSAPP_CMD = '221784218267';
   const MODELES_PRODUITS = [
+    ['epure', 'Épuré', 'Blanc, simple, aéré (recommandé)'],
     ['', 'Classique', 'Sobre et polyvalent'], ['urbain', 'Urbain', 'Mode, streetwear'],
     ['doux', 'Doux', 'Beauté, bien-être'], ['marche', 'Marché', 'Grand catalogue'],
     ['restaurant', 'Restaurant', 'Plats, traiteur'], ['sport', 'Sport', 'Équipement, énergie'],
@@ -318,8 +319,9 @@
 
     // Points de départ
     const modeles = vendeur.type_activite === 'prestation' ? MODELES_PRESTATIONS : MODELES_PRODUITS;
-    const actuel = (vendeur.template || '').toLowerCase();
-    if (actuel === 'hybride') {
+    const actuelTpl = (vendeur.template || '').toLowerCase();
+    const actuel = (!actuelTpl && theme.style === 'epure') ? 'epure' : actuelTpl;
+    if (actuelTpl === 'hybride') {
       $('modeles').innerHTML = '<p class="aide" style="margin:0">Ta boutique utilise le modèle Hybride (boutique + réservation). Pour en changer, contacte l\u2019équipe CMD.</p>';
     } else {
       $('modeles').innerHTML = modeles.map(([v, n, d]) =>
@@ -440,9 +442,16 @@
   async function changerModele(valeur) {
     if (modifie && !confirm('Changer de point de départ recharge l’aperçu. Enregistre d’abord tes autres modifications si tu veux les garder. Continuer ?')) return;
     $('msg-modele').textContent = 'Application…';
-    const { error } = await supabaseClient.rpc('changer_template', { p_template: valeur });
-    if (error) { $('msg-modele').textContent = error.message; return; }
-    vendeur.template = valeur;
+    const template = valeur === 'epure' ? '' : valeur;
+    if ((vendeur.template || '') !== template) {
+      const { error } = await supabaseClient.rpc('changer_template', { p_template: template });
+      if (error) { $('msg-modele').textContent = error.message; return; }
+      vendeur.template = template;
+    }
+    // Le style Épuré est un réglage du thème : enregistré tout de suite
+    if (valeur === 'epure') theme.style = 'epure'; else delete theme.style;
+    const { error: errTheme } = await supabaseClient.from('vendeurs').update({ theme }).eq('id', vendeur.id);
+    if (errTheme) { $('msg-modele').textContent = errTheme.message; return; }
     $('modeles').querySelectorAll('.modele').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.modele === valeur)));
     $('msg-modele').textContent = 'Point de départ appliqué à ta boutique.';
     chargerApercu();

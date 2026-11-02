@@ -16,7 +16,7 @@ async function afficherProduitDetail() {
 
   document.querySelector('.right .nom').textContent = produit.nom;
   document.querySelector('.right .description').textContent = produit.description || '';
-  document.querySelector('.right .prix').textContent = produit.prix + ' FCFA';
+  document.querySelector('.right .prix').textContent = Number(produit.prix).toLocaleString('fr-FR') + ' ' + deviseBoutique();
 
   const groupes = optionsProduit(produit);
   const selection = {}; // nom du groupe → liste des choix
@@ -30,7 +30,7 @@ async function afficherProduitDetail() {
         <div class="cmd-options-choix">${g.choix.map((c, ci) => {
           const dispo = c.disponible !== false;
           const sup = Number(c.prix) || 0;
-          return `<button type="button" class="cmd-option" data-choix="${ci}" ${dispo ? '' : 'disabled'} aria-pressed="false">${echapperHTML(c.nom)}${sup ? ` <small>${sup > 0 ? '+' : ''}${sup} FCFA</small>` : ''}${dispo ? '' : ' <small>épuisé</small>'}</button>`;
+          return `<button type="button" class="cmd-option" data-choix="${ci}" ${dispo ? '' : 'disabled'} aria-pressed="false">${echapperHTML(c.nom)}${sup ? ` <small>${sup > 0 ? '+' : ''}${sup} ${deviseBoutique()}</small>` : ''}${dispo ? '' : ' <small>épuisé</small>'}</button>`;
         }).join('')}</div>
       </div>`).join('') + '<p class="cmd-options-erreur" role="alert"></p>';
     const ancre = document.querySelector('.right textarea') || document.getElementById('btn-acheter');
@@ -38,7 +38,7 @@ async function afficherProduitDetail() {
 
     const majPrix = () => {
       const opts = Object.entries(selection).flatMap(([gn, liste]) => liste.map(c => ({ groupe: gn, choix: c })));
-      prixEl.textContent = prixUnitaire(produit, { options: opts }) + ' FCFA';
+      prixEl.textContent = prixUnitaire(produit, { options: opts }).toLocaleString('fr-FR') + ' ' + deviseBoutique();
     };
     bloc.querySelectorAll('.cmd-option').forEach(btn => btn.addEventListener('click', () => {
       const g = groupes[Number(btn.closest('[data-groupe]').dataset.groupe)];

@@ -123,7 +123,7 @@
         <div class="ligne"><span>Date</span><b>${esc(dateLongue(s[0].date))}</b></div>
         ${s.map((x) => `<div class="ligne"><span>${esc(heureFr(x.heure))}</span><b>${esc(x.nom || 'Prestation')}${x.avec ? ` · avec ${esc(x.avec)}` : ''}</b></div>`).join('')}
         <div class="ligne"><span>Lieu</span><b>${d.lieu === 'domicile' ? `À domicile${d.adresse_client ? ' · ' + esc(d.adresse_client) : ''}` : 'Sur place'}</b></div>
-        ${total ? `<div class="ligne"><span>Total</span><b>${total.toLocaleString('fr-FR')} FCFA${s.some((x) => x.prix_variable) ? ' (à confirmer)' : ''}</b></div>` : ''}
+        ${total ? `<div class="ligne"><span>Total</span><b>${total.toLocaleString('fr-FR')} ${esc(b.devise || 'FCFA')}${s.some((x) => x.prix_variable) ? ' (à confirmer)' : ''}</b></div>` : ''}
       </div>
       ${acompte}
       <div class="actions">

@@ -61,7 +61,8 @@
   const $ = (id) => document.getElementById(id);
   const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const id = new URLSearchParams(window.location.search).get('c') || '';
-  const fcfa = (n) => Number(n || 0).toLocaleString('fr-FR') + ' FCFA';
+  let DEVISE = 'FCFA';
+  const fcfa = (n) => Number(n || 0).toLocaleString('fr-FR') + ' ' + DEVISE;
 
   async function charger() {
     if (!/^[0-9a-f-]{36}$/i.test(id)) { $('ecran').textContent = 'Lien de commande invalide.'; return; }
@@ -72,6 +73,7 @@
 
   function afficher(c) {
     const b = c.boutique;
+    DEVISE = b.devise || 'FCFA';
     const confirmee = c.statut === 'confirmee';
     const logo = b.logo_url && String(b.logo_url).startsWith(SUPABASE_URL) ? b.logo_url : '/1C621DE3-4443-4809-A987-882F313088E0_1_105_c.jpeg';
     const sousTotal = (c.contenu || []).reduce((t, l) => t + (l.prix || 0) * (l.quantite || 1), 0);
@@ -86,11 +88,12 @@
       <div class="bloc">
         ${(c.contenu || []).map((l) => `<div class="ligne"><span>${esc(l.quantite)} × ${esc(l.produit)}${Array.isArray(l.options) && l.options.length ? `<br><small>${esc(l.options.map((o) => o.choix).join(', '))}</small>` : ''}${l.commentaire ? `<br><small>${esc(l.commentaire)}</small>` : ''}</span><b>${fcfa((l.prix || 0) * (l.quantite || 1))}</b></div>`).join('')}
         ${c.reduction ? `<div class="ligne"><span>Code ${esc(c.code_promo || '')}</span><b>−${fcfa(c.reduction)}</b></div>` : ''}
+        ${c.mode_reception === 'retrait' ? '' : (c.frais_livraison ? `<div class="ligne"><span>Livraison</span><b>${fcfa(c.frais_livraison)}</b></div>` : (c.livraison_mode === 'gratuite' ? '<div class="ligne"><span>Livraison</span><b>Offerte</b></div>' : (c.livraison_mode ? '<div class="ligne"><span>Livraison</span><b>Frais annoncés par la boutique</b></div>' : '')))}
         <div class="ligne"><span>Total</span><b>${fcfa(c.total ?? sousTotal)}</b></div>
       </div>
       <div class="bloc">
-        ${c.date_livraison ? `<div class="ligne"><span>Livraison</span><b>${esc(new Date(c.date_livraison + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))}${c.heure ? ' · ' + esc(String(c.heure).slice(0, 5)) : ''}</b></div>` : ''}
-        ${c.adresse ? `<div class="ligne"><span>Adresse</span><b>${esc(c.adresse)}</b></div>` : ''}
+        ${c.date_livraison ? `<div class="ligne"><span>${c.mode_reception === 'retrait' ? 'Retrait' : 'Livraison'}</span><b>${esc(new Date(c.date_livraison + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }))}${c.heure ? ' · ' + esc(String(c.heure).slice(0, 5)) : ''}</b></div>` : ''}
+        ${c.mode_reception !== 'retrait' && c.adresse ? `<div class="ligne"><span>Adresse</span><b>${esc(c.adresse)}</b></div>` : ''}
         <div class="ligne"><span>Paiement</span><b>${c.mode_paiement === 'online' ? 'Wave / Orange Money' : 'À la livraison'}${c.preuve_envoyee ? ' · preuve envoyée' : ''}</b></div>
       </div>
       ${attendPreuve ? `

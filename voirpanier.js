@@ -39,7 +39,7 @@ function afficherContenuPanier() {
                 <div class="details">
                     <h4>${echapperHTML(produit.nom)}</h4>
                     ${libelleOptions(item) ? `<p class="cmd-panier-options">${echapperHTML(libelleOptions(item))}</p>` : ''}
-               <p>${prixUnitaire(produit, item) * item.quantite} FCFA</p>
+               <p>${prixUnitaire(produit, item) * item.quantite} ${deviseBoutique()}</p>
 
                 </div>
             </div>
@@ -57,7 +57,7 @@ function afficherContenuPanier() {
         if (produit) total += prixUnitaire(produit, item) * item.quantite;
     });
 
-    panier.innerHTML += `<p class="total">Total : ${total} FCFA</p>`;
+    panier.innerHTML += `<p class="total">Total : ${total} ${deviseBoutique()}</p>`;
 
     panier.innerHTML += `
     <a href="javascript:void(0)" onclick="allerVers('commande')" class="gg">Confirmer la commande</a>

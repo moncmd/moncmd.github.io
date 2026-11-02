@@ -488,3 +488,192 @@ function afficherReglagesReservation(vendeur) {
     document.head.appendChild(style);
   }
 }
+
+// ---- Boutiques : réglage simple de la livraison (onglet Réglages) ----
+function afficherReglagesLivraison(vendeur) {
+  const reglages = document.getElementById('onglet-reglages');
+  if (!reglages || !vendeur || reglages.querySelector('.cmd-reglages-livraison')) return;
+  if (!('livraison_mode' in vendeur)) return; // phase 8C pas encore lancée
+
+  const mode = vendeur.livraison_mode || 'apres';
+  const bloc = document.createElement('div');
+  bloc.className = 'cmd-reglages-livraison';
+  bloc.innerHTML = `
+    <strong class="cmd-rl-titre">Livraison</strong>
+    <p class="cmd-rl-question">Comment se passe la livraison ?</p>
+    <label class="cmd-rl-choix"><input type="radio" name="cmd-rl-mode" value="apres" ${mode === 'apres' ? 'checked' : ''}>
+      <span><b>Les frais sont annoncés après la commande</b><small>Par toi ou par ton livreur.</small></span></label>
+    <label class="cmd-rl-choix"><input type="radio" name="cmd-rl-mode" value="gratuite" ${mode === 'gratuite' ? 'checked' : ''}>
+      <span><b>La livraison est gratuite</b><small>Le client voit « Livraison offerte ».</small></span></label>
+    <label class="cmd-rl-choix"><input type="radio" name="cmd-rl-mode" value="fixe" ${mode === 'fixe' ? 'checked' : ''}>
+      <span><b>Un prix fixe</b><small>Ajouté au total de chaque commande.</small></span></label>
+    <div class="cmd-rl-prix" ${mode === 'fixe' ? '' : 'hidden'}>
+      <input type="number" id="cmd-rl-prix" min="0" step="100" value="${Number(vendeur.livraison_prix) || ''}" placeholder="Ex : 1500"> <span>FCFA</span>
+    </div>
+    <label class="cmd-rl-case"><input type="checkbox" id="cmd-rl-retrait" ${vendeur.retrait_possible ? 'checked' : ''}>
+      <span>Le client peut venir récupérer sa commande</span></label>
+    <button type="button" class="cmd-rl-btn" id="cmd-rl-enregistrer">Enregistrer</button>
+    <p class="cmd-rl-msg" id="cmd-rl-retour" role="status"></p>`;
+
+  const apres = reglages.querySelector('.cmd-carte-apparence:last-of-type');
+  if (apres) apres.insertAdjacentElement('afterend', bloc); else reglages.prepend(bloc);
+
+  bloc.querySelectorAll('input[name="cmd-rl-mode"]').forEach((r) => r.addEventListener('change', () => {
+    bloc.querySelector('.cmd-rl-prix').hidden = r.value !== 'fixe' || !r.checked;
+  }));
+
+  document.getElementById('cmd-rl-enregistrer').addEventListener('click', async () => {
+    const choix = bloc.querySelector('input[name="cmd-rl-mode"]:checked').value;
+    const prix = Math.max(0, parseInt(document.getElementById('cmd-rl-prix').value, 10) || 0);
+    const retour = document.getElementById('cmd-rl-retour');
+    if (choix === 'fixe' && !prix) { retour.style.color = '#b3261e'; retour.textContent = 'Indique le prix de la livraison.'; return; }
+    const donnees = { livraison_mode: choix, livraison_prix: choix === 'fixe' ? prix : 0, retrait_possible: document.getElementById('cmd-rl-retrait').checked };
+    const { error } = await supabaseClient.from('vendeurs').update(donnees).eq('id', vendeur.id);
+    retour.style.color = error ? '#b3261e' : '#1f7a3a';
+    retour.textContent = error ? 'Erreur : ' + error.message : 'Enregistré.';
+    if (!error) Object.assign(vendeur, donnees);
+  });
+
+  if (!document.getElementById('cmd-style-rl')) {
+    const style = document.createElement('style');
+    style.id = 'cmd-style-rl';
+    style.textContent = `
+      .cmd-reglages-livraison { background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px; }
+      .cmd-rl-titre { font-size: 15px; }
+      .cmd-rl-question { margin: 0; color: #666; font-size: 13.5px; }
+      .cmd-rl-choix, .cmd-rl-case { display: flex !important; align-items: flex-start; gap: 10px; cursor: pointer; padding: 10px 12px; border: 1px solid #eee; border-radius: 12px; margin: 0 !important; }
+      .cmd-rl-choix input, .cmd-rl-case input { width: 18px !important; height: 18px; margin: 2px 0 0 !important; flex-shrink: 0; accent-color: var(--couleur-accent, #e56400); }
+      .cmd-rl-choix b { display: block; font-size: 14px; }
+      .cmd-rl-choix small { display: block; color: #888; font-size: 12.5px; }
+      .cmd-rl-case { border: none; padding: 4px 0; font-size: 14px; }
+      .cmd-rl-prix { display: flex; align-items: center; gap: 8px; padding-left: 4px; }
+      .cmd-rl-prix[hidden] { display: none; }
+      .cmd-rl-prix input { width: 140px !important; padding: 10px; border: 1px solid #ddd; border-radius: 10px; font: inherit; margin: 0 !important; }
+      .cmd-rl-btn { border: none; border-radius: 10px; padding: 12px; background: var(--couleur-accent, #e56400); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+      .cmd-rl-msg { margin: 0; font-size: 13px; min-height: 1em; }
+    `;
+    document.head.appendChild(style);
+  }
+}
+
+// ---- Devise de la boutique (onglet Réglages) ----
+function afficherReglageDevise(vendeur) {
+  const reglages = document.getElementById('onglet-reglages');
+  if (!reglages || !vendeur || !('devise' in vendeur) || reglages.querySelector('.cmd-reglage-devise')) return;
+  const DEVISES = [['FCFA', 'Franc CFA (FCFA)'], ['€', 'Euro (€)'], ['$', 'Dollar ($)'], ['$ CAD', 'Dollar canadien ($ CAD)'], ['£', 'Livre sterling (£)'], ['MAD', 'Dirham (MAD)'], ['TND', 'Dinar tunisien (TND)'], ['GNF', 'Franc guinéen (GNF)']];
+  const bloc = document.createElement('div');
+  bloc.className = 'cmd-reglage-devise';
+  bloc.innerHTML = `
+    <label for="cmd-devise"><strong>Devise de ta boutique</strong><small>Affichée à côté de tous tes prix. Aucune conversion : tes prix restent ceux que tu as saisis.</small></label>
+    <div class="cmd-devise-ligne">
+      <select id="cmd-devise">${DEVISES.map(([v, l]) => `<option value="${v}" ${vendeur.devise === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <button type="button" id="cmd-devise-ok">Enregistrer</button>
+    </div>
+    <p class="cmd-devise-msg" id="cmd-devise-msg" role="status"></p>`;
+  const ancre = reglages.querySelector('.cmd-reglages-livraison') || reglages.querySelector('.cmd-reglages-rdv') || reglages.querySelector('.cmd-carte-apparence:last-of-type');
+  if (ancre) ancre.insertAdjacentElement('afterend', bloc); else reglages.prepend(bloc);
+
+  const majPlaceholder = () => {
+    const prix = document.getElementById('nouveau-prix');
+    if (prix) prix.placeholder = `Prix (${vendeur.devise || 'FCFA'})`;
+  };
+  majPlaceholder();
+
+  document.getElementById('cmd-devise-ok').addEventListener('click', async () => {
+    const devise = document.getElementById('cmd-devise').value;
+    const msg = document.getElementById('cmd-devise-msg');
+    const { error } = await supabaseClient.from('vendeurs').update({ devise }).eq('id', vendeur.id);
+    msg.style.color = error ? '#b3261e' : '#1f7a3a';
+    msg.textContent = error ? 'Erreur : ' + error.message : 'Enregistré.';
+    if (!error) { vendeur.devise = devise; majPlaceholder(); }
+  });
+
+  if (!document.getElementById('cmd-style-devise')) {
+    const style = document.createElement('style');
+    style.id = 'cmd-style-devise';
+    style.textContent = `
+      .cmd-reglage-devise { background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 16px; }
+      .cmd-reglage-devise label strong { display: block; font-size: 15px; }
+      .cmd-reglage-devise label small { display: block; color: #888; font-size: 12.5px; margin: 2px 0 10px; }
+      .cmd-devise-ligne { display: flex; gap: 8px; }
+      .cmd-devise-ligne select { flex: 1; padding: 11px; border: 1px solid #ddd; border-radius: 10px; font: inherit; background: #fff; }
+      .cmd-devise-ligne button { border: none; border-radius: 10px; padding: 0 16px; background: var(--couleur-accent, #e56400); color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+      .cmd-devise-msg { margin: 8px 0 0; font-size: 13px; min-height: 1em; }
+    `;
+    document.head.appendChild(style);
+  }
+}
+
+// ---- Lien de la boutique, toujours visible en haut de l'admin ----
+// « Voir ma boutique », « Copier », « Partager » : plus besoin de recopier
+// l'adresse dans la barre du navigateur.
+function afficherLienBoutique(vendeur) {
+  const conteneur = document.getElementById('vue-dashboard');
+  if (!conteneur || !vendeur || !vendeur.slug || conteneur.querySelector('.cmd-lien-boutique')) return;
+  const lien = `https://shop.moncmd.site/${vendeur.slug}`;
+  const barre = document.createElement('div');
+  barre.className = 'cmd-lien-boutique';
+  barre.innerHTML = `
+    <span class="cmd-lb-adresse">shop.moncmd.site/<b>${echapperHTML(vendeur.slug)}</b></span>
+    <div class="cmd-lb-actions">
+      <a class="cmd-lb-btn principal" href="${lien}" target="_blank" rel="noopener">Voir ma boutique</a>
+      <button type="button" class="cmd-lb-btn" data-action="copier">Copier le lien</button>
+      <button type="button" class="cmd-lb-btn" data-action="partager">Partager</button>
+    </div>`;
+
+  barre.querySelector('[data-action="copier"]').addEventListener('click', async (e) => {
+    try { await navigator.clipboard.writeText(lien); } catch (err) { window.prompt('Copie ce lien :', lien); return; }
+    e.currentTarget.textContent = 'Lien copié';
+    setTimeout(() => { e.currentTarget.textContent = 'Copier le lien'; }, 1800);
+  });
+  barre.querySelector('[data-action="partager"]').addEventListener('click', async () => {
+    const texte = `Découvrez ${vendeur.nom_boutique} et commandez en ligne : ${lien}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: vendeur.nom_boutique, text: texte, url: lien }); } catch (err) { /* annulé */ }
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(texte)}`, '_blank', 'noopener');
+    }
+    try { localStorage.setItem('cmd-lien-partage-' + vendeur.id, '1'); } catch (err) {}
+  });
+
+  const titre = conteneur.querySelector('.admin-topbar');
+  if (titre) titre.insertAdjacentElement('afterend', barre); else conteneur.prepend(barre);
+
+  if (!document.getElementById('cmd-style-lien')) {
+    const style = document.createElement('style');
+    style.id = 'cmd-style-lien';
+    style.textContent = `
+      .cmd-lien-boutique { background: #fff; border: 1px solid #eee; border-radius: 16px; padding: 14px; margin: 12px 0 16px; display: flex; flex-direction: column; gap: 10px; }
+      .cmd-lb-adresse { font-size: 13.5px; color: #777; overflow-wrap: anywhere; }
+      .cmd-lb-adresse b { color: #111; }
+      .cmd-lb-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+      .cmd-lb-btn { border: 1px solid #e3e3e3; background: #fff; color: #111; border-radius: 10px; padding: 10px 6px; font: inherit; font-size: 13px; font-weight: 600; text-align: center; text-decoration: none; cursor: pointer; }
+      .cmd-lb-btn.principal { background: var(--couleur-accent, #e56400); border-color: var(--couleur-accent, #e56400); color: #fff; }
+      @media (max-width: 380px) { .cmd-lb-actions { grid-template-columns: 1fr 1fr; } .cmd-lb-btn.principal { grid-column: 1 / -1; } }
+    `;
+    document.head.appendChild(style);
+  }
+}
+
+// ---- Admin sur ordinateur : menu à gauche et contenu plus large ----
+// Sur téléphone rien ne change (barre d'onglets en bas, comme une appli).
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('cmd-style-bureau')) return;
+  const style = document.createElement('style');
+  style.id = 'cmd-style-bureau';
+  style.textContent = `
+    @media (min-width: 1024px) {
+      .admin-tabs { top: 0 !important; bottom: 0 !important; right: auto !important; width: 230px; flex-direction: column; justify-content: flex-start;
+        border-top: none !important; border-right: 1px solid #eee; padding: 100px 14px 24px !important; gap: 4px; z-index: 40 !important; }
+      .admin-tab { flex: none !important; display: flex !important; align-items: center; gap: 12px; text-align: left !important;
+        padding: 12px 14px !important; border-radius: 10px; font-size: 14px !important; color: #666 !important; }
+      .admin-tab i { display: inline-block !important; width: 20px; margin: 0 !important; font-size: 16px !important; text-align: center; }
+      .admin-tab:hover { background: #f6f6f6; }
+      .admin-tab.actif { background: #f3f3f3; color: #111 !important; font-weight: 600; }
+      .admin-shell { max-width: 1040px !important; margin-left: 230px !important; margin-right: auto !important;
+        padding-left: 40px !important; padding-right: 40px !important; padding-bottom: 48px !important; }
+      @media (min-width: 1400px) { .admin-shell { margin-left: calc(230px + (100vw - 230px - 1040px) / 2) !important; } }
+    }
+  `;
+  document.head.appendChild(style);
+});

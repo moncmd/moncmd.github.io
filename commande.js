@@ -25,8 +25,80 @@ function modePaiement(mode, bouton) {
     }
 }
 
+// ---- Livraison ou retrait (réglage simple du vendeur, voir phase 8C) ----
+let modeReception = 'livraison';
+
+function fraisLivraisonPrevus() {
+    if (!vendeurActuel || modeReception === 'retrait') return 0;
+    return vendeurActuel.livraison_mode === 'fixe' ? Math.max(Number(vendeurActuel.livraison_prix) || 0, 0) : 0;
+}
+
+function texteLivraison() {
+    if (!vendeurActuel) return '';
+    if (modeReception === 'retrait') return 'Retrait sur place';
+    if (vendeurActuel.livraison_mode === 'fixe') return `Livraison : ${fraisLivraisonPrevus().toLocaleString('fr-FR')} ${deviseBoutique()}`;
+    if (vendeurActuel.livraison_mode === 'gratuite') return 'Livraison offerte';
+    return 'Frais de livraison communiqués par la boutique ou le livreur';
+}
+
+function preparerReception() {
+    if (!vendeurActuel || document.getElementById('cmd-reception')) return;
+    const labelAdresse = document.querySelector('label[for="adresse"]');
+    if (!labelAdresse) return;
+
+    if (vendeurActuel.retrait_possible) {
+        const bloc = document.createElement('div');
+        bloc.id = 'cmd-reception';
+        bloc.innerHTML = `
+            <p class="cmd-reception-titre">Réception</p>
+            <div class="cmd-reception-choix">
+                <button type="button" data-mode="livraison" aria-pressed="true">Livraison</button>
+                <button type="button" data-mode="retrait" aria-pressed="false">Je récupère</button>
+            </div>`;
+        labelAdresse.parentNode.insertBefore(bloc, labelAdresse);
+        bloc.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
+            modeReception = b.dataset.mode;
+            bloc.querySelectorAll('[data-mode]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+            majChampsReception();
+            afficherResume();
+        }));
+
+        const style = document.createElement('style');
+        style.textContent = `
+            #cmd-reception { margin: 4px 0 14px; }
+            .cmd-reception-titre { font-weight: 600; margin: 0 0 8px; }
+            .cmd-reception-choix { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+            .cmd-reception-choix button { padding: 12px; border-radius: 10px; border: 1.5px solid rgba(0,0,0,.15); background: transparent; color: inherit; font: inherit; font-weight: 600; cursor: pointer; }
+            .cmd-reception-choix button[aria-pressed="true"] { border-color: var(--couleur-accent, #e56400); background: color-mix(in srgb, var(--couleur-accent, #e56400) 10%, transparent); }
+            .cmd-livraison-ligne { font-size: 13px; opacity: .75; margin: 6px 0; }
+        `;
+        document.head.appendChild(style);
+    }
+    majChampsReception();
+}
+
+function majChampsReception() {
+    const retrait = modeReception === 'retrait';
+    // La note « la livraison n'est pas incluse » des templates ne s'affiche
+    // que si elle est vraie (frais annoncés après la commande, en livraison)
+    document.querySelectorAll('p, div, small, span').forEach(el => {
+        if (el.children.length === 0 && /livraison n'est pas incluse/i.test(el.textContent)) {
+            el.style.display = (!retrait && (!vendeurActuel || (vendeurActuel.livraison_mode || 'apres') === 'apres')) ? '' : 'none';
+        }
+    });
+    const labelAdresse = document.querySelector('label[for="adresse"]');
+    const champAdresse = document.getElementById('adresse');
+    if (labelAdresse) labelAdresse.style.display = retrait ? 'none' : '';
+    if (champAdresse) champAdresse.style.display = retrait ? 'none' : '';
+    const labelDate = document.querySelector('label[for="date-livraison"]');
+    const labelHeure = document.querySelector('label[for="heure"]');
+    if (labelDate) labelDate.textContent = retrait ? 'Date de récupération' : 'Date de livraison';
+    if (labelHeure) labelHeure.textContent = retrait ? 'Heure de récupération' : 'Heure de livraison';
+}
+
 // Afficher le résumé
 function afficherResume() {
+    preparerReception();
     const resume = document.getElementById('resume');
     if (!resume) return;
     resume.innerHTML = "";
@@ -46,7 +118,7 @@ function afficherResume() {
                     <p>${echapperHTML(produit.nom)} x${item.quantite}</p>
                     ${libelleOptions(item) ? `<p class="commentaire">${echapperHTML(libelleOptions(item))}</p>` : ''}
                     ${item.commentaire ? `<p class="commentaire">💬 ${echapperHTML(item.commentaire)}</p>` : ''}
-                    <p>${sousTotal} FCFA</p>
+                    <p>${sousTotal} ${deviseBoutique()}</p>
                 </div>
             </div>
         `;
@@ -71,11 +143,13 @@ function afficherResume() {
     if (codePromoApplique) {
         const reduction = Math.round(total * codePromoApplique.reduction_pourcent / 100);
         totalFinal = total - reduction;
-        resume.innerHTML += `<p style="color:#999; font-size:13px;">Sous-total : ${total.toLocaleString('fr-FR')} FCFA</p>`;
-        resume.innerHTML += `<p style="color:green; font-size:13px;">Réduction (${codePromoApplique.code}) : -${reduction.toLocaleString('fr-FR')} FCFA</p>`;
+        resume.innerHTML += `<p style="color:#999; font-size:13px;">Sous-total : ${total.toLocaleString('fr-FR')} ${deviseBoutique()}</p>`;
+        resume.innerHTML += `<p style="color:green; font-size:13px;">Réduction (${codePromoApplique.code}) : -${reduction.toLocaleString('fr-FR')} ${deviseBoutique()}</p>`;
     }
 
-    resume.innerHTML += `<p class="total">Total : ${totalFinal.toLocaleString('fr-FR')} FCFA</p>`;
+    const frais = fraisLivraisonPrevus();
+    resume.innerHTML += `<p class="cmd-livraison-ligne">${echapperHTML(texteLivraison())}</p>`;
+    resume.innerHTML += `<p class="total">Total : ${(totalFinal + frais).toLocaleString('fr-FR')} ${deviseBoutique()}</p>`;
 }
 
 async function appliquerCodePromo() {
@@ -148,7 +222,7 @@ async function envoyerCommande() {
         if (!produit) return;
         const sousTotal = prixUnitaire(produit, item) * item.quantite;
         total += sousTotal;
-        message += `- ${produit.nom}${produit.reference ? ` (réf. ${produit.reference})` : ''}${libelleOptions(item) ? ` [${libelleOptions(item)}]` : ''} x${item.quantite} → ${sousTotal} FCFA`;
+        message += `- ${produit.nom}${produit.reference ? ` (réf. ${produit.reference})` : ''}${libelleOptions(item) ? ` [${libelleOptions(item)}]` : ''} x${item.quantite} → ${sousTotal} ${deviseBoutique()}`;
         if (item.commentaire) message += ` (${item.commentaire})`;
         message += `\n`;
 
@@ -163,21 +237,23 @@ async function envoyerCommande() {
         });
     });
 
-    message += `\nSous-total : ${total} FCFA`;
+    message += `\nSous-total : ${total} ${deviseBoutique()}`;
 
     let reductionAppliquee = 0;
     if (codePromoApplique) {
         reductionAppliquee = Math.round(total * codePromoApplique.reduction_pourcent / 100);
-        message += `\nCode promo ${codePromoApplique.code} : -${reductionAppliquee} FCFA`;
+        message += `\nCode promo ${codePromoApplique.code} : -${reductionAppliquee} ${deviseBoutique()}`;
     }
-    const totalFinal = total - reductionAppliquee;
+    const totalFinal = total - reductionAppliquee + fraisLivraisonPrevus();
 
-    message += `\nTotal : ${totalFinal} FCFA`;
+    message += `\n${texteLivraison()}`;
+    message += `\nTotal : ${totalFinal} ${deviseBoutique()}`;
     message += `\n\nNom : ${nom} ${prenom}`;
     message += `\nNuméro : ${numero}`;
-    if (adresse) message += `\nAdresse : ${adresse}`;
-    message += `\nDate de livraison : ${dateLivraison.split('-').reverse().join('/')}`;
-    message += `\nHeure de livraison : ${heure}`;
+    const retrait = modeReception === 'retrait';
+    if (adresse && !retrait) message += `\nAdresse : ${adresse}`;
+    message += `\nDate de ${retrait ? 'récupération' : 'livraison'} : ${dateLivraison.split('-').reverse().join('/')}`;
+    message += `\nHeure de ${retrait ? 'récupération' : 'livraison'} : ${heure}`;
 
     // Enregistrement : la base recalcule le total à partir des vrais prix,
     // vérifie le code promo et attribue un numéro de commande (#12).
@@ -191,7 +267,8 @@ async function envoyerCommande() {
         heure_recuperation: heure,
         mode_paiement: modePaiementActuel,
         code_promo: codePromoApplique ? codePromoApplique.code : null,
-        contenu: contenu
+        contenu: contenu,
+        mode_reception: modeReception
     };
     let idCommande = null;
     let { data: officiel, error } = await supabaseClient.rpc('passer_commande', { p: charge });
@@ -199,8 +276,9 @@ async function envoyerCommande() {
     if (error && error.code === 'PGRST202') {
         // Fonction pas encore installée (phase 8A) : ancien enregistrement
         idCommande = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null;
+        const { mode_reception: _ignore, ...chargeAncienne } = charge;
         ({ error } = await supabaseClient.from('commandes').insert({
-            ...(idCommande ? { id: idCommande } : {}), ...charge, reduction: reductionAppliquee, total: totalFinal
+            ...(idCommande ? { id: idCommande } : {}), ...chargeAncienne, reduction: reductionAppliquee, total: totalFinal
         }));
         officiel = null;
     } else if (error) {
@@ -215,7 +293,7 @@ async function envoyerCommande() {
         // Le message WhatsApp reprend les montants officiels calculés par la base
         if (officiel.total !== totalFinal) {
             message = message
-                .replace(/\nTotal : [^\n]*/, `\nTotal : ${officiel.total} FCFA`);
+                .replace(/\nTotal : [^\n]*/, `\nTotal : ${officiel.total} ${deviseBoutique()}`);
         }
         const lienSuivi = `${window.location.origin}/suivi.html?c=${officiel.id}`;
         message = `Commande n°${officiel.numero}\n` + message +
@@ -281,7 +359,7 @@ async function genererRecuPDF(contenu, total, nom, prenom, commandeId) {
     contenu.forEach(item => {
         const sousTotal = (item.prix * item.quantite).toLocaleString();
         doc.text(`${item.produit} x${item.quantite}`, 20, y);
-        doc.text(`${sousTotal} FCFA`, 190, y, { align: 'right' });
+        doc.text(`${sousTotal} ${deviseBoutique()}`, 190, y, { align: 'right' });
         y += 7;
     });
 
@@ -292,7 +370,7 @@ async function genererRecuPDF(contenu, total, nom, prenom, commandeId) {
     y += 10;
     doc.setFontSize(12);
     doc.setTextColor(20);
-    doc.text(`Total : ${total.toLocaleString()} FCFA`, 20, y);
+    doc.text(`Total : ${total.toLocaleString()} ${deviseBoutique()}`, 20, y);
 
     y += 20;
     doc.setFontSize(8);

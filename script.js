@@ -493,7 +493,7 @@ function construireCarteProduitClient(produit) {
           ? `<video src="${produit.video_url}" muted loop playsinline autoplay onmouseover="this.play()" onclick="this.paused ? this.play() : this.pause()"></video>`
           : `<img src="${produit.image_url}" alt="${echapperHTML(produit.nom)}">`}
         <p class="produit">${echapperHTML(produit.nom)}</p>
-        <p class="prix">${produit.prix} FCFA${optionsProduit(produit).length ? '<span class="cmd-plusieurs-choix"> · plusieurs choix</span>' : ''}</p>
+        <p class="prix">${Number(produit.prix).toLocaleString('fr-FR')} ${deviseBoutique()}${optionsProduit(produit).length ? '<span class="cmd-plusieurs-choix"> · plusieurs choix</span>' : ''}</p>
         ${blocAction}
     </div>
   `;

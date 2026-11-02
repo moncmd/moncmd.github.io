@@ -371,8 +371,11 @@ async function chargerDashboard(authUserId) {
   document.getElementById('vue-login').style.display = 'none';
   document.getElementById('vue-dashboard').style.display = 'block';
   afficherBandeauEssai(vendeurConnecte);
+  afficherLienBoutique(vendeurConnecte);
   afficherPremiersPas(vendeurConnecte);
   afficherStatsVisites();
+  afficherReglagesLivraison(vendeurConnecte);
+  afficherReglageDevise(vendeurConnecte);
   document.getElementById('nom-boutique-admin').textContent = vendeurConnecte.nom_boutique;
   document.documentElement.style.setProperty('--couleur-accent', vendeurConnecte.couleur_accent || '#e56400');
 
@@ -1259,7 +1262,8 @@ function afficherListeCommandes(commandes, idConteneur) {
         <span class="badge-statut" style="${estConfirmee ? '' : 'background:#fff3cd;color:#8a6d00;'}">${estConfirmee ? 'Confirmée' : 'En attente'}</span>
         <br><small style="color:#999;">${date} · ${echapperHTML(c.numero_client)}</small>
         ${c.date_livraison ? `<br><small style="color:#555;">🚚 Livraison : ${c.date_livraison.split('-').reverse().join('/')}${c.heure_recuperation ? ' à ' + echapperHTML(c.heure_recuperation).slice(0,5) : ''}</small>` : ''}
-        ${c.adresse ? `<br><small style="color:#555;">📍 ${echapperHTML(c.adresse)}</small>` : ''}
+        ${c.mode_reception === 'retrait' ? `<br><small style="color:#555;">🏠 Retrait sur place</small>` : (c.adresse ? `<br><small style="color:#555;">📍 ${echapperHTML(c.adresse)}</small>` : '')}
+        ${c.frais_livraison ? `<br><small style="color:#555;">🚚 Livraison : ${Number(c.frais_livraison).toLocaleString()} FCFA (incluse dans le total)</small>` : ''}
         ${Array.isArray(c.contenu) && c.contenu.length ? `<br><small style="color:#555;">🛍 ${c.contenu.map(l => `${echapperHTML(l.quantite)} × ${echapperHTML(l.produit)}${Array.isArray(l.options) && l.options.length ? ' [' + echapperHTML(l.options.map(o => o.choix).join(', ')) + ']' : ''}${l.commentaire ? ' (' + echapperHTML(l.commentaire) + ')' : ''}`).join(', ')}</small>` : ''}
         ${c.preuve_chemin ? `<br><button type="button" class="admin-btn secondaire" style="width:auto;padding:5px 12px;font-size:12px;margin-top:6px;" onclick="voirPreuvePaiement('${encodeURIComponent(c.preuve_chemin)}')">🧾 Voir la preuve de paiement</button>` : (c.mode_paiement === 'online' && !estConfirmee ? `<br><small style="color:#8a6d00;">Paiement en ligne annoncé, pas encore de preuve</small>` : '')}
         ${!estConfirmee ? `<br><button class="admin-btn" style="width:auto;padding:6px 14px;font-size:12px;margin-top:6px;" onclick="confirmerCommande('${c.id}')">✓ Marquer comme confirmée</button>` : ''}

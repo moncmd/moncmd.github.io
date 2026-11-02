@@ -119,7 +119,7 @@ async function chargerPrestations(vendeurId) {
     el.innerHTML = `
       ${p.image_url ? `<div class="ph"><img src="${p.image_url}" alt="${echapperHTML(p.nom)}" style="width:100%;height:100%;object-fit:cover;"></div>` : ''}
       <div class="name">${echapperHTML(p.nom)}</div>
-      <div class="price">${p.prix.toLocaleString('fr-FR')} FCFA</div>
+      <div class="price">${p.prix.toLocaleString('fr-FR')} ${deviseBoutique()}</div>
       <span class="mini-book">Réserver →</span>
     `;
     el.querySelector('.mini-book').addEventListener('click', () => openModal(p.id));
@@ -435,7 +435,7 @@ function remplirServiceList(){
   prestationsDisponibles.forEach(p => {
     const el = document.createElement('div');
     el.className = 'service-row';
-    el.innerHTML = `<span>${echapperHTML(p.nom)}${p.prix_variable ? ' <span style="opacity:0.5;font-size:0.75em;">(± modèle)</span>' : ''}</span><span class="p">${p.prix.toLocaleString('fr-FR')} FCFA</span>`;
+    el.innerHTML = `<span>${echapperHTML(p.nom)}${p.prix_variable ? ' <span style="opacity:0.5;font-size:0.75em;">(± modèle)</span>' : ''}</span><span class="p">${p.prix.toLocaleString('fr-FR')} ${deviseBoutique()}</span>`;
     el.addEventListener('click', () => {
       ajouterServiceEtAfficherRecap(p, booking.staffId, booking.staffNom);
       goStep(2);
@@ -469,13 +469,13 @@ function afficherRecapServicesChoisis(){
         <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:2px solid var(--ink,#000);border-radius:8px;">
           <div>
             <div style="font-weight:600;font-size:0.88rem;">${s.prestationNom}</div>
-            <div style="font-size:0.72rem;opacity:0.6;">avec ${s.staffNom || "n'importe qui"} · ${s.prestationPrix.toLocaleString('fr-FR')} FCFA</div>
+            <div style="font-size:0.72rem;opacity:0.6;">avec ${s.staffNom || "n'importe qui"} · ${s.prestationPrix.toLocaleString('fr-FR')} ${deviseBoutique()}</div>
           </div>
           <span style="cursor:pointer;opacity:0.5;font-size:1.1rem;" onclick="retirerServiceChoisi(${i})">✕</span>
         </div>
       `).join('')}
     </div>
-    <p style="font-weight:600;font-size:0.85rem;margin-bottom:14px;">Total : ${total.toLocaleString('fr-FR')} FCFA</p>
+    <p style="font-weight:600;font-size:0.85rem;margin-bottom:14px;">Total : ${total.toLocaleString('fr-FR')} ${deviseBoutique()}</p>
     <div style="display:flex;gap:10px;">
       <span class="mono" style="cursor:pointer;" onclick="ajouterAutreService()">+ Ajouter un service</span>
       <span class="mono" style="cursor:pointer;font-weight:700;" onclick="goStep(3)">Continuer →</span>
@@ -532,7 +532,7 @@ function buildSummary(){
   document.getElementById('summary-box').innerHTML =
     lignesDetail.map(l => `${l.prestationNom} avec <b>${l.staffNom || "n'importe qui"}</b> à <b>${l.heure}</b>`).join('<br>') +
     `<br>Le : <b>${dateVal}</b>` +
-    (booking.services.length > 1 ? `<br>Total : <b>${total.toLocaleString('fr-FR')} FCFA</b>` : '') +
+    (booking.services.length > 1 ? `<br>Total : <b>${total.toLocaleString('fr-FR')} ${deviseBoutique()}</b>` : '') +
     infosPaiement + noteModele;
 
   const numero = vendeurActuel ? vendeurActuel.numero_whatsapp : '221000000000';

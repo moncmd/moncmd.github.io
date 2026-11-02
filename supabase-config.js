@@ -21,6 +21,14 @@ const SUPABASE_KEY = "sb_publishable_d0OOxgtzghAfkJXpPE6URw_BduJourm";
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// Devise d'affichage de la boutique (FCFA par défaut). Réglée par le vendeur.
+function deviseBoutique() {
+  try {
+    if (typeof vendeurActuel !== 'undefined' && vendeurActuel && vendeurActuel.devise) return vendeurActuel.devise;
+  } catch (e) { /* page sans boutique */ }
+  return 'FCFA';
+}
+
 // Récupère le "slug" du vendeur depuis l'URL
 // Deux formats supportés :
 //   - Lien classique : moncmd.github.io/index.html?v=victoryfood

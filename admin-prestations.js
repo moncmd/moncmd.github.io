@@ -82,10 +82,13 @@ async function chargerDashboard(authUserId) {
   document.getElementById('vue-login').style.display = 'none';
   document.getElementById('vue-dashboard').style.display = 'block';
   afficherBandeauEssai(vendeurConnecte);
+  afficherLienBoutique(vendeurConnecte);
   afficherPremiersPas(vendeurConnecte);
   afficherStatsVisites();
   afficherRdvDemain(vendeurConnecte);
   afficherReglagesReservation(vendeurConnecte);
+  if ((vendeurConnecte.template || '') === 'hybride') afficherReglagesLivraison(vendeurConnecte);
+  afficherReglageDevise(vendeurConnecte);
   document.getElementById('vue-dashboard-tabs').style.display = 'flex';
   document.getElementById('nom-boutique-admin').textContent = vendeurConnecte.nom_boutique;
   document.getElementById('header-boutique-nom').textContent = `— ${vendeurConnecte.nom_boutique}`;
